@@ -2,29 +2,38 @@ import { useState } from 'react'
 import { useNavigate, Link } from 'react-router-dom'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { BarChart3, Eye, EyeOff } from 'lucide-react'
+import { BarChart3, Eye, EyeOff, Loader2 } from 'lucide-react'
 import { useAuthStore } from '@/stores/auth-store'
 
 export function LoginPage() {
   const navigate = useNavigate()
   const login = useAuthStore((s) => s.login)
+  const authMode = useAuthStore((s) => s.authMode)
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [showPassword, setShowPassword] = useState(false)
   const [error, setError] = useState('')
+  const [loading, setLoading] = useState(false)
 
-  const handleLogin = (e: React.FormEvent) => {
+  const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault()
     setError('')
     if (!email || !password) {
       setError('이메일과 비밀번호를 입력하세요')
       return
     }
-    const result = login(email, password)
-    if (result.success) {
-      navigate('/projects')
-    } else {
-      setError(result.error || '로그인에 실패했습니다')
+    setLoading(true)
+    try {
+      const result = await login(email, password)
+      if (result.success) {
+        navigate('/projects')
+      } else {
+        setError(result.error || '로그인에 실패했습니다')
+      }
+    } catch {
+      setError('로그인 중 오류가 발생했습니다')
+    } finally {
+      setLoading(false)
     }
   }
 
@@ -50,6 +59,7 @@ export function LoginPage() {
                 placeholder="email@example.com"
                 className="h-10"
                 autoFocus
+                disabled={loading}
               />
             </div>
             <div>
@@ -61,6 +71,7 @@ export function LoginPage() {
                   onChange={(e) => setPassword(e.target.value)}
                   placeholder="비밀번호 입력"
                   className="h-10 pr-10"
+                  disabled={loading}
                 />
                 <button
                   type="button"
@@ -76,8 +87,12 @@ export function LoginPage() {
               <p className="text-xs text-red-500 bg-red-50 dark:bg-red-950/20 px-3 py-2 rounded-md">{error}</p>
             )}
 
-            <Button type="submit" className="w-full h-10">
-              로그인
+            <Button type="submit" className="w-full h-10" disabled={loading}>
+              {loading ? (
+                <><Loader2 className="h-4 w-4 mr-2 animate-spin" />로그인 중...</>
+              ) : (
+                '로그인'
+              )}
             </Button>
           </form>
 
@@ -89,10 +104,17 @@ export function LoginPage() {
           </div>
         </div>
 
-        <div className="text-[11px] text-muted-foreground/40 text-center mt-4 space-y-0.5">
-          <p>관리자: admin@gmtc.kr / gmtvision!</p>
-          <p>홍길동: hong@gmt.co.kr / 1234 · 김철수: kim@gmt.co.kr / 1234</p>
-        </div>
+        {authMode === 'local' && (
+          <div className="text-[11px] text-muted-foreground/40 text-center mt-4 space-y-0.5">
+            <p>관리자: admin@gmtc.kr / gmtvision!</p>
+            <p>홍길동: hong@gmt.co.kr / 1234 · 김철수: kim@gmt.co.kr / 1234</p>
+          </div>
+        )}
+        {authMode === 'supabase' && (
+          <div className="text-[11px] text-muted-foreground/40 text-center mt-4">
+            <p>Supabase 인증 모드</p>
+          </div>
+        )}
       </div>
     </div>
   )

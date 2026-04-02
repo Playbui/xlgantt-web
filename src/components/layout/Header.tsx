@@ -400,7 +400,7 @@ export function Header() {
                 </DropdownMenuItem>
               )}
               <DropdownMenuSeparator />
-              <DropdownMenuItem onClick={() => { logout(); navigate('/login') }} className="text-xs cursor-pointer text-red-500 focus:text-red-500">
+              <DropdownMenuItem onClick={() => { logout().then(() => navigate('/login')) }} className="text-xs cursor-pointer text-red-500 focus:text-red-500">
                 <LogOut className="h-3.5 w-3.5 mr-2" />로그아웃
               </DropdownMenuItem>
             </DropdownMenuContent>

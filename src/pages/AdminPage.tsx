@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -6,12 +6,12 @@ import { Badge } from '@/components/ui/badge'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
-import { BarChart3, Plus, Shield, Trash2, KeyRound, ArrowLeft } from 'lucide-react'
+import { BarChart3, Plus, Shield, Trash2, KeyRound, ArrowLeft, Loader2, RefreshCw } from 'lucide-react'
 import { useAuthStore, type User, type UserRole } from '@/stores/auth-store'
 
 export function AdminPage() {
   const navigate = useNavigate()
-  const { currentUser, users, updateUser, deleteUser, updatePassword, addUserManual } = useAuthStore()
+  const { currentUser, users, updateUser, deleteUser, updatePassword, addUserManual, fetchAllUsers, authMode } = useAuthStore()
 
   const [showAddUser, setShowAddUser] = useState(false)
   const [newName, setNewName] = useState('')
@@ -19,9 +19,13 @@ export function AdminPage() {
   const [newPassword, setNewPassword] = useState('')
   const [newRole, setNewRole] = useState<UserRole>('member')
   const [addError, setAddError] = useState('')
+  const [addLoading, setAddLoading] = useState(false)
 
   const [resetTarget, setResetTarget] = useState<User | null>(null)
   const [resetPassword, setResetPassword] = useState('123456')
+  const [resetLoading, setResetLoading] = useState(false)
+
+  const [refreshing, setRefreshing] = useState(false)
 
   // Admin guard
   if (!currentUser || currentUser.role !== 'admin') {
@@ -29,7 +33,24 @@ export function AdminPage() {
     return null
   }
 
-  const handleAddUser = () => {
+  // Supabase 모드에서 사용자 목록 불러오기
+  // eslint-disable-next-line react-hooks/rules-of-hooks
+  useEffect(() => {
+    if (authMode === 'supabase') {
+      fetchAllUsers()
+    }
+  }, [authMode, fetchAllUsers])
+
+  const handleRefresh = async () => {
+    setRefreshing(true)
+    try {
+      await fetchAllUsers()
+    } finally {
+      setRefreshing(false)
+    }
+  }
+
+  const handleAddUser = async () => {
     setAddError('')
     if (!newName || !newEmail || !newPassword) {
       setAddError('모든 필드를 입력하세요')
@@ -39,33 +60,53 @@ export function AdminPage() {
       setAddError('비밀번호는 최소 6자 이상이어야 합니다')
       return
     }
-    const result = addUserManual(newEmail, newName, newPassword, newRole)
-    if (result.success) {
-      setShowAddUser(false)
-      setNewName('')
-      setNewEmail('')
-      setNewPassword('')
-      setNewRole('member')
-    } else {
-      setAddError(result.error || '사용자 추가에 실패했습니다')
+    setAddLoading(true)
+    try {
+      const result = await addUserManual(newEmail, newName, newPassword, newRole)
+      if (result.success) {
+        setShowAddUser(false)
+        setNewName('')
+        setNewEmail('')
+        setNewPassword('')
+        setNewRole('member')
+        if (authMode === 'supabase') await fetchAllUsers()
+      } else {
+        setAddError(result.error || '사용자 추가에 실패했습니다')
+      }
+    } catch {
+      setAddError('사용자 추가 중 오류가 발생했습니다')
+    } finally {
+      setAddLoading(false)
     }
   }
 
-  const handleResetPassword = () => {
+  const handleResetPassword = async () => {
     if (resetTarget && resetPassword.length >= 6) {
-      updatePassword(resetTarget.id, resetPassword)
-      setResetTarget(null)
-      setResetPassword('123456')
+      setResetLoading(true)
+      try {
+        await updatePassword(resetTarget.id, resetPassword)
+        setResetTarget(null)
+        setResetPassword('123456')
+      } catch {
+        // 에러 무시
+      } finally {
+        setResetLoading(false)
+      }
     }
   }
 
-  const handleRoleChange = (userId: string, role: UserRole) => {
-    updateUser(userId, { role })
+  const handleRoleChange = async (userId: string, role: UserRole) => {
+    await updateUser(userId, { role })
   }
 
-  const handleDelete = (userId: string) => {
+  const handleApprovalToggle = async (user: User) => {
+    await updateUser(user.id, { approved: !user.approved })
+  }
+
+  const handleDelete = async (userId: string) => {
     if (userId === currentUser.id) return
-    deleteUser(userId)
+    if (!confirm('이 사용자를 삭제하시겠습니까?')) return
+    await deleteUser(userId)
   }
 
   return (
@@ -92,11 +133,21 @@ export function AdminPage() {
             <h1 className="text-xl font-bold tracking-tight flex items-center gap-2">
               <Shield className="h-5 w-5" />사용자 관리
             </h1>
-            <p className="text-xs text-muted-foreground/60 mt-0.5">{users.length}명의 사용자</p>
+            <p className="text-xs text-muted-foreground/60 mt-0.5">
+              {users.length}명의 사용자
+              {authMode === 'supabase' && <span className="ml-2">(Supabase)</span>}
+            </p>
           </div>
-          <Button size="sm" onClick={() => setShowAddUser(true)} className="h-8 text-xs">
-            <Plus className="h-3.5 w-3.5 mr-1" />사용자 추가
-          </Button>
+          <div className="flex items-center gap-2">
+            {authMode === 'supabase' && (
+              <Button variant="outline" size="sm" onClick={handleRefresh} className="h-8 text-xs" disabled={refreshing}>
+                <RefreshCw className={`h-3.5 w-3.5 mr-1 ${refreshing ? 'animate-spin' : ''}`} />새로고침
+              </Button>
+            )}
+            <Button size="sm" onClick={() => setShowAddUser(true)} className="h-8 text-xs">
+              <Plus className="h-3.5 w-3.5 mr-1" />사용자 추가
+            </Button>
+          </div>
         </div>
 
         <div className="border rounded-lg overflow-hidden">
@@ -143,7 +194,7 @@ export function AdminPage() {
                       <Badge className="text-[10px] bg-emerald-100 text-emerald-700 border-emerald-200">승인</Badge>
                     ) : (
                       <button
-                        onClick={() => updateUser(user.id, { approved: !user.approved })}
+                        onClick={() => handleApprovalToggle(user)}
                         className={`text-xs font-medium px-2 py-0.5 rounded-full border transition-colors ${
                           user.approved
                             ? 'bg-emerald-50 text-emerald-700 border-emerald-200 hover:bg-red-50 hover:text-red-600 hover:border-red-200'
@@ -164,7 +215,7 @@ export function AdminPage() {
                         size="icon"
                         className="h-7 w-7"
                         onClick={() => setResetTarget(user)}
-                        title="비밀번호 초기화"
+                        title={authMode === 'supabase' ? '비밀번호 초기화 (본인만 가능)' : '비밀번호 초기화'}
                       >
                         <KeyRound className="h-3.5 w-3.5" />
                       </Button>
@@ -196,19 +247,19 @@ export function AdminPage() {
           <div className="space-y-3 mt-1">
             <div>
               <label className="block text-xs font-medium mb-1">이름</label>
-              <Input value={newName} onChange={(e) => setNewName(e.target.value)} placeholder="이름" className="h-8 text-sm" autoFocus />
+              <Input value={newName} onChange={(e) => setNewName(e.target.value)} placeholder="이름" className="h-8 text-sm" autoFocus disabled={addLoading} />
             </div>
             <div>
               <label className="block text-xs font-medium mb-1">이메일</label>
-              <Input type="email" value={newEmail} onChange={(e) => setNewEmail(e.target.value)} placeholder="email@example.com" className="h-8 text-sm" />
+              <Input type="email" value={newEmail} onChange={(e) => setNewEmail(e.target.value)} placeholder="email@example.com" className="h-8 text-sm" disabled={addLoading} />
             </div>
             <div>
               <label className="block text-xs font-medium mb-1">초기 비밀번호</label>
-              <Input type="text" value={newPassword} onChange={(e) => setNewPassword(e.target.value)} placeholder="6자 이상" className="h-8 text-sm" />
+              <Input type="text" value={newPassword} onChange={(e) => setNewPassword(e.target.value)} placeholder="6자 이상" className="h-8 text-sm" disabled={addLoading} />
             </div>
             <div>
               <label className="block text-xs font-medium mb-1">역할</label>
-              <Select value={newRole} onValueChange={(v) => setNewRole(v as UserRole)}>
+              <Select value={newRole} onValueChange={(v) => setNewRole(v as UserRole)} disabled={addLoading}>
                 <SelectTrigger className="h-8 text-sm">
                   <SelectValue />
                 </SelectTrigger>
@@ -223,9 +274,14 @@ export function AdminPage() {
             {addError && (
               <p className="text-xs text-red-500 bg-red-50 dark:bg-red-950/20 px-3 py-2 rounded-md">{addError}</p>
             )}
+            {authMode === 'supabase' && (
+              <p className="text-[11px] text-muted-foreground">Supabase Auth로 사용자가 생성되며, 즉시 승인됩니다.</p>
+            )}
             <div className="flex justify-end gap-2 pt-1">
-              <Button variant="outline" size="sm" onClick={() => setShowAddUser(false)}>취소</Button>
-              <Button size="sm" onClick={handleAddUser}>등록</Button>
+              <Button variant="outline" size="sm" onClick={() => setShowAddUser(false)} disabled={addLoading}>취소</Button>
+              <Button size="sm" onClick={handleAddUser} disabled={addLoading}>
+                {addLoading ? <><Loader2 className="h-3.5 w-3.5 mr-1 animate-spin" />등록 중...</> : '등록'}
+              </Button>
             </div>
           </div>
         </DialogContent>
@@ -241,13 +297,24 @@ export function AdminPage() {
             <p className="text-sm text-muted-foreground">
               <strong>{resetTarget?.name}</strong> ({resetTarget?.email})
             </p>
+            {authMode === 'supabase' && resetTarget?.id !== currentUser.id && (
+              <p className="text-xs text-amber-600 bg-amber-50 dark:bg-amber-950/20 px-3 py-2 rounded-md">
+                Supabase 모드에서는 다른 사용자의 비밀번호를 직접 변경할 수 없습니다. Service Role 키가 필요합니다.
+              </p>
+            )}
             <div>
               <label className="block text-xs font-medium mb-1">새 비밀번호</label>
-              <Input value={resetPassword} onChange={(e) => setResetPassword(e.target.value)} className="h-8 text-sm" />
+              <Input value={resetPassword} onChange={(e) => setResetPassword(e.target.value)} className="h-8 text-sm" disabled={resetLoading} />
             </div>
             <div className="flex justify-end gap-2 pt-1">
-              <Button variant="outline" size="sm" onClick={() => setResetTarget(null)}>취소</Button>
-              <Button size="sm" onClick={handleResetPassword} disabled={resetPassword.length < 6}>초기화</Button>
+              <Button variant="outline" size="sm" onClick={() => setResetTarget(null)} disabled={resetLoading}>취소</Button>
+              <Button
+                size="sm"
+                onClick={handleResetPassword}
+                disabled={resetPassword.length < 6 || resetLoading || (authMode === 'supabase' && resetTarget?.id !== currentUser.id)}
+              >
+                {resetLoading ? <><Loader2 className="h-3.5 w-3.5 mr-1 animate-spin" />변경 중...</> : '초기화'}
+              </Button>
             </div>
           </div>
         </DialogContent>

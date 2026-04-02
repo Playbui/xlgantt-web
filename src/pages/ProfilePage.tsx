@@ -2,36 +2,45 @@ import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { BarChart3, ArrowLeft, Check } from 'lucide-react'
+import { BarChart3, ArrowLeft, Check, Loader2 } from 'lucide-react'
 import { useAuthStore } from '@/stores/auth-store'
 
 export function ProfilePage() {
   const navigate = useNavigate()
-  const { currentUser, updateUser, changePassword } = useAuthStore()
+  const { currentUser, updateUser, changePassword, authMode } = useAuthStore()
 
   const [name, setName] = useState(currentUser?.name || '')
   const [nameSaved, setNameSaved] = useState(false)
+  const [nameSaving, setNameSaving] = useState(false)
 
   const [currentPw, setCurrentPw] = useState('')
   const [newPw, setNewPw] = useState('')
   const [confirmPw, setConfirmPw] = useState('')
   const [pwError, setPwError] = useState('')
   const [pwSuccess, setPwSuccess] = useState(false)
+  const [pwSaving, setPwSaving] = useState(false)
 
   if (!currentUser) {
     navigate('/login')
     return null
   }
 
-  const handleNameSave = () => {
+  const handleNameSave = async () => {
     if (name.trim()) {
-      updateUser(currentUser.id, { name: name.trim() })
-      setNameSaved(true)
-      setTimeout(() => setNameSaved(false), 2000)
+      setNameSaving(true)
+      try {
+        await updateUser(currentUser.id, { name: name.trim() })
+        setNameSaved(true)
+        setTimeout(() => setNameSaved(false), 2000)
+      } catch {
+        // 에러 무시
+      } finally {
+        setNameSaving(false)
+      }
     }
   }
 
-  const handlePasswordChange = () => {
+  const handlePasswordChange = async () => {
     setPwError('')
     setPwSuccess(false)
     if (newPw.length < 6) {
@@ -42,15 +51,22 @@ export function ProfilePage() {
       setPwError('새 비밀번호가 일치하지 않습니다')
       return
     }
-    const result = changePassword(currentUser.id, currentPw, newPw)
-    if (result.success) {
-      setPwSuccess(true)
-      setCurrentPw('')
-      setNewPw('')
-      setConfirmPw('')
-      setTimeout(() => setPwSuccess(false), 2000)
-    } else {
-      setPwError(result.error || '비밀번호 변경에 실패했습니다')
+    setPwSaving(true)
+    try {
+      const result = await changePassword(currentUser.id, currentPw, newPw)
+      if (result.success) {
+        setPwSuccess(true)
+        setCurrentPw('')
+        setNewPw('')
+        setConfirmPw('')
+        setTimeout(() => setPwSuccess(false), 2000)
+      } else {
+        setPwError(result.error || '비밀번호 변경에 실패했습니다')
+      }
+    } catch {
+      setPwError('비밀번호 변경 중 오류가 발생했습니다')
+    } finally {
+      setPwSaving(false)
     }
   }
 
@@ -86,8 +102,8 @@ export function ProfilePage() {
               <label className="block text-xs font-medium mb-1">이름</label>
               <div className="flex gap-2">
                 <Input value={name} onChange={(e) => setName(e.target.value)} className="h-8 text-sm flex-1" />
-                <Button size="sm" className="h-8 text-xs" onClick={handleNameSave} disabled={name === currentUser.name}>
-                  {nameSaved ? <><Check className="h-3.5 w-3.5 mr-1" />저장됨</> : '저장'}
+                <Button size="sm" className="h-8 text-xs" onClick={handleNameSave} disabled={name === currentUser.name || nameSaving}>
+                  {nameSaving ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : nameSaved ? <><Check className="h-3.5 w-3.5 mr-1" />저장됨</> : '저장'}
                 </Button>
               </div>
             </div>
@@ -99,6 +115,12 @@ export function ProfilePage() {
               <label className="block text-xs font-medium mb-1">가입일</label>
               <Input value={new Date(currentUser.created_at).toLocaleDateString('ko-KR')} disabled className="h-8 text-sm bg-muted" />
             </div>
+            {authMode === 'supabase' && (
+              <div>
+                <label className="block text-xs font-medium mb-1">인증 모드</label>
+                <Input value="Supabase Auth" disabled className="h-8 text-sm bg-muted" />
+              </div>
+            )}
           </div>
         </div>
 
@@ -108,15 +130,15 @@ export function ProfilePage() {
           <div className="space-y-3">
             <div>
               <label className="block text-xs font-medium mb-1">현재 비밀번호</label>
-              <Input type="password" value={currentPw} onChange={(e) => setCurrentPw(e.target.value)} className="h-8 text-sm" placeholder="현재 비밀번호" />
+              <Input type="password" value={currentPw} onChange={(e) => setCurrentPw(e.target.value)} className="h-8 text-sm" placeholder="현재 비밀번호" disabled={pwSaving} />
             </div>
             <div>
               <label className="block text-xs font-medium mb-1">새 비밀번호</label>
-              <Input type="password" value={newPw} onChange={(e) => setNewPw(e.target.value)} className="h-8 text-sm" placeholder="6자 이상" />
+              <Input type="password" value={newPw} onChange={(e) => setNewPw(e.target.value)} className="h-8 text-sm" placeholder="6자 이상" disabled={pwSaving} />
             </div>
             <div>
               <label className="block text-xs font-medium mb-1">새 비밀번호 확인</label>
-              <Input type="password" value={confirmPw} onChange={(e) => setConfirmPw(e.target.value)} className="h-8 text-sm" placeholder="새 비밀번호 재입력" />
+              <Input type="password" value={confirmPw} onChange={(e) => setConfirmPw(e.target.value)} className="h-8 text-sm" placeholder="새 비밀번호 재입력" disabled={pwSaving} />
             </div>
             {pwError && (
               <p className="text-xs text-red-500 bg-red-50 dark:bg-red-950/20 px-3 py-2 rounded-md">{pwError}</p>
@@ -125,8 +147,8 @@ export function ProfilePage() {
               <p className="text-xs text-green-600 bg-green-50 dark:bg-green-950/20 px-3 py-2 rounded-md">비밀번호가 변경되었습니다</p>
             )}
             <div className="flex justify-end pt-1">
-              <Button size="sm" className="h-8 text-xs" onClick={handlePasswordChange} disabled={!currentPw || !newPw || !confirmPw}>
-                비밀번호 변경
+              <Button size="sm" className="h-8 text-xs" onClick={handlePasswordChange} disabled={!currentPw || !newPw || !confirmPw || pwSaving}>
+                {pwSaving ? <><Loader2 className="h-3.5 w-3.5 mr-2 animate-spin" />변경 중...</> : '비밀번호 변경'}
               </Button>
             </div>
           </div>

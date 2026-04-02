@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { useNavigate, Link } from 'react-router-dom'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { BarChart3, Eye, EyeOff } from 'lucide-react'
+import { BarChart3, Eye, EyeOff, Loader2 } from 'lucide-react'
 import { useAuthStore } from '@/stores/auth-store'
 
 function getPasswordStrength(pw: string): { label: string; color: string; width: string } {
@@ -27,10 +27,11 @@ export function SignupPage() {
   const [confirmPassword, setConfirmPassword] = useState('')
   const [showPassword, setShowPassword] = useState(false)
   const [error, setError] = useState('')
+  const [loading, setLoading] = useState(false)
 
   const strength = getPasswordStrength(password)
 
-  const handleSignup = (e: React.FormEvent) => {
+  const handleSignup = async (e: React.FormEvent) => {
     e.preventDefault()
     setError('')
     if (password.length < 6) {
@@ -41,12 +42,19 @@ export function SignupPage() {
       setError('비밀번호가 일치하지 않습니다')
       return
     }
-    const result = signup(email, name, password)
-    if (result.success) {
-      alert('회원가입이 완료되었습니다.\n관리자 승인 후 로그인할 수 있습니다.')
-      navigate('/login')
-    } else {
-      setError(result.error || '회원가입에 실패했습니다')
+    setLoading(true)
+    try {
+      const result = await signup(email, name, password)
+      if (result.success) {
+        alert('회원가입이 완료되었습니다.\n관리자 승인 후 로그인할 수 있습니다.')
+        navigate('/login')
+      } else {
+        setError(result.error || '회원가입에 실패했습니다')
+      }
+    } catch {
+      setError('회원가입 중 오류가 발생했습니다')
+    } finally {
+      setLoading(false)
     }
   }
 
@@ -65,11 +73,11 @@ export function SignupPage() {
           <form onSubmit={handleSignup} className="space-y-4">
             <div>
               <label className="block text-sm font-medium mb-1.5">이름</label>
-              <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="홍길동" className="h-10" autoFocus />
+              <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="홍길동" className="h-10" autoFocus disabled={loading} />
             </div>
             <div>
               <label className="block text-sm font-medium mb-1.5">이메일</label>
-              <Input type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="email@example.com" className="h-10" />
+              <Input type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="email@example.com" className="h-10" disabled={loading} />
             </div>
             <div>
               <label className="block text-sm font-medium mb-1.5">비밀번호</label>
@@ -80,6 +88,7 @@ export function SignupPage() {
                   onChange={(e) => setPassword(e.target.value)}
                   placeholder="6자 이상"
                   className="h-10 pr-10"
+                  disabled={loading}
                 />
                 <button
                   type="button"
@@ -108,6 +117,7 @@ export function SignupPage() {
                 onChange={(e) => setConfirmPassword(e.target.value)}
                 placeholder="비밀번호 재입력"
                 className="h-10"
+                disabled={loading}
               />
               {confirmPassword && password !== confirmPassword && (
                 <p className="text-xs text-red-500 mt-1">비밀번호가 일치하지 않습니다</p>
@@ -118,8 +128,12 @@ export function SignupPage() {
               <p className="text-xs text-red-500 bg-red-50 dark:bg-red-950/20 px-3 py-2 rounded-md">{error}</p>
             )}
 
-            <Button type="submit" className="w-full h-10" disabled={!name || !email || !password || password !== confirmPassword}>
-              회원가입
+            <Button type="submit" className="w-full h-10" disabled={!name || !email || !password || password !== confirmPassword || loading}>
+              {loading ? (
+                <><Loader2 className="h-4 w-4 mr-2 animate-spin" />가입 중...</>
+              ) : (
+                '회원가입'
+              )}
             </Button>
           </form>
 
