@@ -1,12 +1,10 @@
-import { useCallback, useRef, useState } from 'react'
-import { Upload, Download, Palette, Globe, FileSpreadsheet, CalendarClock, BarChart3, RotateCcw, Users, Plus, X } from 'lucide-react'
+import { useCallback, useRef } from 'react'
+import { Upload, Download, Palette, Globe, FileSpreadsheet, CalendarClock, BarChart3, RotateCcw } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
-import { useProjectStore, type ProjectRole } from '@/stores/project-store'
+import { useProjectStore } from '@/stores/project-store'
 import { useTaskStore } from '@/stores/task-store'
 import { useUIStore } from '@/stores/ui-store'
-import { useAuthStore } from '@/stores/auth-store'
 import { THEME_PRESETS } from '@/lib/types'
 import { importXLGanttFile } from '@/lib/excel-import'
 import { exportToExcel } from '@/lib/excel-export'
@@ -19,8 +17,6 @@ export function ProjectSettings() {
   const { tasks, dependencies, setTasks, setDependencies } = useTaskStore()
   const { language, setLanguage, ganttOptions, setGanttOptions, resetGanttOptions } = useUIStore()
   const { companies, members, assignments } = useResourceStore()
-  const currentUser = useAuthStore((s) => s.currentUser)
-  const isAdmin = currentUser?.role === 'admin'
   const fileInputRef = useRef<HTMLInputElement>(null)
 
   const handleExport = useCallback(() => {
@@ -285,105 +281,6 @@ export function ProjectSettings() {
           </Button>
         </div>
       </div>
-      {/* Project Members - 관리자만 */}
-      {isAdmin && project && (
-        <div className="bg-card rounded-xl border border-border/50 p-5 shadow-sm">
-          <h3 className="text-sm font-semibold mb-3 flex items-center gap-2">
-            <Users className="h-4 w-4 text-primary" />
-            프로젝트 참여자 관리
-          </h3>
-          <p className="text-[11px] text-muted-foreground mb-3">프로젝트별 PM 및 참여자를 지정합니다. 가입된 사용자 중 선택할 수 있습니다.</p>
-          <ProjectMemberManager projectId={project.id} />
-        </div>
-      )}
-    </div>
-  )
-}
-
-/* ─── 프로젝트 멤버 관리 서브 컴포넌트 ─── */
-function ProjectMemberManager({ projectId }: { projectId: string }) {
-  const allUsers = useAuthStore((s) => s.users).filter((u) => u.approved)
-  const { projectMembers, addProjectMember, removeProjectMember, updateProjectMemberRole } = useProjectStore()
-  const members = projectMembers.filter((m) => m.projectId === projectId)
-  const [selectedUserId, setSelectedUserId] = useState('')
-  const [selectedRole, setSelectedRole] = useState<ProjectRole>('editor')
-
-  const availableUsers = allUsers.filter((u) => !members.some((m) => m.userId === u.id))
-
-  const handleAdd = () => {
-    if (!selectedUserId) return
-    addProjectMember({ projectId, userId: selectedUserId, role: selectedRole })
-    setSelectedUserId('')
-  }
-
-  return (
-    <div className="space-y-3">
-      {/* 현재 멤버 목록 */}
-      {members.length > 0 ? (
-        <div className="space-y-1">
-          {members.map((m) => {
-            const user = allUsers.find((u) => u.id === m.userId)
-            if (!user) return null
-            return (
-              <div key={m.userId} className="flex items-center gap-2 px-3 py-2 rounded-lg border border-border/40 hover:bg-accent/20">
-                <div className="w-6 h-6 rounded-full bg-primary/10 text-primary flex items-center justify-center text-[10px] font-bold">
-                  {user.name?.[0]}
-                </div>
-                <div className="flex-1 min-w-0">
-                  <span className="text-sm font-medium">{user.name}</span>
-                  <span className="text-xs text-muted-foreground ml-2">{user.email}</span>
-                </div>
-                <Select value={m.role} onValueChange={(v) => updateProjectMemberRole(projectId, m.userId, v as ProjectRole)}>
-                  <SelectTrigger className="h-7 w-24 text-xs">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="pm" className="text-xs">PM</SelectItem>
-                    <SelectItem value="editor" className="text-xs">편집자</SelectItem>
-                    <SelectItem value="viewer" className="text-xs">뷰어</SelectItem>
-                  </SelectContent>
-                </Select>
-                <Button variant="ghost" size="icon" className="h-6 w-6 text-red-400 hover:text-red-600" onClick={() => removeProjectMember(projectId, m.userId)}>
-                  <X className="h-3 w-3" />
-                </Button>
-              </div>
-            )
-          })}
-        </div>
-      ) : (
-        <p className="text-xs text-muted-foreground/50 text-center py-3">지정된 참여자가 없습니다</p>
-      )}
-
-      {/* 추가 */}
-      {availableUsers.length > 0 && (
-        <div className="flex gap-2">
-          <Select value={selectedUserId} onValueChange={(v) => v && setSelectedUserId(v)}>
-            <SelectTrigger className="flex-1 h-8 text-xs">
-              <SelectValue placeholder="사용자 선택..." />
-            </SelectTrigger>
-            <SelectContent>
-              {availableUsers.map((u) => (
-                <SelectItem key={u.id} value={u.id} className="text-xs">
-                  {u.name} ({u.email})
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-          <Select value={selectedRole} onValueChange={(v) => setSelectedRole(v as ProjectRole)}>
-            <SelectTrigger className="w-24 h-8 text-xs">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="pm" className="text-xs">PM</SelectItem>
-              <SelectItem value="editor" className="text-xs">편집자</SelectItem>
-              <SelectItem value="viewer" className="text-xs">뷰어</SelectItem>
-            </SelectContent>
-          </Select>
-          <Button size="sm" className="h-8" onClick={handleAdd} disabled={!selectedUserId}>
-            <Plus className="h-3.5 w-3.5 mr-1" />추가
-          </Button>
-        </div>
-      )}
     </div>
   )
 }

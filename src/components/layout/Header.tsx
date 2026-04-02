@@ -77,14 +77,16 @@ export function Header() {
     useUIStore()
 
   const isAdmin = currentUser?.role === 'admin'
-  const isPmOrAdmin = isAdmin || currentUser?.role === 'pm'
+  // 프로젝트 역할도 체크 (프로젝트 내 PM이면 관리 메뉴 접근)
+  const projectRole = project ? useProjectStore.getState().getMyProjectRole(project.id, currentUser?.id || '') : null
+  const isPmOrAdmin = isAdmin || currentUser?.role === 'pm' || projectRole === 'pm'
 
   // role 기반 보이는 탭 목록 (모바일용)
   const allVisibleTabs = useMemo(() => {
     const tabs = TAB_GROUPS.flatMap((g) => g.tabs).filter((t) => (!t.adminOnly || isAdmin) && (!t.pmOrAdmin || isPmOrAdmin))
     const icons = ICON_TABS.filter((t) => (!t.adminOnly || isAdmin) && (!t.pmOrAdmin || isPmOrAdmin)).map((t) => ({ key: t.key, label: t.title, icon: t.icon }))
     return [...tabs, ...icons]
-  }, [isAdmin])
+  }, [isAdmin, isPmOrAdmin])
 
   const [bellOpen, setBellOpen] = useState(false)
   const bellRef = useRef<HTMLDivElement>(null)

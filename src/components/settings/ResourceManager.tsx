@@ -1,5 +1,5 @@
 import { useState, useMemo, useCallback } from 'react'
-import { Plus, Trash2, Building2, Users, ClipboardList, ChevronDown, ChevronRight, ExternalLink } from 'lucide-react'
+import { Plus, Trash2, Building2, Users, ClipboardList, ChevronDown, ChevronRight, ExternalLink, Shield, X } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import {
@@ -11,6 +11,8 @@ import {
 } from '@/components/ui/select'
 import { useResourceStore } from '@/stores/resource-store'
 import { useTaskStore } from '@/stores/task-store'
+import { useProjectStore, type ProjectRole } from '@/stores/project-store'
+import { useAuthStore } from '@/stores/auth-store'
 import { cn } from '@/lib/utils'
 import { format } from 'date-fns'
 import { TaskEditDialog } from '@/components/gantt/TaskEditDialog'
@@ -123,6 +125,19 @@ export function ResourceManager() {
   } = useResourceStore()
 
   const tasks = useTaskStore((s) => s.tasks)
+  const currentUser = useAuthStore((s) => s.currentUser)
+  const allUsers = useAuthStore((s) => s.users).filter((u) => u.approved)
+  const project = useProjectStore((s) => s.currentProject)
+  const { projectMembers, addProjectMember, removeProjectMember, updateProjectMemberRole } = useProjectStore()
+  const isAdmin = currentUser?.role === 'admin'
+  const myProjectRole = project ? useProjectStore.getState().getMyProjectRole(project.id, currentUser?.id || '') : null
+  const canManageMembers = isAdmin || myProjectRole === 'pm'
+
+  // 프로젝트 참여자
+  const currentProjectMembers = project ? projectMembers.filter((m) => m.projectId === project.id) : []
+  const availableUsers = allUsers.filter((u) => !currentProjectMembers.some((m) => m.userId === u.id))
+  const [selectedUserId, setSelectedUserId] = useState('')
+  const [selectedRole, setSelectedRole] = useState<ProjectRole>('editor')
 
   // Company form
   const [newCompanyName, setNewCompanyName] = useState('')
@@ -202,6 +217,72 @@ export function ResourceManager() {
         <h2 className="text-lg font-bold text-foreground">담당자 관리</h2>
         <p className="text-sm text-muted-foreground mt-0.5">회사 및 인원을 등록하고 관리합니다</p>
       </div>
+
+      {/* ========== 프로젝트 참여자 (관리자/PM만) ========== */}
+      {canManageMembers && project && (
+        <div className="bg-card rounded-xl border border-border/50 shadow-sm">
+          <div className="px-5 py-3 border-b border-border/40 flex items-center gap-2">
+            <Shield className="h-4 w-4 text-primary" />
+            <h3 className="text-sm font-semibold">프로젝트 참여자</h3>
+            <span className="text-xs text-muted-foreground bg-muted/60 px-2 py-0.5 rounded-md font-medium">{currentProjectMembers.length}명</span>
+            <span className="text-[10px] text-muted-foreground ml-auto">가입된 사용자를 프로젝트에 추가하고 역할을 지정합니다</span>
+          </div>
+          <div className="p-4 space-y-2">
+            {/* 현재 참여자 목록 */}
+            {currentProjectMembers.map((m) => {
+              const user = allUsers.find((u) => u.id === m.userId)
+              if (!user) return null
+              return (
+                <div key={m.userId} className="flex items-center gap-2 px-3 py-2 rounded-lg border border-border/30 hover:bg-accent/20">
+                  <div className="w-7 h-7 rounded-full bg-primary/10 text-primary flex items-center justify-center text-xs font-bold">{user.name?.[0]}</div>
+                  <div className="flex-1 min-w-0">
+                    <span className="text-sm font-medium">{user.name}</span>
+                    <span className="text-xs text-muted-foreground ml-2">{user.email}</span>
+                  </div>
+                  <Select value={m.role} onValueChange={(v) => v && updateProjectMemberRole(project.id, m.userId, v as ProjectRole)}>
+                    <SelectTrigger className="h-7 w-24 text-xs"><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="pm" className="text-xs">PM</SelectItem>
+                      <SelectItem value="editor" className="text-xs">편집자</SelectItem>
+                      <SelectItem value="viewer" className="text-xs">뷰어</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <Button variant="ghost" size="icon" className="h-6 w-6 text-red-400 hover:text-red-600" onClick={() => removeProjectMember(project.id, m.userId)}>
+                    <X className="h-3 w-3" />
+                  </Button>
+                </div>
+              )
+            })}
+            {currentProjectMembers.length === 0 && (
+              <p className="text-xs text-muted-foreground/50 text-center py-3">참여자가 없습니다</p>
+            )}
+            {/* 추가 */}
+            {availableUsers.length > 0 && (
+              <div className="flex gap-2 pt-2 border-t border-border/20">
+                <Select value={selectedUserId} onValueChange={(v) => v && setSelectedUserId(v)}>
+                  <SelectTrigger className="flex-1 h-8 text-xs"><SelectValue placeholder="사용자 선택..." /></SelectTrigger>
+                  <SelectContent>
+                    {availableUsers.map((u) => (
+                      <SelectItem key={u.id} value={u.id} className="text-xs">{u.name} ({u.email})</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <Select value={selectedRole} onValueChange={(v) => v && setSelectedRole(v as ProjectRole)}>
+                  <SelectTrigger className="w-24 h-8 text-xs"><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="pm" className="text-xs">PM</SelectItem>
+                    <SelectItem value="editor" className="text-xs">편집자</SelectItem>
+                    <SelectItem value="viewer" className="text-xs">뷰어</SelectItem>
+                  </SelectContent>
+                </Select>
+                <Button size="sm" className="h-8" onClick={() => { if (selectedUserId && project) { addProjectMember({ projectId: project.id, userId: selectedUserId, role: selectedRole }); setSelectedUserId('') } }} disabled={!selectedUserId}>
+                  <Plus className="h-3.5 w-3.5 mr-1" />추가
+                </Button>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
 
       {/* ========== 회사 관리 ========== */}
       <div className="bg-card rounded-xl border border-border/50 shadow-sm">
