@@ -10,6 +10,7 @@ import { ProjectSettings } from '@/components/settings/ProjectSettings'
 import { ResourceManager } from '@/components/settings/ResourceManager'
 import { ActivityTimeline } from '@/components/activity/ActivityTimeline'
 import { MyTasksDashboard } from '@/components/mytasks/MyTasksDashboard'
+import { MemberTasksView } from '@/components/member-tasks/MemberTasksView'
 import { useProjectStore } from '@/stores/project-store'
 import { useTaskStore } from '@/stores/task-store'
 import { useUIStore } from '@/stores/ui-store'
@@ -38,6 +39,8 @@ function MainContent() {
       return <ActivityTimeline />
     case 'mytasks':
       return <MyTasksDashboard />
+    case 'memberTasks':
+      return <MemberTasksView />
     default:
       return <GanttView />
   }

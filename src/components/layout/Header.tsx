@@ -11,6 +11,7 @@ import {
   ZoomOut,
   Settings,
   Users,
+  UserCheck,
   TrendingUp,
   ClipboardList,
   PieChart,
@@ -50,6 +51,7 @@ const TAB_GROUPS: TabGroup[] = [
   { tabs: [
     { key: 'gantt', label: '스케줄', icon: <BarChart3 className="h-3.5 w-3.5" /> },
     { key: 'mytasks', label: '내 업무', icon: <ClipboardList className="h-3.5 w-3.5" /> },
+    { key: 'memberTasks', label: '담당자 업무', icon: <UserCheck className="h-3.5 w-3.5" /> },
   ]},
   { tabs: [
     { key: 'progress', label: '진척현황', icon: <PieChart className="h-3.5 w-3.5" /> },

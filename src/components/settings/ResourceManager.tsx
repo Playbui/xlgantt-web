@@ -128,14 +128,14 @@ export function ResourceManager() {
   const currentUser = useAuthStore((s) => s.currentUser)
   const allUsers = useAuthStore((s) => s.users).filter((u) => u.approved)
   const project = useProjectStore((s) => s.currentProject)
-  const { projectMembers, addProjectMember } = useProjectStore()
+  const { addProjectMember } = useProjectStore()
   const isAdmin = currentUser?.role === 'admin'
   const myProjectRole = project ? useProjectStore.getState().getMyProjectRole(project.id, currentUser?.id || '') : null
   const canManageMembers = isAdmin || myProjectRole === 'pm'
 
-  // 프로젝트 참여자
-  const currentProjectMembers = project ? projectMembers.filter((m) => m.projectId === project.id) : []
-  const availableUsers = allUsers.filter((u) => !currentProjectMembers.some((m) => m.userId === u.id))
+  // 이미 인원으로 등록된 이메일 제외
+  const registeredEmails = new Set(members.map((m) => m.email).filter(Boolean))
+  const availableUsers = allUsers.filter((u) => !registeredEmails.has(u.email))
   const [selectedUserId, setSelectedUserId] = useState('')
   const [selectedRole, setSelectedRole] = useState<ProjectRole>('editor')
   const [addMode, setAddMode] = useState<'user' | 'manual'>('user')
@@ -329,7 +329,7 @@ export function ResourceManager() {
               )}
               onClick={() => setAddMode('user')}
             >
-              가입 사용자 추가
+              등록회원 추가
             </button>
             <button
               className={cn("px-3 py-1 text-xs font-medium rounded-md transition-colors",
@@ -342,12 +342,12 @@ export function ResourceManager() {
           </div>
 
           {addMode === 'user' ? (
-            /* 가입 사용자에서 추가 */
-            <div className="flex gap-2 items-end">
-              <div className="flex-1">
-                <label className="text-xs text-muted-foreground">가입 사용자</label>
+            /* 등록회원에서 추가 */
+            <div className="flex gap-2 items-end flex-wrap">
+              <div className="flex-[3] min-w-[300px]">
+                <label className="text-xs text-muted-foreground">등록회원</label>
                 <Select value={selectedUserId} onValueChange={(v) => v && setSelectedUserId(v)}>
-                  <SelectTrigger className="h-9 text-xs"><SelectValue placeholder="사용자 선택..." /></SelectTrigger>
+                  <SelectTrigger className="h-9 text-sm"><SelectValue placeholder="회원 선택..." /></SelectTrigger>
                   <SelectContent>
                     {availableUsers.map((u) => (
                       <SelectItem key={u.id} value={u.id} className="text-xs">{u.name} ({u.email})</SelectItem>
