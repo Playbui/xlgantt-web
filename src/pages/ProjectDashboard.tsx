@@ -60,7 +60,7 @@ export function ProjectDashboard() {
 
           {/* 사용자 드롭다운 */}
           <DropdownMenu>
-            <DropdownMenuTrigger asChild>
+            <DropdownMenuTrigger>
               <Button variant="ghost" size="sm" className="h-8 text-xs gap-1.5">
                 <div className="w-6 h-6 rounded-full bg-primary/10 text-primary flex items-center justify-center text-[11px] font-bold">
                   {currentUser?.name?.[0] || 'U'}

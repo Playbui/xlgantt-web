@@ -53,13 +53,6 @@ function rollupGroupDates(tasks: Task[], changedTaskId: string): Task[] {
 
   if (!parentTask) return tasks
 
-  // 해당 부모의 직계 자식 찾기 (한 레벨 아래)
-  const directChildren = tasks.filter(
-    (t) => t.id !== parentTask.id &&
-      t.wbs_code.startsWith(parentTask.wbs_code + '.') &&
-      t.wbs_level === parentTask.wbs_level + 1
-  )
-
   // 모든 리프 자식 (간접 포함)
   const allChildren = tasks.filter(
     (t) => t.id !== parentTask.id && t.wbs_code.startsWith(parentTask.wbs_code + '.')
@@ -185,8 +178,8 @@ export const useTaskStore = create<TaskState>((set) => ({
       action: 'create',
       targetType: 'task',
       targetId: task.id,
-      targetName: task.name,
-      details: `작업 '${task.name}' 추가`,
+      targetName: task.task_name,
+      details: `작업 '${task.task_name}' 추가`,
     })
   },
 
@@ -221,13 +214,13 @@ export const useTaskStore = create<TaskState>((set) => ({
       return { tasks }
     })
     // 진척률 변경 시만 로그
-    if (beforeTask && changes.progress !== undefined && changes.progress !== beforeTask.progress) {
+    if (beforeTask && changes.actual_progress !== undefined && changes.actual_progress !== beforeTask.actual_progress) {
       logTaskActivity({
-        action: changes.progress === 100 ? 'complete' : 'update',
+        action: changes.actual_progress === 100 ? 'complete' : 'update',
         targetType: 'task',
         targetId: taskId,
-        targetName: beforeTask.name,
-        details: `진척률 ${beforeTask.progress ?? 0}% → ${changes.progress}%`,
+        targetName: beforeTask.task_name,
+        details: `진척률 ${beforeTask.actual_progress ?? 0}% → ${changes.actual_progress}%`,
       })
     }
   },
@@ -246,8 +239,8 @@ export const useTaskStore = create<TaskState>((set) => ({
         action: 'delete',
         targetType: 'task',
         targetId: taskId,
-        targetName: task.name,
-        details: `작업 '${task.name}' 삭제`,
+        targetName: task.task_name,
+        details: `작업 '${task.task_name}' 삭제`,
       })
     }
   },

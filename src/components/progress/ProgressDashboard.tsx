@@ -201,7 +201,6 @@ function RingGauge({ planned, actual, size = 100 }: { planned: number; actual: n
   const r = (size - 12) / 2
   const c = Math.PI * 2 * r
   const pOff = c - (c * Math.min(planned, 100)) / 100
-  const aOff = c - (c * Math.min(actual, 100)) / 100
   const cx = size / 2
   return (
     <svg width={size} height={size} className="flex-shrink-0">

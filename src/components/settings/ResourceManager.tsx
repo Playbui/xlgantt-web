@@ -30,11 +30,9 @@ interface MemberTaskInfo {
 
 function MemberTaskList({
   memberId,
-  memberName,
   onOpenTask,
 }: {
   memberId: string
-  memberName: string
   onOpenTask: (taskId: string) => void
 }) {
   const tasks = useTaskStore((s) => s.tasks)
@@ -442,7 +440,6 @@ export function ResourceManager() {
                         <div className="bg-muted/10 border-t border-border/20">
                           <MemberTaskList
                             memberId={member.id}
-                            memberName={member.name}
                             onOpenTask={handleOpenTask}
                           />
                         </div>

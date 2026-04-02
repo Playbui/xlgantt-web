@@ -358,7 +358,7 @@ export function AnalysisReport() {
                 />
                 <Tooltip
                   formatter={(value) => `${value}%`}
-                  labelFormatter={(label: string) => {
+                  labelFormatter={(label: any) => {
                     const item = weeklyData.find((w) => w.weekLabel === label)
                     return item ? `${label} (${item.startDate} ~ ${item.endDate})` : label
                   }}

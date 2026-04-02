@@ -1,4 +1,4 @@
-import { useRef, useEffect, useCallback } from 'react'
+import { useRef, useEffect } from 'react'
 import type { TimescaleRow } from '@/lib/gantt-math'
 
 interface GanttTimescaleProps {

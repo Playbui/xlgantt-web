@@ -1,10 +1,8 @@
-import { useState, useEffect, useMemo, useCallback } from 'react'
-import { Plus, X, Trash2, CheckSquare, Square, Paperclip, ChevronDown, ChevronUp, StickyNote, Calendar, User, GripVertical, Maximize2, Minimize2, Link2, Users, FileText, ArrowRight, ArrowLeft } from 'lucide-react'
+import { useState, useEffect, useMemo } from 'react'
+import { Plus, X, CheckSquare, Square, Paperclip, StickyNote, Maximize2, Minimize2, Link2, Users, FileText, ArrowRight, ArrowLeft } from 'lucide-react'
 import {
   Dialog,
   DialogContent,
-  DialogHeader,
-  DialogTitle,
 } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'

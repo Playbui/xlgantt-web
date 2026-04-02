@@ -1,7 +1,6 @@
 import { useEffect, useRef, useCallback } from 'react'
 import {
   FileEdit,
-  Plus,
   Indent,
   Outdent,
   Trash2,

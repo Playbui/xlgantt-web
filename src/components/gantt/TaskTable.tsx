@@ -5,7 +5,6 @@ import { GanttContextMenu, type ContextMenuState } from './GanttContextMenu'
 import { useUIStore } from '@/stores/ui-store'
 import { getVisibleColumnDefs, getTotalColumnWidth } from '@/lib/column-defs'
 import { useDragReorder } from '@/hooks/use-drag-reorder'
-import { cn } from '@/lib/utils'
 
 interface TaskTableProps {
   tasks: Task[]

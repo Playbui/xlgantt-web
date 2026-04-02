@@ -7,12 +7,10 @@ import {
   Send,
   Trash2,
   FileText,
-  Image as ImageIcon,
   Upload,
   Clock,
   CalendarPlus,
   CalendarCheck2,
-  User,
   BarChart3,
   Maximize2,
   Minimize2,
@@ -69,7 +67,6 @@ function isImageType(type: string): boolean {
 export function CardDetailModal({ detailId, open, onClose }: CardDetailModalProps) {
   const currentUser = useAuthStore((s) => s.currentUser)
   const {
-    members,
     taskDetails,
     updateTaskDetail,
     addAttachment,
@@ -99,12 +96,6 @@ export function CardDetailModal({ detailId, open, onClose }: CardDetailModalProp
     if (!detail) return undefined
     return tasks.find((t) => t.id === detail.task_id)
   }, [detail, tasks])
-
-  const assigneeNames = useMemo(() => {
-    if (!detail) return []
-    const ids = detail.assignee_ids || (detail.assignee_id ? [detail.assignee_id] : [])
-    return ids.map((id) => members.find((m) => m.id === id)?.name).filter(Boolean) as string[]
-  }, [detail, members])
 
   // ESC key to close
   useEffect(() => {

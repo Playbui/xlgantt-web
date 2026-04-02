@@ -15,7 +15,6 @@ import {
   ClipboardList,
   PieChart,
   Activity,
-  Home,
   Clock,
   AlertTriangle,
   X,
@@ -147,23 +146,6 @@ export function Header() {
 
     return items
   }, [myMember, myTaskIds, taskDetails, tasks, project?.status_date])
-
-  // 미완료 세부항목 수
-  const incompleteCount = useMemo(() => {
-    if (!myMember) return 0
-    let count = 0
-    for (const taskId of myTaskIds) {
-      const details = taskDetails.filter((d) => d.task_id === taskId && d.status !== 'done')
-      for (const d of details) {
-        const isMyDetail =
-          !d.assignee_id && (!d.assignee_ids || d.assignee_ids.length === 0) ||
-          d.assignee_id === myMember.id ||
-          d.assignee_ids?.includes(myMember.id)
-        if (isMyDetail) count++
-      }
-    }
-    return count
-  }, [myMember, myTaskIds, taskDetails])
 
   // 읽은 알림 ID 추적
   const [dismissedIds, setDismissedIds] = useState<Set<string>>(new Set())
@@ -393,7 +375,7 @@ export function Header() {
         <>
           <div className="w-px h-5 bg-border/30 flex-shrink-0" />
           <DropdownMenu>
-            <DropdownMenuTrigger asChild>
+            <DropdownMenuTrigger>
               <Button variant="ghost" size="sm" className="h-7 text-xs gap-1.5 flex-shrink-0 px-2">
                 <div className="w-5 h-5 rounded-full bg-primary/10 text-primary flex items-center justify-center text-[10px] font-bold">
                   {currentUser.name?.[0] || 'U'}

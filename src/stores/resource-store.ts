@@ -125,8 +125,8 @@ export const useResourceStore = create<ResourceState>((set, get) => ({
       targetType: 'assignment',
       targetId: assignment.id,
       targetName: member?.name || assignment.member_id,
-      parentTaskName: task?.name,
-      details: `[${task?.name || ''}]에 ${member?.name || ''} 배정`,
+      parentTaskName: task?.task_name,
+      details: `[${task?.task_name || ''}]에 ${member?.name || ''} 배정`,
     })
   },
   updateAssignment: (id, changes) => set((s) => ({
@@ -143,8 +143,8 @@ export const useResourceStore = create<ResourceState>((set, get) => ({
       targetType: 'detail',
       targetId: detail.id,
       targetName: detail.title,
-      parentTaskName: task?.name,
-      details: `[${task?.name || ''}]에 세부항목 '${detail.title}' 등록`,
+      parentTaskName: task?.task_name,
+      details: `[${task?.task_name || ''}]에 세부항목 '${detail.title}' 등록`,
     })
   },
 
@@ -176,7 +176,7 @@ export const useResourceStore = create<ResourceState>((set, get) => ({
         targetType: 'detail',
         targetId: id,
         targetName: before.title,
-        parentTaskName: task?.name,
+        parentTaskName: task?.task_name,
         details: `상태: ${statusLabel[before.status] || before.status} → ${statusLabel[changes.status] || changes.status}`,
       })
     }
@@ -192,7 +192,7 @@ export const useResourceStore = create<ResourceState>((set, get) => ({
         targetType: 'detail',
         targetId: id,
         targetName: detail.title,
-        parentTaskName: task?.name,
+        parentTaskName: task?.task_name,
         details: `세부항목 '${detail.title}' 삭제`,
       })
     }
@@ -215,7 +215,7 @@ export const useResourceStore = create<ResourceState>((set, get) => ({
         targetType: 'detail',
         targetId: detailId,
         targetName: detail.title,
-        parentTaskName: task?.name,
+        parentTaskName: task?.task_name,
         details: `첨부파일 '${attachment.filename}' 추가`,
       })
     }
@@ -238,7 +238,7 @@ export const useResourceStore = create<ResourceState>((set, get) => ({
         targetType: 'detail',
         targetId: detailId,
         targetName: detail.title,
-        parentTaskName: task?.name,
+        parentTaskName: task?.task_name,
         details: `첨부파일 '${attachment.filename}' 삭제`,
       })
     }
@@ -260,7 +260,7 @@ export const useResourceStore = create<ResourceState>((set, get) => ({
         targetType: 'detail',
         targetId: detailId,
         targetName: detail.title,
-        parentTaskName: task?.name,
+        parentTaskName: task?.task_name,
         details: `코멘트 등록: "${comment.content.slice(0, 30)}${comment.content.length > 30 ? '...' : ''}"`,
       })
     }
@@ -283,7 +283,7 @@ export const useResourceStore = create<ResourceState>((set, get) => ({
         targetType: 'detail',
         targetId: detailId,
         targetName: detail.title,
-        parentTaskName: task?.name,
+        parentTaskName: task?.task_name,
         details: `코멘트 삭제`,
       })
     }

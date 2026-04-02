@@ -2,8 +2,6 @@ import { useState, useMemo, useCallback } from 'react'
 import {
   CheckSquare,
   Square,
-  ChevronDown,
-  ChevronUp,
   Clock,
   AlertTriangle,
   ClipboardList,
@@ -15,7 +13,6 @@ import {
   ExternalLink,
 } from 'lucide-react'
 import { format } from 'date-fns'
-import { Badge } from '@/components/ui/badge'
 import { Input } from '@/components/ui/input'
 import { DatePicker } from '@/components/ui/date-picker'
 import {
@@ -85,7 +82,7 @@ export function MyTasksDashboard() {
   const tasks = useTaskStore((s) => s.tasks)
   const statusDate = useProjectStore((s) => s.currentProject?.status_date)
 
-  const [expandedCards, setExpandedCards] = useState<Set<string>>(new Set())
+  const [expandedCards] = useState<Set<string>>(new Set())
   const [editTaskId, setEditTaskId] = useState<string | null>(null)
   const [cardDetailId, setCardDetailId] = useState<string | null>(null)
   const [hideDone, setHideDone] = useState(false)
@@ -213,14 +210,6 @@ export function MyTasksDashboard() {
     },
     [statusDate]
   )
-
-  const toggleExpand = (id: string) => {
-    setExpandedCards((prev) => {
-      const next = new Set(prev)
-      next.has(id) ? next.delete(id) : next.add(id)
-      return next
-    })
-  }
 
   const handleStatusChange = (detailId: string, newStatus: 'todo' | 'in_progress' | 'done') => {
     updateTaskDetail(detailId, { status: newStatus })

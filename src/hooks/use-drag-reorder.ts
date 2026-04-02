@@ -128,7 +128,6 @@ export function useDragReorder(visibleTasks: Task[]) {
     // Count how many visible slots the dragged group occupies
     let dragGroupVisibleCount = 1
     if (draggedTask.is_group) {
-      const allTasks = tasks
       for (let i = currentVisibleIndex + 1; i < visibleTasks.length; i++) {
         const t = visibleTasks[i]
         if (t.wbs_code.startsWith(draggedTask.wbs_code + '.')) {

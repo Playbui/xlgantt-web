@@ -1,6 +1,6 @@
 import { useCallback, useState, useRef } from 'react'
 import type { Task, GanttScale, ColorTheme, Dependency } from '@/lib/types'
-import { taskToBarRect, xToDate, dateToX } from '@/lib/gantt-math'
+import { taskToBarRect, dateToX } from '@/lib/gantt-math'
 import { useTaskStore } from '@/stores/task-store'
 import { useUIStore } from '@/stores/ui-store'
 import { useProjectStore } from '@/stores/project-store'

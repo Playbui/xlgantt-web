@@ -1,5 +1,5 @@
 import * as XLSX from 'xlsx'
-import type { Project, Task, Dependency, DEP_TYPE_LABELS } from './types'
+import type { Project, Task, Dependency } from './types'
 import type { Company, TeamMember, TaskAssignment } from './resource-types'
 
 /**
