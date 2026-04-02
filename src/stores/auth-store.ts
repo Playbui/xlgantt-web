@@ -154,6 +154,25 @@ export const useAuthStore = create<AuthState>()(
     }),
     {
       name: 'xlgantt-auth',
+      version: 2, // 버전 변경 시 기존 캐시 무시하고 초기값 사용
+      merge: (persisted: unknown, current: AuthState) => {
+        const p = persisted as Partial<AuthState> | undefined
+        if (!p) return current
+        // 초기 사용자가 항상 포함되도록 병합
+        const existingEmails = new Set((p.users || []).map((u: User) => u.email))
+        const mergedUsers = [
+          ...(p.users || []),
+          ...INITIAL_USERS.filter((u) => !existingEmails.has(u.email)),
+        ]
+        // 초기 비밀번호도 병합 (기존 값 우선)
+        const mergedPasswords = { ...INITIAL_PASSWORDS, ...(p.passwords || {}) }
+        return {
+          ...current,
+          ...p,
+          users: mergedUsers,
+          passwords: mergedPasswords,
+        }
+      },
     }
   )
 )
