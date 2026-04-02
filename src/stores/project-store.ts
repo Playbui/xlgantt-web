@@ -1,21 +1,38 @@
 import { create } from 'zustand'
+import { persist } from 'zustand/middleware'
 import type { Project, ColorTheme } from '@/lib/types'
 import { THEME_PRESETS } from '@/lib/types'
 
+export type ProjectRole = 'owner' | 'pm' | 'editor' | 'viewer'
+
+export interface ProjectMember {
+  projectId: string
+  userId: string    // auth-store User.id
+  role: ProjectRole
+}
+
 interface ProjectState {
-  projects: Project[]           // 모든 프로젝트 목록
-  currentProject: Project | null // 현재 선택된 프로젝트
+  projects: Project[]
+  currentProject: Project | null
   theme: ColorTheme
   isLoading: boolean
+  projectMembers: ProjectMember[]  // 프로젝트별 멤버/역할
 
   setProjects: (projects: Project[]) => void
   addProject: (project: Project) => void
   deleteProject: (id: string) => void
-  switchProject: (id: string) => void  // currentProject 변경
-  setProject: (project: Project) => void  // 하위 호환: currentProject 설정 + projects에 추가
-  updateProject: (changes: Partial<Project>) => void  // currentProject 수정
+  switchProject: (id: string) => void
+  setProject: (project: Project) => void
+  updateProject: (changes: Partial<Project>) => void
   setTheme: (themeId: number) => void
   setLoading: (loading: boolean) => void
+
+  // 프로젝트 멤버 관리
+  addProjectMember: (member: ProjectMember) => void
+  removeProjectMember: (projectId: string, userId: string) => void
+  updateProjectMemberRole: (projectId: string, userId: string, role: ProjectRole) => void
+  getProjectMembers: (projectId: string) => ProjectMember[]
+  getMyProjectRole: (projectId: string, userId: string) => ProjectRole | null
 }
 
 // 초기 샘플 프로젝트 3개
@@ -63,11 +80,12 @@ const INITIAL_PROJECTS: Project[] = [
   },
 ]
 
-export const useProjectStore = create<ProjectState>((set, get) => ({
+export const useProjectStore = create<ProjectState>()(persist((set, get) => ({
   projects: INITIAL_PROJECTS,
   currentProject: null,
   theme: THEME_PRESETS[0],
   isLoading: false,
+  projectMembers: [] as ProjectMember[],
 
   setProjects: (projects) => set({ projects }),
 
@@ -120,4 +138,29 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
     set({ theme: THEME_PRESETS[themeId] || THEME_PRESETS[0] }),
 
   setLoading: (isLoading) => set({ isLoading }),
+
+  // 프로젝트 멤버 관리
+  addProjectMember: (member) => set((s) => ({
+    projectMembers: [...s.projectMembers.filter((m) => !(m.projectId === member.projectId && m.userId === member.userId)), member],
+  })),
+
+  removeProjectMember: (projectId, userId) => set((s) => ({
+    projectMembers: s.projectMembers.filter((m) => !(m.projectId === projectId && m.userId === userId)),
+  })),
+
+  updateProjectMemberRole: (projectId, userId, role) => set((s) => ({
+    projectMembers: s.projectMembers.map((m) =>
+      m.projectId === projectId && m.userId === userId ? { ...m, role } : m
+    ),
+  })),
+
+  getProjectMembers: (projectId) => get().projectMembers.filter((m) => m.projectId === projectId),
+
+  getMyProjectRole: (projectId, userId) => {
+    const member = get().projectMembers.find((m) => m.projectId === projectId && m.userId === userId)
+    return member?.role || null
+  },
+}), {
+  name: 'xlgantt-projects',
+  partialize: (state) => ({ projects: state.projects, projectMembers: state.projectMembers }),
 }))
