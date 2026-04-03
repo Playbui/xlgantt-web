@@ -74,6 +74,13 @@ function rollupGroupDates(tasks: Task[], changedTaskId: string): Task[] {
   // 작업량: 리프 자식 합계
   const totalWorkload = leafChildren.reduce((sum, t) => sum + (t.total_workload || 0), 0)
 
+  // 진척률: 작업량 가중 평균
+  const weightedProgress = totalWorkload > 0
+    ? leafChildren.reduce((sum, t) => sum + (t.actual_progress * (t.total_workload || 0)), 0) / totalWorkload
+    : leafChildren.length > 0
+      ? leafChildren.reduce((sum, t) => sum + t.actual_progress, 0) / leafChildren.length
+      : 0
+
   const updated = tasks.map((t) =>
     t.id === parentTask.id
       ? {
@@ -82,6 +89,7 @@ function rollupGroupDates(tasks: Task[], changedTaskId: string): Task[] {
           planned_end: maxEnd,
           total_duration: duration,
           total_workload: totalWorkload || t.total_workload,
+          actual_progress: weightedProgress,
         }
       : t
   )
@@ -529,9 +537,9 @@ export const useTaskStore = create<TaskState>((set, get) => ({
         if (t.id !== taskId) return t
         return { ...t, ...changes }
       })
-      // 그룹 롤업 (작업량 변경 시)
+      // 그룹 롤업 (작업량 또는 진척률 변경 시)
       const changedTask = tasks.find((t) => t.id === taskId)
-      if (changedTask && !changedTask.is_group && changes.total_workload !== undefined) {
+      if (changedTask && !changedTask.is_group && (changes.total_workload !== undefined || changes.actual_progress !== undefined)) {
         tasks = rollupGroupDates(tasks, taskId)
       }
       return { tasks }
