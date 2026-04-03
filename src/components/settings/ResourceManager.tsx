@@ -387,8 +387,9 @@ export function ResourceManager() {
               <Button size="sm" className="h-9" disabled={!selectedUserId || !newMemberCompany} onClick={() => {
                 const user = allUsers.find((u) => u.id === selectedUserId)
                 if (!user || !newMemberCompany) return
-                // 인원으로 등록
-                addMember({ id: crypto.randomUUID(), company_id: newMemberCompany, name: user.name, email: user.email, role: '', created_at: new Date().toISOString() })
+                // 인원으로 등록 (직책에 프로젝트 역할 반영)
+                const roleLabel = selectedRole === 'pm' ? 'PM' : selectedRole === 'editor' ? '편집자' : '뷰어'
+                addMember({ id: crypto.randomUUID(), company_id: newMemberCompany, name: user.name, email: user.email, role: roleLabel, created_at: new Date().toISOString() })
                 // 프로젝트 참여자로도 등록
                 if (project) addProjectMember({ projectId: project.id, userId: user.id, role: selectedRole })
                 setSelectedUserId('')
@@ -483,13 +484,20 @@ export function ResourceManager() {
                           onClick={(e) => e.stopPropagation()}
                           onBlur={(e) => updateMember(member.id, { role: e.target.value || undefined })}
                         />
-                        <input
-                          className="text-xs text-muted-foreground bg-transparent border-b border-transparent hover:border-border focus:border-primary outline-none flex-1"
-                          defaultValue={member.email || ''}
-                          placeholder="이메일"
-                          onClick={(e) => e.stopPropagation()}
-                          onBlur={(e) => updateMember(member.id, { email: e.target.value || undefined })}
-                        />
+                        {(() => {
+                          const isLinkedUser = member.email && allUsers.some((u) => u.email === member.email)
+                          return isLinkedUser ? (
+                            <span className="text-xs text-muted-foreground/60 flex-1" title="등록회원 - 수정 불가">{member.email}</span>
+                          ) : (
+                            <input
+                              className="text-xs text-muted-foreground bg-transparent border-b border-transparent hover:border-border focus:border-primary outline-none flex-1"
+                              defaultValue={member.email || ''}
+                              placeholder="이메일"
+                              onClick={(e) => e.stopPropagation()}
+                              onBlur={(e) => updateMember(member.id, { email: e.target.value || undefined })}
+                            />
+                          )
+                        })()}
                         {/* Task count badge */}
                         {taskCount > 0 && (
                           <span className="flex items-center gap-0.5 text-[10px] text-muted-foreground bg-muted/60 px-1.5 py-0.5 rounded-md">
