@@ -508,7 +508,7 @@ export function MyTasksDashboard() {
           >
             <SelectTrigger
               className={cn(
-                'h-6 w-[65px] text-[11px] border border-border/40 bg-white shadow-none px-1.5 flex-shrink-0 font-medium',
+                'h-7 w-[85px] text-xs border border-border/40 bg-white shadow-none px-2 flex-shrink-0 font-medium',
                 detail.status === 'todo' && 'text-amber-700',
                 detail.status === 'in_progress' && 'text-blue-700',
                 detail.status === 'done' && 'text-emerald-700'

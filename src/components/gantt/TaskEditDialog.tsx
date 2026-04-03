@@ -488,7 +488,7 @@ export function TaskEditDialog({ taskId, open, onClose }: TaskEditDialogProps) {
                         )}
                       />
                       <Select value={detail.status} onValueChange={(v) => handleDetailStatusSet(detail.id, v as 'todo' | 'in_progress' | 'done')}>
-                        <SelectTrigger className={cn("h-5 w-16 text-[10px] border-none bg-white/50 shadow-none px-1.5 flex-shrink-0", accent.header)}>
+                        <SelectTrigger className={cn("h-6 w-[80px] text-xs border-none bg-white/50 shadow-none px-1.5 flex-shrink-0", accent.header)}>
                           <SelectValue>
                             {detail.status === 'todo' ? '대기' : detail.status === 'in_progress' ? '진행중' : '완료'}
                           </SelectValue>

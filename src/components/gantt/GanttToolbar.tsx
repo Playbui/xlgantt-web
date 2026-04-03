@@ -268,7 +268,7 @@ export function GanttToolbar({ onOpenTaskDialog, onScrollToToday }: GanttToolbar
       <select
         value={filterStatus}
         onChange={(e) => setFilterStatus(e.target.value as FilterStatus)}
-        className="h-7 text-xs border border-border rounded-md bg-background px-2 focus:outline-none focus:ring-1 focus:ring-ring"
+        className="h-8 text-sm border border-border rounded-md bg-background px-2 focus:outline-none focus:ring-1 focus:ring-ring"
       >
         <option value="all">전체</option>
         <option value="delayed">지연</option>
