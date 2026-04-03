@@ -26,9 +26,9 @@ interface MemberTaskInfo {
 // ============================================================
 
 const STATUS_CONFIG: Record<string, { label: string; bg: string; text: string }> = {
-  todo: { label: '\uB300\uAE30', bg: 'bg-gray-100 dark:bg-gray-800', text: 'text-gray-600 dark:text-gray-400' },
-  in_progress: { label: '\uC9C4\uD589', bg: 'bg-blue-50 dark:bg-blue-950', text: 'text-blue-600 dark:text-blue-400' },
-  done: { label: '\uC644\uB8CC', bg: 'bg-green-50 dark:bg-green-950', text: 'text-green-600 dark:text-green-400' },
+  todo: { label: '대기', bg: 'bg-gray-100 dark:bg-gray-800', text: 'text-gray-600 dark:text-gray-400' },
+  in_progress: { label: '진행', bg: 'bg-blue-50 dark:bg-blue-950', text: 'text-blue-600 dark:text-blue-400' },
+  done: { label: '완료', bg: 'bg-green-50 dark:bg-green-950', text: 'text-green-600 dark:text-green-400' },
 }
 
 function StatusBadge({ status }: { status: string }) {
@@ -47,8 +47,8 @@ function StatusBadge({ status }: { status: string }) {
 const ROLE_CONFIG: Record<string, { label: string; bg: string; text: string }> = {
   owner: { label: 'Owner', bg: 'bg-purple-50 dark:bg-purple-950', text: 'text-purple-600 dark:text-purple-400' },
   pm: { label: 'PM', bg: 'bg-orange-50 dark:bg-orange-950', text: 'text-orange-600 dark:text-orange-400' },
-  editor: { label: '\uD3B8\uC9D1\uC790', bg: 'bg-blue-50 dark:bg-blue-950', text: 'text-blue-600 dark:text-blue-400' },
-  viewer: { label: '\uBDF0\uC5B4', bg: 'bg-gray-50 dark:bg-gray-800', text: 'text-gray-500 dark:text-gray-400' },
+  editor: { label: '편집자', bg: 'bg-blue-50 dark:bg-blue-950', text: 'text-blue-600 dark:text-blue-400' },
+  viewer: { label: '뷰어', bg: 'bg-gray-50 dark:bg-gray-800', text: 'text-gray-500 dark:text-gray-400' },
 }
 
 function RoleBadge({ role }: { role: string }) {
@@ -192,16 +192,16 @@ export function MemberTasksView() {
         <div className="px-4 py-3 border-b border-border/40 bg-muted/20">
           <div className="flex items-center gap-2 mb-2">
             <UserCheck className="h-4 w-4 text-primary" />
-            <h2 className="text-sm font-bold text-foreground">\uB2F4\uB2F9\uC790\uBCC4 \uC5C5\uBB34</h2>
+            <h2 className="text-sm font-bold text-foreground">담당자별 업무</h2>
           </div>
           <div className="flex gap-3 text-[11px] text-muted-foreground">
             <span className="flex items-center gap-1">
               <Users className="h-3 w-3" />
-              \uB2F4\uB2F9\uC790 {totalMembers}\uBA85
+              담당자 {totalMembers}명
             </span>
             <span className="flex items-center gap-1">
               <ClipboardList className="h-3 w-3" />
-              \uBC30\uC815 \uC791\uC5C5 {totalAssignedTasks}\uAC74
+              배정 작업 {totalAssignedTasks}건
             </span>
           </div>
         </div>
@@ -211,7 +211,7 @@ export function MemberTasksView() {
           <div className="relative">
             <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground/50" />
             <Input
-              placeholder="\uB2F4\uB2F9\uC790/\uD68C\uC0AC\uBA85 \uAC80\uC0C9..."
+              placeholder="담당자/회사명 검색..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               className="h-8 pl-8 text-xs"
@@ -223,7 +223,7 @@ export function MemberTasksView() {
         <div className="flex-1 overflow-y-auto">
           {filteredCompanies.length === 0 && (
             <div className="px-4 py-8 text-center text-xs text-muted-foreground/50">
-              {searchQuery ? '\uAC80\uC0C9 \uACB0\uACFC\uAC00 \uC5C6\uC2B5\uB2C8\uB2E4' : '\uB4F1\uB85D\uB41C \uB2F4\uB2F9\uC790\uAC00 \uC5C6\uC2B5\uB2C8\uB2E4'}
+              {searchQuery ? '검색 결과가 없습니다' : '등록된 담당자가 없습니다'}
             </div>
           )}
           {filteredCompanies.map(({ company, members: companyMembers }) => (
@@ -321,8 +321,8 @@ export function MemberTasksView() {
           <div className="flex-1 flex items-center justify-center">
             <div className="text-center">
               <UserCheck className="h-12 w-12 text-muted-foreground/20 mx-auto mb-3" />
-              <p className="text-sm text-muted-foreground/60">\uC88C\uCE21\uC5D0\uC11C \uB2F4\uB2F9\uC790\uB97C \uC120\uD0DD\uD558\uC138\uC694</p>
-              <p className="text-[11px] text-muted-foreground/40 mt-1">\uBC30\uC815\uB41C \uC791\uC5C5 \uBAA9\uB85D\uACFC \uC138\uBD80\uD56D\uBAA9\uC744 \uD655\uC778\uD560 \uC218 \uC788\uC2B5\uB2C8\uB2E4</p>
+              <p className="text-sm text-muted-foreground/60">좌측에서 담당자를 선택하세요</p>
+              <p className="text-[11px] text-muted-foreground/40 mt-1">배정된 작업 목록과 세부항목을 확인할 수 있습니다</p>
             </div>
           </div>
         ) : (
@@ -357,7 +357,7 @@ export function MemberTasksView() {
               </div>
               <div className="text-right flex-shrink-0">
                 <div className="text-lg font-bold text-primary">{selectedMemberTasks.length}</div>
-                <div className="text-[10px] text-muted-foreground">\uBC30\uC815 \uC791\uC5C5</div>
+                <div className="text-[10px] text-muted-foreground">배정 작업</div>
               </div>
             </div>
 
@@ -365,17 +365,17 @@ export function MemberTasksView() {
             <div className="flex-1 overflow-y-auto">
               {selectedMemberTasks.length === 0 ? (
                 <div className="px-5 py-8 text-center text-xs text-muted-foreground/50">
-                  \uBC30\uC815\uB41C \uC791\uC5C5\uC774 \uC5C6\uC2B5\uB2C8\uB2E4
+                  배정된 작업이 없습니다
                 </div>
               ) : (
                 <div>
                   {/* Table header */}
                   <div className="grid grid-cols-[80px_1fr_120px_70px_70px] gap-1 px-5 py-2 text-[10px] font-semibold text-muted-foreground uppercase tracking-wider bg-muted/20 border-b border-border/30 sticky top-0 z-10">
                     <span>WBS</span>
-                    <span>\uC791\uC5C5\uBA85</span>
-                    <span className="text-center">\uAE30\uAC04</span>
-                    <span className="text-right">\uC9C4\uCC99\uB960</span>
-                    <span className="text-right">\uD22C\uC785\uB960</span>
+                    <span>작업명</span>
+                    <span className="text-center">기간</span>
+                    <span className="text-right">진척률</span>
+                    <span className="text-right">투입률</span>
                   </div>
 
                   {/* Task rows */}
@@ -390,7 +390,7 @@ export function MemberTasksView() {
                         <div
                           className="grid grid-cols-[80px_1fr_120px_70px_70px] gap-1 px-5 py-2 hover:bg-accent/30 cursor-pointer items-center group border-b border-border/20 transition-colors"
                           onClick={() => handleOpenTask(task.id)}
-                          title={`${task.task_name} (\uD074\uB9AD\uD558\uC5EC \uC0C1\uC138 \uD3B8\uC9D1)`}
+                          title={`${task.task_name} (클릭하여 상세 편집)`}
                         >
                           <span className="text-[10px] text-muted-foreground font-mono">
                             {task.wbs_code}
