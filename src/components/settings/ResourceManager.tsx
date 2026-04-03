@@ -343,12 +343,12 @@ export function ResourceManager() {
 
           {addMode === 'user' ? (
             /* 등록회원에서 추가 */
-            <div className="flex gap-2 items-end flex-wrap">
-              <div className="flex-[3] min-w-[300px]">
+            <div className="space-y-2">
+              <div>
                 <label className="text-xs text-muted-foreground">등록회원</label>
                 <Select value={selectedUserId} onValueChange={(v) => v && setSelectedUserId(v)}>
-                  <SelectTrigger className="h-9 text-sm">
-                    <SelectValue placeholder="회원 선택...">
+                  <SelectTrigger className="h-9 text-sm w-full">
+                    <SelectValue placeholder="회원을 선택하세요...">
                       {selectedUserId ? (() => { const u = availableUsers.find(u => u.id === selectedUserId); return u ? `${u.name} (${u.email})` : '선택' })() : undefined}
                     </SelectValue>
                   </SelectTrigger>
@@ -359,7 +359,8 @@ export function ResourceManager() {
                   </SelectContent>
                 </Select>
               </div>
-              <div className="w-36">
+              <div className="flex gap-2 items-end">
+              <div className="w-48">
                 <label className="text-xs text-muted-foreground">소속 회사</label>
                 <Select value={newMemberCompany} onValueChange={(v) => v && setNewMemberCompany(v)}>
                   <SelectTrigger className="h-9"><SelectValue placeholder="회사">{newMemberCompany ? companies.find(c => c.id === newMemberCompany)?.shortName : undefined}</SelectValue></SelectTrigger>
@@ -394,6 +395,7 @@ export function ResourceManager() {
               }}>
                 <Plus className="h-4 w-4 mr-1" />추가
               </Button>
+              </div>
             </div>
           ) : (
             /* 수동 입력 */
