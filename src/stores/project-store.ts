@@ -216,7 +216,7 @@ export const useProjectStore = create<ProjectState>()(persist((set, get) => ({
     supabase.from('project_members').upsert({
       project_id: member.projectId,
       user_id: member.userId,
-      role: member.role === 'pm' ? 'editor' : member.role, // DB는 owner/editor/viewer만
+      role: member.role,
     }).then(({ error }) => {
       if (error) console.error('프로젝트 멤버 추가 실패:', error.message)
     })
@@ -236,7 +236,7 @@ export const useProjectStore = create<ProjectState>()(persist((set, get) => ({
         m.projectId === projectId && m.userId === userId ? { ...m, role } : m
       ),
     }))
-    supabase.from('project_members').update({ role: role === 'pm' ? 'editor' : role })
+    supabase.from('project_members').update({ role })
       .eq('project_id', projectId).eq('user_id', userId)
       .then(({ error }) => { if (error) console.error('프로젝트 멤버 역할 변경 실패:', error.message) })
   },
