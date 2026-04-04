@@ -392,8 +392,14 @@ export const useResourceStore = create<ResourceState>()((set, get) => ({
     if (changes.description !== undefined) dbChanges.description = changes.description || null
     if (changes.status !== undefined) dbChanges.status = changes.status
     if (changes.assignee_ids !== undefined) dbChanges.assignee_ids = changes.assignee_ids || []
+    if (changes.assignee_id !== undefined) dbChanges.assignee_ids = changes.assignee_ids || (changes.assignee_id ? [changes.assignee_id] : [])
     if (changes.due_date !== undefined) dbChanges.due_date = changes.due_date || null
     if (changes.sort_order !== undefined) dbChanges.sort_order = changes.sort_order
+    if (changes.attachments !== undefined) dbChanges.attachments = JSON.stringify(changes.attachments || [])
+    if (changes.comments !== undefined) dbChanges.comments = JSON.stringify(changes.comments || [])
+    // autoFields도 반영
+    if (autoFields.started_at !== undefined) dbChanges.started_at = autoFields.started_at || null
+    if (autoFields.completed_at !== undefined) dbChanges.completed_at = autoFields.completed_at || null
     if (Object.keys(dbChanges).length > 0) {
       supabase.from('task_details').update(dbChanges).eq('id', id).then(({ error }) => {
         if (error) console.error('세부항목 업데이트 실패:', error.message)
@@ -449,6 +455,8 @@ export const useResourceStore = create<ResourceState>()((set, get) => ({
     }))
     const detail = get().taskDetails.find((d) => d.id === detailId)
     if (detail) {
+      supabase.from('task_details').update({ attachments: JSON.stringify(detail.attachments || []) }).eq('id', detailId)
+        .then(({ error }) => { if (error) console.error('첨부파일 저장 실패:', error.message) })
       const task = useTaskStore.getState().tasks.find((t) => t.id === detail.task_id)
       logActivity({
         action: 'update',
@@ -472,6 +480,9 @@ export const useResourceStore = create<ResourceState>()((set, get) => ({
       ),
     }))
     if (detail && attachment) {
+      const updated = get().taskDetails.find((d) => d.id === detailId)
+      supabase.from('task_details').update({ attachments: JSON.stringify(updated?.attachments || []) }).eq('id', detailId)
+        .then(({ error }) => { if (error) console.error('첨부파일 삭제 저장 실패:', error.message) })
       const task = useTaskStore.getState().tasks.find((t) => t.id === detail.task_id)
       logActivity({
         action: 'update',
@@ -494,6 +505,8 @@ export const useResourceStore = create<ResourceState>()((set, get) => ({
     }))
     const detail = get().taskDetails.find((d) => d.id === detailId)
     if (detail) {
+      supabase.from('task_details').update({ comments: JSON.stringify(detail.comments || []) }).eq('id', detailId)
+        .then(({ error }) => { if (error) console.error('코멘트 저장 실패:', error.message) })
       const task = useTaskStore.getState().tasks.find((t) => t.id === detail.task_id)
       logActivity({
         action: 'update',
@@ -517,6 +530,9 @@ export const useResourceStore = create<ResourceState>()((set, get) => ({
       ),
     }))
     if (detail && comment) {
+      const updated = get().taskDetails.find((d) => d.id === detailId)
+      supabase.from('task_details').update({ comments: JSON.stringify(updated?.comments || []) }).eq('id', detailId)
+        .then(({ error }) => { if (error) console.error('코멘트 삭제 저장 실패:', error.message) })
       const task = useTaskStore.getState().tasks.find((t) => t.id === detail.task_id)
       logActivity({
         action: 'update',
