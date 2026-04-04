@@ -1,5 +1,5 @@
 import { useState, useMemo, useCallback } from 'react'
-import { Search, Users, ClipboardList, ExternalLink, UserCheck } from 'lucide-react'
+import { Search, Users, ClipboardList, ExternalLink, UserCheck, List, LayoutGrid, ChevronDown, ChevronRight, Clock } from 'lucide-react'
 import { Input } from '@/components/ui/input'
 import { useResourceStore } from '@/stores/resource-store'
 import { useTaskStore } from '@/stores/task-store'
@@ -77,6 +77,8 @@ export function MemberTasksView() {
   const [editTaskId, setEditTaskId] = useState<string | null>(null)
   const [dialogOpen, setDialogOpen] = useState(false)
   const [hideDone, setHideDone] = useState(false)
+  const [detailViewMode, setDetailViewMode] = useState<'list' | 'card'>('list')
+  const [collapsedTasks, setCollapsedTasks] = useState<Set<string>>(new Set())
   const [cardDetailId, setCardDetailId] = useState<string | null>(null)
 
   const handleOpenTask = useCallback((taskId: string) => {
@@ -191,25 +193,25 @@ export function MemberTasksView() {
   return (
     <div className="flex h-full overflow-hidden">
       {/* ===== Left Panel: Member List ===== */}
-      <div className="w-[280px] flex-shrink-0 border-r border-border/40 flex flex-col bg-background">
+      <div className="w-[320px] flex-shrink-0 border-r border-border/40 flex flex-col bg-background">
         {/* Summary */}
         <div className="px-4 py-3 border-b border-border/40 bg-muted/20">
           <div className="flex items-center gap-2 mb-2">
             <UserCheck className="h-4 w-4 text-primary" />
             <h2 className="text-sm font-bold text-foreground">담당자별 업무</h2>
           </div>
-          <div className="flex items-center gap-3 text-[11px] text-muted-foreground">
+          <div className="flex items-center gap-2 text-[11px] text-muted-foreground whitespace-nowrap">
             <span className="flex items-center gap-1">
               <Users className="h-3 w-3" />
-              담당자 {totalMembers}명
+              {totalMembers}명
             </span>
             <span className="flex items-center gap-1">
               <ClipboardList className="h-3 w-3" />
-              배정 작업 {totalAssignedTasks}건
+              {totalAssignedTasks}건
             </span>
             <label className="flex items-center gap-1 cursor-pointer select-none ml-auto">
               <input type="checkbox" checked={hideDone} onChange={(e) => setHideDone(e.target.checked)} className="w-3 h-3 rounded accent-primary" />
-              <span>완료 숨기기</span>
+              <span>완료숨김</span>
             </label>
           </div>
         </div>
@@ -378,12 +380,31 @@ export function MemberTasksView() {
               ) : (
                 <div>
                   {/* Table header */}
-                  <div className="grid grid-cols-[80px_1fr_120px_70px_70px] gap-1 px-5 py-2 text-[10px] font-semibold text-muted-foreground uppercase tracking-wider bg-muted/20 border-b border-border/30 sticky top-0 z-10">
-                    <span>WBS</span>
-                    <span>작업명</span>
-                    <span className="text-center">기간</span>
-                    <span className="text-right">진척률</span>
-                    <span className="text-right">투입률</span>
+                  <div className="flex items-center px-5 py-2 bg-muted/20 border-b border-border/30 sticky top-0 z-10">
+                    <div className="grid grid-cols-[20px_70px_1fr_100px_60px_60px] gap-1 flex-1 text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">
+                      <span></span>
+                      <span>WBS</span>
+                      <span>작업명</span>
+                      <span className="text-center">기간</span>
+                      <span className="text-right">진척률</span>
+                      <span className="text-right">투입률</span>
+                    </div>
+                    <div className="flex items-center gap-1 ml-2 flex-shrink-0">
+                      <button
+                        onClick={() => setDetailViewMode('list')}
+                        className={cn('p-1 rounded', detailViewMode === 'list' ? 'bg-primary/10 text-primary' : 'text-muted-foreground/40 hover:text-muted-foreground')}
+                        title="리스트 보기"
+                      >
+                        <List className="h-3.5 w-3.5" />
+                      </button>
+                      <button
+                        onClick={() => setDetailViewMode('card')}
+                        className={cn('p-1 rounded', detailViewMode === 'card' ? 'bg-primary/10 text-primary' : 'text-muted-foreground/40 hover:text-muted-foreground')}
+                        title="카드 보기"
+                      >
+                        <LayoutGrid className="h-3.5 w-3.5" />
+                      </button>
+                    </div>
                   </div>
 
                   {/* Task rows */}
@@ -391,20 +412,38 @@ export function MemberTasksView() {
                     const startStr = task.planned_start ? format(new Date(task.planned_start), 'MM/dd') : '-'
                     const endStr = task.planned_end ? format(new Date(task.planned_end), 'MM/dd') : '-'
                     const progressPct = Math.round((task.actual_progress || 0) * 100)
+                    const isCollapsed = collapsedTasks.has(task.id)
+                    const toggleCollapse = (e: React.MouseEvent) => {
+                      e.stopPropagation()
+                      setCollapsedTasks((prev) => {
+                        const next = new Set(prev)
+                        next.has(task.id) ? next.delete(task.id) : next.add(task.id)
+                        return next
+                      })
+                    }
 
                     return (
                       <div key={`${task.id}_${assignment.id}`}>
                         {/* Task row */}
                         <div
-                          className="grid grid-cols-[80px_1fr_120px_70px_70px] gap-1 px-5 py-2 hover:bg-accent/30 cursor-pointer items-center group border-b border-border/20 transition-colors"
+                          className="grid grid-cols-[20px_70px_1fr_100px_60px_60px] gap-1 px-5 py-2 hover:bg-accent/30 cursor-pointer items-center group border-b border-border/20 transition-colors"
                           onClick={() => handleOpenTask(task.id)}
                           title={`${task.task_name} (클릭하여 상세 편집)`}
                         >
+                          {/* 접기 토글 */}
+                          <span className="flex-shrink-0">
+                            {details.length > 0 && (
+                              <button onClick={toggleCollapse} className="p-0.5 hover:bg-accent rounded">
+                                {isCollapsed ? <ChevronRight className="h-3.5 w-3.5 text-muted-foreground" /> : <ChevronDown className="h-3.5 w-3.5 text-muted-foreground" />}
+                              </button>
+                            )}
+                          </span>
                           <span className="text-[10px] text-muted-foreground font-mono">
                             {task.wbs_code}
                           </span>
                           <span className="text-xs truncate flex items-center gap-1">
                             <span className="truncate">{task.task_name}</span>
+                            {details.length > 0 && <span className="text-[10px] text-muted-foreground/50">({details.filter(d => d.status === 'done').length}/{details.length})</span>}
                             <ExternalLink className="h-3 w-3 text-muted-foreground/30 opacity-0 group-hover:opacity-100 flex-shrink-0 transition-opacity" />
                           </span>
                           <span className="text-center text-[11px] text-muted-foreground font-mono">
@@ -412,9 +451,7 @@ export function MemberTasksView() {
                           </span>
                           <span className="text-right text-xs font-mono">
                             <span className={cn(
-                              progressPct >= 100 ? 'text-green-600 dark:text-green-400' :
-                              progressPct > 0 ? 'text-blue-600 dark:text-blue-400' :
-                              'text-muted-foreground'
+                              progressPct >= 100 ? 'text-green-600' : progressPct > 0 ? 'text-blue-600' : 'text-muted-foreground'
                             )}>
                               {progressPct}%
                             </span>
@@ -424,29 +461,67 @@ export function MemberTasksView() {
                           </span>
                         </div>
 
-                        {/* Task details (sub-items) */}
-                        {details.length > 0 && (
+                        {/* Task details - 리스트 모드 */}
+                        {details.length > 0 && !isCollapsed && detailViewMode === 'list' && (
                           <div className="bg-muted/10 border-b border-border/20">
                             {details.map((detail) => (
                               <div
                                 key={detail.id}
-                                className="flex items-center gap-2 pl-10 pr-5 py-1.5 text-[11px] hover:bg-accent/20 transition-colors cursor-pointer"
+                                className="flex items-center gap-2 pl-12 pr-5 py-1.5 text-[11px] hover:bg-accent/20 transition-colors cursor-pointer"
                                 onClick={() => setCardDetailId(detail.id)}
                               >
                                 <StatusBadge status={detail.status} />
-                                <span className={cn(
-                                  'flex-1 truncate',
-                                  detail.status === 'done' && 'line-through text-muted-foreground/60'
-                                )}>
+                                <span className={cn('flex-1 truncate', detail.status === 'done' && 'line-through text-muted-foreground/60')}>
                                   {detail.title}
                                 </span>
                                 {detail.due_date && (
-                                  <span className="text-[10px] text-muted-foreground font-mono flex-shrink-0">
+                                  <span className={cn('text-[10px] font-mono flex-shrink-0',
+                                    detail.status !== 'done' && detail.due_date < new Date().toISOString().slice(0, 10) ? 'text-red-500' : 'text-muted-foreground'
+                                  )}>
                                     ~{format(new Date(detail.due_date), 'MM/dd')}
                                   </span>
                                 )}
                               </div>
                             ))}
+                          </div>
+                        )}
+
+                        {/* Task details - 카드 모드 */}
+                        {details.length > 0 && !isCollapsed && detailViewMode === 'card' && (
+                          <div className="bg-muted/10 border-b border-border/20 px-5 py-2">
+                            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2 pl-7">
+                              {details.map((detail) => {
+                                const isOverdue = detail.status !== 'done' && detail.due_date && detail.due_date < new Date().toISOString().slice(0, 10)
+                                return (
+                                  <div
+                                    key={detail.id}
+                                    className={cn(
+                                      'rounded-lg border border-border/40 border-l-[3px] p-2.5 cursor-pointer hover:shadow-md transition-all bg-card',
+                                      detail.status === 'done' ? 'border-l-emerald-400' : detail.status === 'in_progress' ? 'border-l-blue-400' : 'border-l-amber-400',
+                                      isOverdue && 'ring-1 ring-red-300'
+                                    )}
+                                    onClick={() => setCardDetailId(detail.id)}
+                                  >
+                                    <div className="flex items-start gap-2">
+                                      <StatusBadge status={detail.status} />
+                                      <span className={cn('text-xs font-medium flex-1 leading-snug', detail.status === 'done' && 'line-through text-muted-foreground/60')}>
+                                        {detail.title}
+                                      </span>
+                                    </div>
+                                    {(detail.due_date || detail.description) && (
+                                      <div className="mt-1.5 flex items-center gap-2 text-[10px] text-muted-foreground">
+                                        {detail.due_date && (
+                                          <span className={cn('flex items-center gap-0.5', isOverdue && 'text-red-500 font-medium')}>
+                                            <Clock className="h-2.5 w-2.5" />{detail.due_date}
+                                          </span>
+                                        )}
+                                        {detail.description && <span className="truncate max-w-[100px] italic">{detail.description.split('\n')[0]}</span>}
+                                      </div>
+                                    )}
+                                  </div>
+                                )
+                              })}
+                            </div>
                           </div>
                         )}
                       </div>
