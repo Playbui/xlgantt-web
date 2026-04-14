@@ -99,7 +99,7 @@ export function MemberTasksView() {
     const memberTasks: Record<string, Set<string>> = {}
     // 1. task_assignments 기반
     for (const a of assignments) {
-      const task = tasks.find((t) => t.id === a.task_id && !t.is_group)
+      const task = tasks.find((t) => t.id === a.task_id && !t.is_group && !t.archived_at)
       if (task) {
         if (!memberTasks[a.member_id]) memberTasks[a.member_id] = new Set()
         memberTasks[a.member_id].add(task.id)
@@ -107,7 +107,7 @@ export function MemberTasksView() {
     }
     // 2. task_details.assignee_ids 기반 (세부항목 담당자도 포함)
     for (const detail of taskDetails) {
-      const task = tasks.find((t) => t.id === detail.task_id && !t.is_group)
+      const task = tasks.find((t) => t.id === detail.task_id && !t.is_group && !t.archived_at)
       if (!task) continue
       const assigneeIds = detail.assignee_ids || (detail.assignee_id ? [detail.assignee_id] : [])
       for (const memberId of assigneeIds) {
@@ -187,7 +187,7 @@ export function MemberTasksView() {
   const totalAssignedTasks = useMemo(() => {
     const taskIds = new Set<string>()
     for (const a of assignments) {
-      const task = tasks.find((t) => t.id === a.task_id && !t.is_group)
+      const task = tasks.find((t) => t.id === a.task_id && !t.is_group && !t.archived_at)
       if (task) taskIds.add(task.id)
     }
     for (const d of taskDetails) {

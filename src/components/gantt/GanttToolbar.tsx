@@ -13,12 +13,14 @@ import {
   Redo2,
   TrendingUp,
   CalendarCheck,
+  Archive,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Separator } from '@/components/ui/separator'
 import { useTaskStore } from '@/stores/task-store'
 import { useProjectStore } from '@/stores/project-store'
+import { useResourceStore } from '@/stores/resource-store'
 import { useUIStore, type FilterStatus } from '@/stores/ui-store'
 import { useUndoRedo } from '@/hooks/use-undo-redo'
 import { ColumnSettingsDropdown } from './ColumnSettingsDropdown'
@@ -30,9 +32,10 @@ interface GanttToolbarProps {
 }
 
 export function GanttToolbar({ onOpenTaskDialog, onScrollToToday }: GanttToolbarProps) {
-  const { tasks, selectedTaskIds, addTask, deleteTask, updateTask, setTasks } = useTaskStore()
+  const { tasks, selectedTaskIds, addTask, archiveTask, restoreTask, purgeTask, updateTask, setTasks } = useTaskStore()
   const project = useProjectStore((s) => s.currentProject)
-  const { searchQuery, filterStatus, setSearchQuery, setFilterStatus, showProgressLine, toggleProgressLine } = useUIStore()
+  const { searchQuery, filterStatus, setSearchQuery, setFilterStatus, showProgressLine, toggleProgressLine, showArchived, toggleShowArchived } = useUIStore()
+  const { taskDetails, assignments } = useResourceStore()
   const { canUndo, canRedo, undo, redo } = useUndoRedo()
   const searchInputRef = useRef<HTMLInputElement>(null)
 
@@ -82,13 +85,50 @@ export function GanttToolbar({ onOpenTaskDialog, onScrollToToday }: GanttToolbar
     recalcWBS()
   }
 
-  // 작업 삭제
+  // 작업 "이미 진행" 판단
+  const isTaskUntouched = (taskId: string): boolean => {
+    const task = tasks.find((t) => t.id === taskId)
+    if (!task) return true
+    const hasChildren = tasks.some((t) => t.parent_id === taskId)
+    const hasProgress = (task.actual_progress || 0) > 0
+    const hasActualData = !!task.actual_start || !!task.actual_end || !!task.actual_workload
+    const hasDetails = taskDetails.some((d) => d.task_id === taskId)
+    const hasAssignments = assignments.some((a) => a.task_id === taskId)
+    return !hasChildren && !hasProgress && !hasActualData && !hasDetails && !hasAssignments
+  }
+
+  // 작업 삭제 (하이브리드: 빈껍데기 → 즉시삭제, 진행된 작업 → 아카이브)
   const handleDeleteTask = () => {
     if (!hasSelection) return
-    if (!confirm('선택한 작업을 삭제하시겠습니까?')) return
-    for (const id of selectedTaskIds) {
-      deleteTask(id)
+
+    // 이미 아카이브된 작업을 삭제하려는 경우 → 영구 삭제
+    if (selectedTask?.archived_at) {
+      if (!confirm(`"${selectedTask.task_name}"을(를) 영구 삭제하시겠습니까? 이 작업은 되돌릴 수 없습니다.`)) return
+      for (const id of selectedTaskIds) purgeTask(id)
+      return
     }
+
+    // 선택된 작업들 중 진행된 것과 빈 것을 분류
+    const idsToArchive: string[] = []
+    const idsToPurge: string[] = []
+    for (const id of selectedTaskIds) {
+      if (isTaskUntouched(id)) idsToPurge.push(id)
+      else idsToArchive.push(id)
+    }
+
+    const messages: string[] = []
+    if (idsToPurge.length > 0) messages.push(`${idsToPurge.length}개 작업은 바로 삭제됩니다 (진행 데이터 없음)`)
+    if (idsToArchive.length > 0) messages.push(`${idsToArchive.length}개 작업은 아카이브됩니다 (진행 이력 보존)`)
+    if (!confirm(`선택한 작업을 삭제하시겠습니까?\n\n${messages.join('\n')}`)) return
+
+    for (const id of idsToPurge) purgeTask(id)
+    for (const id of idsToArchive) archiveTask(id)
+  }
+
+  // 아카이브된 작업 복원
+  const handleRestoreTask = () => {
+    if (!selectedTask?.archived_at) return
+    restoreTask(selectedTask.id)
   }
 
   // 들여쓰기 (레벨 증가)
@@ -246,6 +286,23 @@ export function GanttToolbar({ onOpenTaskDialog, onScrollToToday }: GanttToolbar
       >
         <TrendingUp className="h-4 w-4" />
       </Button>
+
+      <Button
+        variant={showArchived ? 'default' : 'ghost'}
+        size="icon"
+        className="h-8 w-8"
+        onClick={toggleShowArchived}
+        title={showArchived ? '아카이브 숨기기' : '아카이브 보기'}
+      >
+        <Archive className="h-4 w-4" />
+      </Button>
+
+      {/* 복원 버튼 - 아카이브된 작업 선택 시 */}
+      {selectedTask?.archived_at && (
+        <Button variant="outline" size="sm" className="h-8 text-xs" onClick={handleRestoreTask}>
+          <ArrowUp className="h-3.5 w-3.5 mr-1" />복원
+        </Button>
+      )}
 
       <ToolbarButton icon={CalendarCheck} label="오늘로 이동" onClick={() => onScrollToToday?.()} />
 

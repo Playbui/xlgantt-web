@@ -127,6 +127,8 @@ function dbToTask(row: Record<string, unknown>): Task {
     is_milestone: (row.is_milestone as boolean) ?? false,
     parent_id: (row.parent_id as string) || undefined,
     is_collapsed: (row.is_collapsed as boolean) ?? false,
+    archived_at: (row.archived_at as string) || undefined,
+    archived_by: (row.archived_by as string) || undefined,
     created_at: row.created_at as string,
     updated_at: row.updated_at as string,
   }
@@ -205,6 +207,9 @@ interface TaskState {
   addTask: (task: Task) => void
   updateTask: (taskId: string, changes: Partial<Task>) => void
   deleteTask: (taskId: string) => void
+  archiveTask: (taskId: string) => void
+  restoreTask: (taskId: string) => void
+  purgeTask: (taskId: string) => void  // 아카이브된 것 영구 삭제
   toggleCollapse: (taskId: string) => void
 
   // Dependencies
@@ -381,7 +386,56 @@ export const useTaskStore = create<TaskState>((set, get) => ({
     })
   },
 
+  // 기본 deleteTask는 archiveTask로 위임 (하위 호환)
+  // UI 쪽에서 진행 여부 판단 후 archiveTask/purgeTask 직접 호출 권장
   deleteTask: (taskId) => {
+    useTaskStore.getState().archiveTask(taskId)
+  },
+
+  archiveTask: (taskId) => {
+    const task = useTaskStore.getState().tasks.find((t) => t.id === taskId)
+    if (!task) return
+    pushCurrentSnapshot()
+    const now = new Date().toISOString()
+    set((state) => ({
+      tasks: state.tasks.map((t) =>
+        t.id === taskId ? { ...t, archived_at: now } : t
+      ),
+    }))
+    logTaskActivity({
+      action: 'update',
+      targetType: 'task',
+      targetId: taskId,
+      targetName: task.task_name,
+      details: `작업 '${task.task_name}' 아카이브`,
+    })
+    supabase.from('tasks').update({ archived_at: now }).eq('id', taskId).then(({ error }) => {
+      if (error) console.error('작업 아카이브 실패:', error.message)
+    })
+  },
+
+  restoreTask: (taskId) => {
+    const task = useTaskStore.getState().tasks.find((t) => t.id === taskId)
+    if (!task) return
+    pushCurrentSnapshot()
+    set((state) => ({
+      tasks: state.tasks.map((t) =>
+        t.id === taskId ? { ...t, archived_at: undefined, archived_by: undefined } : t
+      ),
+    }))
+    logTaskActivity({
+      action: 'update',
+      targetType: 'task',
+      targetId: taskId,
+      targetName: task.task_name,
+      details: `작업 '${task.task_name}' 복원`,
+    })
+    supabase.from('tasks').update({ archived_at: null, archived_by: null }).eq('id', taskId).then(({ error }) => {
+      if (error) console.error('작업 복원 실패:', error.message)
+    })
+  },
+
+  purgeTask: (taskId) => {
     const task = useTaskStore.getState().tasks.find((t) => t.id === taskId)
     pushCurrentSnapshot()
     set((state) => ({
@@ -396,12 +450,11 @@ export const useTaskStore = create<TaskState>((set, get) => ({
         targetType: 'task',
         targetId: taskId,
         targetName: task.task_name,
-        details: `작업 '${task.task_name}' 삭제`,
+        details: `작업 '${task.task_name}' 영구 삭제`,
       })
     }
-    // 서버 삭제 (비동기)
     supabase.from('tasks').delete().eq('id', taskId).then(({ error }) => {
-      if (error) console.error('작업 삭제 실패:', error.message)
+      if (error) console.error('작업 영구 삭제 실패:', error.message)
     })
   },
 

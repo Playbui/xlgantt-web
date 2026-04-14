@@ -41,6 +41,7 @@ interface UIState {
   visibleColumns: string[] // 표시할 컬럼 ID 목록
   columnWidths: Record<string, number> // 컬럼별 커스텀 너비 (localStorage 저장)
   showProgressLine: boolean // Progress Line 표시 여부
+  showArchived: boolean // 아카이브된 작업 표시 여부
   ganttOptions: GanttOptions // 간트 차트 옵션
   mobileActiveTab: MobileTab // 모바일 하단 탭
   mobileTaskId: string | null // 모바일 태스크 상세 시트
@@ -62,6 +63,7 @@ interface UIState {
   setColumnWidth: (columnId: string, width: number) => void
   resetColumnWidths: () => void
   toggleProgressLine: () => void
+  toggleShowArchived: () => void
   setGanttOptions: (options: Partial<GanttOptions>) => void
   resetGanttOptions: () => void
   setMobileActiveTab: (tab: MobileTab) => void
@@ -84,6 +86,7 @@ export const useUIStore = create<UIState>()(
       visibleColumns: [...DEFAULT_VISIBLE_COLUMNS],
       columnWidths: {},
       showProgressLine: false,
+      showArchived: false,
       ganttOptions: { ...DEFAULT_GANTT_OPTIONS },
       mobileActiveTab: 'mytasks' as MobileTab,
       mobileTaskId: null,
@@ -138,6 +141,7 @@ export const useUIStore = create<UIState>()(
       }),
       resetColumnWidths: () => set({ columnWidths: {} }),
       toggleProgressLine: () => set((s) => ({ showProgressLine: !s.showProgressLine })),
+      toggleShowArchived: () => set((s) => ({ showArchived: !s.showArchived })),
       setGanttOptions: (options) => set((s) => ({
         ganttOptions: { ...s.ganttOptions, ...options },
       })),

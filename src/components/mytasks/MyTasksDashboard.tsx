@@ -231,6 +231,7 @@ export function MyTasksDashboard() {
     for (const taskId of myTaskIds) {
       const task = taskMap.get(taskId)
       if (!task) continue
+      if (task.archived_at) continue  // 아카이브된 작업 제외
 
       // 해당 작업의 세부항목 중 나에게 관련된 것
       const details = taskDetails.filter((d) => d.task_id === taskId)
@@ -256,6 +257,7 @@ export function MyTasksDashboard() {
       if (taskIdsWithDetails.has(taskId)) continue
       const task = taskMap.get(taskId)
       if (!task || task.is_group) continue
+      if (task.archived_at) continue  // 아카이브된 작업 제외
       cards.push({ type: 'task', task })
     }
 
