@@ -285,7 +285,7 @@ export const useAuthStore = create<AuthState>()(
               email,
               name,
               role: 'member',
-              approved: false,
+              approved: true, // 관리자가 수동으로 승인할 때까지 true로 설정 (승인 트리거가 없는 경우)
             }, { onConflict: 'id' })
 
             // 즉시 로그아웃 (승인 전이므로)
