@@ -66,6 +66,10 @@ export interface Task {
   parent_id?: string
   is_collapsed: boolean
 
+  // Archive
+  archived_at?: string    // null이면 활성, 값 있으면 아카이브됨
+  archived_by?: string    // 아카이브한 user_id
+
   created_at: string
   updated_at: string
 }

@@ -127,6 +127,8 @@ function dbToTask(row: Record<string, unknown>): Task {
     is_milestone: (row.is_milestone as boolean) ?? false,
     parent_id: (row.parent_id as string) || undefined,
     is_collapsed: (row.is_collapsed as boolean) ?? false,
+    archived_at: (row.archived_at as string) || undefined,
+    archived_by: (row.archived_by as string) || undefined,
     created_at: row.created_at as string,
     updated_at: row.updated_at as string,
   }
@@ -193,6 +195,7 @@ interface TaskState {
   tasks: Task[]
   dependencies: Dependency[]
   selectedTaskIds: Set<string>
+  lastSelectedId: string | null  // Shift+클릭 범위 선택 기준점
   editingCell: { taskId: string; field: string } | null
   isLoading: boolean
 
@@ -205,6 +208,9 @@ interface TaskState {
   addTask: (task: Task) => void
   updateTask: (taskId: string, changes: Partial<Task>) => void
   deleteTask: (taskId: string) => void
+  archiveTask: (taskId: string) => void
+  restoreTask: (taskId: string) => void
+  purgeTask: (taskId: string) => void  // 아카이브된 것 영구 삭제
   toggleCollapse: (taskId: string) => void
 
   // Dependencies
@@ -213,7 +219,7 @@ interface TaskState {
   removeDependency: (depId: string) => void
 
   // Selection
-  selectTask: (taskId: string, multi?: boolean) => void
+  selectTask: (taskId: string, mode?: 'single' | 'toggle' | 'range') => void
   clearSelection: () => void
 
   // Reorder (drag & drop)
@@ -242,6 +248,7 @@ export const useTaskStore = create<TaskState>((set, get) => ({
   tasks: [],
   dependencies: [],
   selectedTaskIds: new Set(),
+  lastSelectedId: null,
   editingCell: null,
   isLoading: false,
 
@@ -381,7 +388,56 @@ export const useTaskStore = create<TaskState>((set, get) => ({
     })
   },
 
+  // 기본 deleteTask는 archiveTask로 위임 (하위 호환)
+  // UI 쪽에서 진행 여부 판단 후 archiveTask/purgeTask 직접 호출 권장
   deleteTask: (taskId) => {
+    useTaskStore.getState().archiveTask(taskId)
+  },
+
+  archiveTask: (taskId) => {
+    const task = useTaskStore.getState().tasks.find((t) => t.id === taskId)
+    if (!task) return
+    pushCurrentSnapshot()
+    const now = new Date().toISOString()
+    set((state) => ({
+      tasks: state.tasks.map((t) =>
+        t.id === taskId ? { ...t, archived_at: now } : t
+      ),
+    }))
+    logTaskActivity({
+      action: 'update',
+      targetType: 'task',
+      targetId: taskId,
+      targetName: task.task_name,
+      details: `작업 '${task.task_name}' 아카이브`,
+    })
+    supabase.from('tasks').update({ archived_at: now }).eq('id', taskId).then(({ error }) => {
+      if (error) console.error('작업 아카이브 실패:', error.message)
+    })
+  },
+
+  restoreTask: (taskId) => {
+    const task = useTaskStore.getState().tasks.find((t) => t.id === taskId)
+    if (!task) return
+    pushCurrentSnapshot()
+    set((state) => ({
+      tasks: state.tasks.map((t) =>
+        t.id === taskId ? { ...t, archived_at: undefined, archived_by: undefined } : t
+      ),
+    }))
+    logTaskActivity({
+      action: 'update',
+      targetType: 'task',
+      targetId: taskId,
+      targetName: task.task_name,
+      details: `작업 '${task.task_name}' 복원`,
+    })
+    supabase.from('tasks').update({ archived_at: null, archived_by: null }).eq('id', taskId).then(({ error }) => {
+      if (error) console.error('작업 복원 실패:', error.message)
+    })
+  },
+
+  purgeTask: (taskId) => {
     const task = useTaskStore.getState().tasks.find((t) => t.id === taskId)
     pushCurrentSnapshot()
     set((state) => ({
@@ -396,21 +452,25 @@ export const useTaskStore = create<TaskState>((set, get) => ({
         targetType: 'task',
         targetId: taskId,
         targetName: task.task_name,
-        details: `작업 '${task.task_name}' 삭제`,
+        details: `작업 '${task.task_name}' 영구 삭제`,
       })
     }
-    // 서버 삭제 (비동기)
     supabase.from('tasks').delete().eq('id', taskId).then(({ error }) => {
-      if (error) console.error('작업 삭제 실패:', error.message)
+      if (error) console.error('작업 영구 삭제 실패:', error.message)
     })
   },
 
-  toggleCollapse: (taskId) =>
+  toggleCollapse: (taskId) => {
+    const current = get().tasks.find((t) => t.id === taskId)
+    const newCollapsed = !current?.is_collapsed
     set((state) => ({
       tasks: state.tasks.map((t) =>
-        t.id === taskId ? { ...t, is_collapsed: !t.is_collapsed } : t
+        t.id === taskId ? { ...t, is_collapsed: newCollapsed } : t
       ),
-    })),
+    }))
+    supabase.from('tasks').update({ is_collapsed: newCollapsed }).eq('id', taskId)
+      .then(({ error }) => { if (error) console.error('접기 상태 저장 실패:', error.message) })
+  },
 
   setDependencies: (dependencies) => set({ dependencies }),
 
@@ -515,18 +575,31 @@ export const useTaskStore = create<TaskState>((set, get) => ({
     })
   },
 
-  selectTask: (taskId, multi = false) =>
+  selectTask: (taskId, mode = 'single') =>
     set((state) => {
-      const newSelection = new Set(multi ? state.selectedTaskIds : [])
-      if (newSelection.has(taskId)) {
-        newSelection.delete(taskId)
-      } else {
-        newSelection.add(taskId)
+      if (mode === 'range' && state.lastSelectedId) {
+        // Shift 클릭: sort_order 기준 범위 선택
+        const sorted = [...state.tasks].sort((a, b) => a.sort_order - b.sort_order)
+        const fromIdx = sorted.findIndex((t) => t.id === state.lastSelectedId)
+        const toIdx = sorted.findIndex((t) => t.id === taskId)
+        if (fromIdx >= 0 && toIdx >= 0) {
+          const [start, end] = fromIdx < toIdx ? [fromIdx, toIdx] : [toIdx, fromIdx]
+          const rangeIds = sorted.slice(start, end + 1).map((t) => t.id)
+          return { selectedTaskIds: new Set(rangeIds) }
+        }
       }
-      return { selectedTaskIds: newSelection }
+      if (mode === 'toggle') {
+        // Ctrl 클릭: 토글 (기존 선택 유지)
+        const newSelection = new Set(state.selectedTaskIds)
+        if (newSelection.has(taskId)) newSelection.delete(taskId)
+        else newSelection.add(taskId)
+        return { selectedTaskIds: newSelection, lastSelectedId: taskId }
+      }
+      // single: 단일 선택
+      return { selectedTaskIds: new Set([taskId]), lastSelectedId: taskId }
     }),
 
-  clearSelection: () => set({ selectedTaskIds: new Set() }),
+  clearSelection: () => set({ selectedTaskIds: new Set(), lastSelectedId: null }),
 
   startEditing: (taskId, field) =>
     set({ editingCell: { taskId, field } }),

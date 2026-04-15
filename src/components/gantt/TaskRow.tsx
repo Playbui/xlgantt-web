@@ -1,9 +1,10 @@
 import { useCallback, useMemo } from 'react'
-import { ChevronRight, ChevronDown, GripVertical } from 'lucide-react'
+import { ChevronRight, ChevronLeft, GripVertical } from 'lucide-react'
 import type { Task } from '@/lib/types'
 import { ROW_HEIGHT } from '@/lib/types'
 import { useTaskStore } from '@/stores/task-store'
 import { useResourceStore } from '@/stores/resource-store'
+import { useProjectStore } from '@/stores/project-store'
 import { TaskCell } from './TaskCell'
 import { cn } from '@/lib/utils'
 import type { ColumnDef } from '@/lib/column-defs'
@@ -26,6 +27,10 @@ export function TaskRow({ task, rowIndex, columns, onDoubleClick, onContextMenu,
   const { selectedTaskIds, selectTask, toggleCollapse, updateTask } =
     useTaskStore()
   const { assignments, members, companies, taskDetails } = useResourceStore()
+  const theme = useProjectStore((s) => s.theme)
+
+  // 레벨1 그룹 작업의 테마 색상 (colors[0] = 그룹 계획 색상)
+  const level1GroupColor = task.is_group && task.wbs_level === 1 ? theme.colors[0] : undefined
 
   const isSelected = selectedTaskIds.has(task.id)
 
@@ -56,7 +61,8 @@ export function TaskRow({ task, rowIndex, columns, onDoubleClick, onContextMenu,
 
   const handleClick = useCallback(
     (e: React.MouseEvent) => {
-      selectTask(task.id, e.ctrlKey || e.metaKey)
+      const mode = e.shiftKey ? 'range' : (e.ctrlKey || e.metaKey) ? 'toggle' : 'single'
+      selectTask(task.id, mode)
     },
     [task.id, selectTask]
   )
@@ -65,7 +71,7 @@ export function TaskRow({ task, rowIndex, columns, onDoubleClick, onContextMenu,
     (e: React.MouseEvent) => {
       e.preventDefault()
       e.stopPropagation()
-      selectTask(task.id, false)
+      selectTask(task.id, 'single')
       onContextMenu?.(task.id, e.clientX, e.clientY)
     },
     [task.id, selectTask, onContextMenu]
@@ -105,9 +111,9 @@ export function TaskRow({ task, rowIndex, columns, onDoubleClick, onContextMenu,
               onClick={handleToggleCollapse}
             >
               {task.is_collapsed ? (
-                <ChevronRight className="h-3 w-3" />
+                <ChevronRight className="h-4 w-4" />
               ) : (
-                <ChevronDown className="h-3 w-3" />
+                <ChevronLeft className="h-4 w-4" />
               )}
             </button>
           ) : (
@@ -136,7 +142,7 @@ export function TaskRow({ task, rowIndex, columns, onDoubleClick, onContextMenu,
     }
 
     // 담당자 컬럼 - resource-store에서 읽기
-    if (col.id === 'deliverables') {
+    if (col.id === 'assignees') {
       return (
         <div
           key={col.id}
@@ -293,7 +299,7 @@ export function TaskRow({ task, rowIndex, columns, onDoubleClick, onContextMenu,
         className="flex items-center justify-center border-r"
       >
         {isReadOnly ? (
-          <div className={cn("w-full px-2 truncate select-none text-center", task.is_group && "bg-muted/60 text-muted-foreground")}>
+          <div className={cn("w-full px-2 truncate select-none text-center", task.is_group && task.wbs_level !== 1 && "bg-muted/60 text-muted-foreground", task.is_group && task.wbs_level === 1 && "bg-muted/40")}>
             {value != null ? String(value) : ''}
           </div>
         ) : (
@@ -314,12 +320,14 @@ export function TaskRow({ task, rowIndex, columns, onDoubleClick, onContextMenu,
       className={cn(
         'group/row flex border-b border-border/25 cursor-pointer text-sm transition-all duration-100 relative',
         isSelected && 'bg-primary/8 border-l-2 border-l-primary',
-        !isSelected && task.is_group && 'bg-muted/40 font-semibold',
+        !isSelected && task.is_group && task.wbs_level === 1 && 'bg-slate-100 dark:bg-slate-800/60 font-bold border-b-border/50',
+        !isSelected && task.is_group && task.wbs_level === 2 && 'bg-blue-50/60 dark:bg-blue-900/20 font-semibold',
+        task.archived_at && 'opacity-50 bg-stripes',
         !isSelected && !task.is_group && 'hover:bg-accent/40',
-        !isSelected && !task.is_group && rowIndex % 2 === 1 && 'bg-muted/15',
+        !isSelected && !task.is_group && rowIndex % 2 === 1 && 'bg-muted/20',
         isDragging && 'opacity-40',
       )}
-      style={{ height: ROW_HEIGHT, minWidth: totalWidth }}
+      style={{ height: ROW_HEIGHT, minWidth: totalWidth, ...(level1GroupColor ? { color: level1GroupColor } : {}) }}
       onClick={handleClick}
       onDoubleClick={() => onDoubleClick?.(task.id)}
       onContextMenu={handleContextMenu}

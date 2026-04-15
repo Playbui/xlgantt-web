@@ -17,7 +17,7 @@ export function GanttView() {
   const dependencies = useTaskStore((s) => s.dependencies)
   const project = useProjectStore((s) => s.currentProject)
   const theme = useProjectStore((s) => s.theme)
-  const { zoomLevel, tableWidth, setTableWidth, tableCollapsed, setTableCollapsed, searchQuery, filterStatus } = useUIStore()
+  const { zoomLevel, tableWidth, setTableWidth, tableCollapsed, setTableCollapsed, searchQuery, filterStatus, showArchived } = useUIStore()
 
   const containerRef = useRef<HTMLDivElement>(null)
   const tableScrollRef = useRef<HTMLDivElement>(null)
@@ -30,7 +30,9 @@ export function GanttView() {
   const [dialogOpen, setDialogOpen] = useState(false)
 
   const visibleTasks = useMemo(() => {
-    const collapsed = getVisibleTasks(tasks)
+    // 아카이브 필터: 기본은 제외, showArchived 시 포함
+    const filteredByArchive = showArchived ? tasks : tasks.filter((t) => !t.archived_at)
+    const collapsed = getVisibleTasks(filteredByArchive)
 
     // No filter active — return as-is
     if (!searchQuery && filterStatus === 'all') return collapsed
@@ -84,7 +86,7 @@ export function GanttView() {
     }
 
     return collapsed.filter((t) => visibleIds.has(t.id))
-  }, [tasks, searchQuery, filterStatus])
+  }, [tasks, searchQuery, filterStatus, showArchived, project?.status_date])
 
   const scale = useMemo(() => {
     if (!project) return null

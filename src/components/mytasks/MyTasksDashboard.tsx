@@ -198,19 +198,26 @@ export function MyTasksDashboard() {
   const myMember = useMemo(() => {
     if (!currentUser) return null
     return (
-      members.find((m) => m.email && m.email === currentUser.email) ||
+      members.find((m) => m.email && m.email.toLowerCase() === currentUser.email?.toLowerCase()) ||
       members.find((m) => m.name === currentUser.name) ||
       null
     )
   }, [currentUser, members])
 
-  // 내게 배정된 작업 ID 목록
+  // 내게 배정된 작업 ID 목록 (task_assignments + task_details.assignee_ids 모두 포함)
   const myTaskIds = useMemo(() => {
     if (!myMember) return new Set<string>()
-    return new Set(
+    const ids = new Set(
       assignments.filter((a) => a.member_id === myMember.id).map((a) => a.task_id)
     )
-  }, [myMember, assignments])
+    // 세부항목의 assignee_ids에 나인 경우도 포함
+    for (const detail of taskDetails) {
+      if (detail.assignee_ids?.includes(myMember.id) || detail.assignee_id === myMember.id) {
+        ids.add(detail.task_id)
+      }
+    }
+    return ids
+  }, [myMember, assignments, taskDetails])
 
   // 내 카드 목록 생성
   const myCards: MyCard[] = useMemo(() => {
@@ -224,6 +231,7 @@ export function MyTasksDashboard() {
     for (const taskId of myTaskIds) {
       const task = taskMap.get(taskId)
       if (!task) continue
+      if (task.archived_at) continue  // 아카이브된 작업 제외
 
       // 해당 작업의 세부항목 중 나에게 관련된 것
       const details = taskDetails.filter((d) => d.task_id === taskId)
@@ -249,6 +257,7 @@ export function MyTasksDashboard() {
       if (taskIdsWithDetails.has(taskId)) continue
       const task = taskMap.get(taskId)
       if (!task || task.is_group) continue
+      if (task.archived_at) continue  // 아카이브된 작업 제외
       cards.push({ type: 'task', task })
     }
 
