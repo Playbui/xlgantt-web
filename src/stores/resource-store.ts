@@ -220,13 +220,17 @@ export const useResourceStore = create<ResourceState>()((set, get) => ({
       syncTaskProgress(tid, allDetails)
     }
   },
-
-  addCompany: (company) => {
+  addCompany: (company: Company) => {
+    // 로컬 업데이트
     set((s) => ({ companies: [...s.companies, company] }))
-    const projectId = useProjectStore.getState().currentProject?.id
+
+    // Supabase 저장 (비동기)
+    const { currentProject } = useProjectStore.getState()
+    if (!currentProject) return
+
     supabase.from('companies').insert({
       id: company.id,
-      project_id: projectId,
+      project_id: currentProject.id,
       name: company.name,
       short_name: company.shortName,
       color: company.color,
@@ -234,30 +238,37 @@ export const useResourceStore = create<ResourceState>()((set, get) => ({
       if (error) console.error('회사 추가 실패:', error.message)
     })
   },
-  updateCompany: (id, changes) => {
+
+  updateCompany: (id: string, changes: Partial<Company>) => {
+    // 로컬 업데이트
     set((s) => ({
-      companies: s.companies.map((c) => c.id === id ? { ...c, ...changes } : c),
+      companies: s.companies.map((c) =>
+        c.id === id ? { ...c, ...changes } : c
+      ),
     }))
-    const dbChanges: Record<string, unknown> = {}
-    if (changes.name !== undefined) dbChanges.name = changes.name
-    if (changes.shortName !== undefined) dbChanges.short_name = changes.shortName
-    if (changes.color !== undefined) dbChanges.color = changes.color
-    if (Object.keys(dbChanges).length > 0) {
-      supabase.from('companies').update(dbChanges).eq('id', id).then(({ error }) => {
+
+    // Supabase 업데이트 (비동기)
+    const updateData: Record<string, any> = {}
+    if (changes.name) updateData.name = changes.name
+    if (changes.shortName) updateData.short_name = changes.shortName
+    if (changes.color) updateData.color = changes.color
+
+    if (Object.keys(updateData).length > 0) {
+      supabase.from('companies').update(updateData).eq('id', id).then(({ error }) => {
         if (error) console.error('회사 업데이트 실패:', error.message)
       })
     }
   },
-  deleteCompany: (id) => {
-    set((s) => ({
-      companies: s.companies.filter((c) => c.id !== id),
-      members: s.members.filter((m) => m.company_id !== id),
-    }))
+
+  deleteCompany: (id: string) => {
+    // 로컬 업데이트
+    set((s) => ({ companies: s.companies.filter((c) => c.id !== id) }))
+
+    // Supabase 삭제 (비동기)
     supabase.from('companies').delete().eq('id', id).then(({ error }) => {
       if (error) console.error('회사 삭제 실패:', error.message)
     })
   },
-
   addMember: (member) => {
     set((s) => ({ members: [...s.members, member] }))
     supabase.from('team_members').insert({
