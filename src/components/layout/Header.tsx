@@ -244,7 +244,7 @@ export function Header() {
       {/* Mobile view selector */}
       <div className="md:hidden">
         <DropdownMenu>
-          <DropdownMenuTrigger className="inline-flex items-center justify-center rounded-md border px-3 py-1.5 text-sm">
+          <DropdownMenuTrigger className="inline-flex items-center justify-center rounded-md border px-3 py-1.5 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40">
             {allVisibleTabs.find((t) => t.key === activeView)?.label || '메뉴'}
             <ChevronDown className="ml-1 h-3 w-3" />
           </DropdownMenuTrigger>

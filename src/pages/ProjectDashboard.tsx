@@ -399,7 +399,7 @@ export function ProjectDashboard() {
 
         {/* 진행률 비교 */}
         <div className="space-y-1.5">
-          <div className="flex items-center gap-2">
+          <div className="project-toolbar-actions">
             <span className="text-[10px] font-medium text-muted-foreground/70 w-7">계획</span>
             <div className="flex-1 h-1.5 bg-muted rounded-full overflow-hidden">
               <div className="h-full bg-indigo-400/70 rounded-full transition-all" style={{ width: `${Math.round(planned * 100)}%` }} />
@@ -597,7 +597,7 @@ export function ProjectDashboard() {
                 <select
                   value={newCategory}
                   onChange={(e) => setNewCategory(e.target.value)}
-                  className="w-full h-8 text-sm border border-border rounded-md px-2 bg-background"
+                className="w-full h-8 text-sm border border-border rounded-md px-2 bg-background outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
                 >
                   <option value="">카테고리 없음</option>
                   {allCategories.map((cat) => (
@@ -613,7 +613,7 @@ export function ProjectDashboard() {
                 onChange={(e) => setNewDescription(e.target.value)}
                 placeholder="프로젝트 간략 설명"
                 rows={2}
-                className="w-full text-sm border border-border rounded-md px-2 py-1.5 resize-y outline-none focus:border-primary/50"
+                className="w-full text-sm border border-border rounded-md px-2 py-1.5 resize-y outline-none focus:border-primary/50 focus-visible:ring-2 focus-visible:ring-primary/40"
               />
             </div>
             <div className="grid grid-cols-2 gap-3">
