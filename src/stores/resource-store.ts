@@ -6,6 +6,14 @@ import { useProjectStore } from '@/stores/project-store'
 import { useTaskStore } from '@/stores/task-store'
 import { supabase } from '@/lib/supabase'
 
+let hasShownAssignmentProgressMigrationAlert = false
+
+function notifyAssignmentSaveFailure(message: string) {
+  if (typeof window !== 'undefined') {
+    window.alert(message)
+  }
+}
+
 function logActivity(params: {
   action: 'create' | 'update' | 'delete' | 'complete' | 'status_change'
   targetType: 'task' | 'detail' | 'assignment' | 'dependency'
@@ -392,6 +400,7 @@ export const useResourceStore = create<ResourceState>()((set, get) => ({
   },
   updateAssignment: (id, changes) => {
     const before = get().assignments.find((a) => a.id === id)
+    if (!before) return
     set((s) => ({
       assignments: s.assignments.map((a) => a.id === id ? { ...a, ...changes } : a),
     }))
@@ -408,10 +417,26 @@ export const useResourceStore = create<ResourceState>()((set, get) => ({
         .then(({ data, error }) => {
           if (error) {
             console.error('배정 업데이트 실패:', error.message)
+            // optimistic update 롤백
+            set((s) => ({
+              assignments: s.assignments.map((a) => a.id === id ? before : a),
+            }))
+            const lower = error.message.toLowerCase()
+            if (lower.includes('progress_percent') && lower.includes('column') && !hasShownAssignmentProgressMigrationAlert) {
+              hasShownAssignmentProgressMigrationAlert = true
+              notifyAssignmentSaveFailure('담당자 진척률 저장에 필요한 DB 컬럼(progress_percent)이 없습니다. Supabase migration 008 적용이 필요합니다.')
+            } else {
+              notifyAssignmentSaveFailure('담당자 값 저장에 실패했습니다. 권한 또는 DB 설정을 확인해주세요.')
+            }
             return
           }
           if (!data || data.length === 0) {
             console.error('배정 업데이트 누락: 대상 행이 없거나 권한(RLS)으로 차단됨', { id, dbChanges })
+            // optimistic update 롤백
+            set((s) => ({
+              assignments: s.assignments.map((a) => a.id === id ? before : a),
+            }))
+            notifyAssignmentSaveFailure('담당자 값 저장이 거부되었습니다(RLS/권한). 프로젝트 권한과 DB 정책을 확인해주세요.')
           }
       })
     }
