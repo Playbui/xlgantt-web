@@ -185,8 +185,11 @@ export function TaskRow({ task, rowIndex, columns, onDoubleClick, onContextMenu,
         <div
           key={col.id}
           style={{ width: col.width, minWidth: col.width }}
-          className="flex items-center px-1 border-r"
+          className="flex items-center px-1 border-r gap-1"
         >
+          {task.actual_progress_override != null && (
+            <span className="text-[10px] text-amber-600 font-medium">🔒 수동</span>
+          )}
           <div className="flex-1 h-4 bg-muted/60 rounded-full overflow-hidden relative shadow-inner">
             <div
               className="h-full rounded-full transition-all duration-300 ease-out"
@@ -215,8 +218,11 @@ export function TaskRow({ task, rowIndex, columns, onDoubleClick, onContextMenu,
         <div
           key={col.id}
           style={{ width: col.width, minWidth: col.width }}
-          className="flex items-center px-1 border-r"
+          className="flex items-center px-1 border-r gap-1"
         >
+          {task.planned_progress_override != null && (
+            <span className="text-[10px] text-violet-600 font-medium">🔒 수동</span>
+          )}
           <div className="flex-1 h-4 bg-muted/60 rounded-full overflow-hidden relative shadow-inner">
             <div
               className="h-full rounded-full transition-all duration-300 ease-out"

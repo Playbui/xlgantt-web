@@ -58,6 +58,8 @@ export interface Task {
   // Progress (0-1)
   planned_progress: number // Col AD
   actual_progress: number  // Col AE
+  planned_progress_override?: number
+  actual_progress_override?: number
 
   // Milestone (derived)
   is_milestone: boolean

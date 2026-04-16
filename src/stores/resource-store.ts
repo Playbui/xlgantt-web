@@ -133,16 +133,20 @@ interface ResourceState {
 function syncTaskProgress(taskId: string, taskDetails: TaskDetail[]) {
   const details = taskDetails.filter((d) => d.task_id === taskId)
   if (details.length === 0) return // 세부항목 없으면 수동 모드 유지
+  const task = useTaskStore.getState().tasks.find((t) => t.id === taskId)
+  if (!task) return
 
   const doneCount = details.filter((d) => d.status === 'done').length
   const progress = doneCount / details.length
   const workload = details.length // 1 세부항목 = 1 M/D
 
   // undo 스냅샷 없이 자동 업데이트
-  useTaskStore.getState()._updateTaskSilent(taskId, {
-    actual_progress: progress,
-    total_workload: workload,
-  })
+  useTaskStore.getState()._updateTaskSilent(
+    taskId,
+    task.actual_progress_override != null
+      ? { total_workload: workload }
+      : { actual_progress: progress, total_workload: workload }
+  )
 }
 
 // 샘플 데이터 제거 - DB가 단일 진실 소스
