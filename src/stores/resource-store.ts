@@ -400,8 +400,19 @@ export const useResourceStore = create<ResourceState>()((set, get) => ({
       dbChanges[key] = value ?? null
     }
     if (Object.keys(dbChanges).length > 0) {
-      supabase.from('task_assignments').update(dbChanges).eq('id', id).then(({ error }) => {
-        if (error) console.error('배정 업데이트 실패:', error.message)
+      supabase
+        .from('task_assignments')
+        .update(dbChanges)
+        .eq('id', id)
+        .select('id')
+        .then(({ data, error }) => {
+          if (error) {
+            console.error('배정 업데이트 실패:', error.message)
+            return
+          }
+          if (!data || data.length === 0) {
+            console.error('배정 업데이트 누락: 대상 행이 없거나 권한(RLS)으로 차단됨', { id, dbChanges })
+          }
       })
     }
     const updated = get().assignments.find((a) => a.id === id)

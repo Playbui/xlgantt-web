@@ -371,7 +371,11 @@ export function TaskEditDialog({ taskId, open, onClose }: TaskEditDialogProps) {
                             min={0}
                             max={100}
                             value={a.progress_percent ?? 0}
-                            onChange={(e) => updateAssignment(a.id, { progress_percent: Math.max(0, Math.min(100, parseInt(e.target.value) || 0)) })}
+                            onChange={(e) => {
+                              const parsed = Number.parseInt(e.target.value, 10)
+                              if (Number.isNaN(parsed)) return
+                              updateAssignment(a.id, { progress_percent: Math.max(0, Math.min(100, parsed)) })
+                            }}
                             className="h-7 w-16 text-xs text-right px-2 font-semibold"
                           />
                           <span className="text-[11px] font-semibold text-foreground/90">%</span>
@@ -396,7 +400,11 @@ export function TaskEditDialog({ taskId, open, onClose }: TaskEditDialogProps) {
                             min={1}
                             max={100}
                             value={a.allocation_percent}
-                            onChange={(e) => updateAssignment(a.id, { allocation_percent: parseInt(e.target.value) || 100 })}
+                            onChange={(e) => {
+                              const parsed = Number.parseInt(e.target.value, 10)
+                              if (Number.isNaN(parsed)) return
+                              updateAssignment(a.id, { allocation_percent: Math.max(1, Math.min(100, parsed)) })
+                            }}
                             className="h-6 w-14 text-[11px] text-right px-1.5"
                           />
                           <span className="text-[10px] text-muted-foreground/70">%</span>
