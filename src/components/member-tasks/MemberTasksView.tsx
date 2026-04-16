@@ -524,10 +524,10 @@ export function MemberTasksView() {
                     const isCollapsed = collapsedTasks.has(task.id)
                     const toggleTone =
                       progressPct >= 100
-                        ? 'border-emerald-300/80 bg-emerald-50 text-emerald-700 hover:bg-emerald-100/70'
+                        ? '!border-emerald-400 !bg-emerald-100 !text-emerald-800 hover:!bg-emerald-200/80'
                         : progressPct > 0
-                          ? 'border-blue-300/80 bg-blue-50 text-blue-700 hover:bg-blue-100/70'
-                          : 'border-amber-300/80 bg-amber-50 text-amber-700 hover:bg-amber-100/70'
+                          ? '!border-blue-400 !bg-blue-100 !text-blue-800 hover:!bg-blue-200/80'
+                          : '!border-amber-400 !bg-amber-100 !text-amber-800 hover:!bg-amber-200/80'
                     const toggleCollapse = (e: React.MouseEvent) => {
                       e.stopPropagation()
                       setCollapsedTasks((prev) => {
@@ -551,7 +551,7 @@ export function MemberTasksView() {
                               <button
                                 onClick={toggleCollapse}
                                 className={cn(
-                                  'h-6 px-1.5 rounded border inline-flex items-center gap-0.5 text-[10px] font-semibold transition-colors',
+                                  'h-6 px-1.5 rounded border inline-flex items-center gap-0.5 text-[10px] font-semibold transition-colors shadow-sm',
                                   toggleTone
                                 )}
                                 title={isCollapsed ? '세부항목 펼치기' : '세부항목 접기'}
