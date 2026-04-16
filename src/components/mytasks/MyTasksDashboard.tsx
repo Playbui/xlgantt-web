@@ -473,8 +473,9 @@ export function MyTasksDashboard() {
       >
         {/* 소속 작업명 + 상세 열기 */}
         <div className="px-3 pt-2 pb-0.5 flex items-center gap-1">
-          <span className="text-[11px] text-muted-foreground font-medium truncate flex-1">
-            {task.wbs_code} {task.task_name}
+          <span className="text-[11px] text-muted-foreground font-medium truncate flex-1 flex items-center gap-1.5">
+            <span className="inline-flex items-center rounded-full border border-blue-200 bg-blue-50 px-1.5 py-0 text-[9px] font-semibold text-blue-700">세부</span>
+            <span className="truncate">{task.wbs_code} {task.task_name}</span>
           </span>
           <button
             className="flex-shrink-0 text-muted-foreground/40 hover:text-primary transition-colors"
@@ -630,7 +631,10 @@ export function MyTasksDashboard() {
           </button>
         </div>
         <div className="px-3 pb-1.5">
-          <span className="text-sm font-semibold text-foreground">{task.task_name}</span>
+          <div className="flex items-center gap-1.5">
+            <span className="inline-flex items-center rounded-full border border-violet-200 bg-violet-50 px-1.5 py-0 text-[9px] font-semibold text-violet-700">WBS</span>
+            <span className="text-sm font-semibold text-foreground">{task.task_name}</span>
+          </div>
         </div>
         <div className="px-3 pb-2 flex items-center gap-2">
           <div className="flex-1 h-2 bg-muted rounded-full overflow-hidden">
