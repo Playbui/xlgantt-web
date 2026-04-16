@@ -509,22 +509,22 @@ export function ProjectDashboard() {
           </div>
           <div className="project-hero-grid">
             <div className="project-hero-item">
-              <FolderKanban className="h-3.5 w-3.5 text-blue-100 mb-1" />
+              <FolderKanban className="h-3.5 w-3.5 text-blue-600 mb-1" />
               <strong>{projects.length}</strong>
               <span>전체 프로젝트</span>
             </div>
             <div className="project-hero-item">
-              <Gauge className="h-3.5 w-3.5 text-blue-100 mb-1" />
+              <Gauge className="h-3.5 w-3.5 text-blue-600 mb-1" />
               <strong>{Math.round(dashboardSummary.avgPlanned * 100)}%</strong>
               <span>평균 계획 진척</span>
             </div>
             <div className="project-hero-item">
-              <CheckCircle2 className="h-3.5 w-3.5 text-blue-100 mb-1" />
+              <CheckCircle2 className="h-3.5 w-3.5 text-blue-600 mb-1" />
               <strong>{Math.round(dashboardSummary.avgActual * 100)}%</strong>
               <span>평균 실제 진척</span>
             </div>
             <div className="project-hero-item">
-              <AlertTriangle className="h-3.5 w-3.5 text-blue-100 mb-1" />
+              <AlertTriangle className="h-3.5 w-3.5 text-blue-600 mb-1" />
               <strong>{dashboardSummary.delayedCount}</strong>
               <span>지연 프로젝트</span>
             </div>

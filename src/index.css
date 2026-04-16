@@ -282,12 +282,7 @@
   }
 
   .auth-shell {
-    @apply min-h-screen bg-[radial-gradient(circle_at_top,_oklch(0.96_0.03_255)_0%,_oklch(0.99_0.002_250)_45%,_oklch(0.95_0.01_250)_100%)] flex items-center justify-center px-4;
-    background-image:
-      radial-gradient(circle at top, oklch(0.96 0.03 255) 0%, oklch(0.99 0.002 250) 45%, oklch(0.95 0.01 250) 100%),
-      linear-gradient(to right, color-mix(in oklab, oklch(0.50 0.17 255) 6%, transparent) 1px, transparent 1px),
-      linear-gradient(to bottom, color-mix(in oklab, oklch(0.50 0.17 255) 6%, transparent) 1px, transparent 1px);
-    background-size: auto, 28px 28px, 28px 28px;
+    @apply min-h-screen bg-slate-100 flex items-center justify-center px-4;
   }
 
   .auth-container {
@@ -328,11 +323,11 @@
   }
 
   .auth-showcase {
-    @apply hidden lg:flex flex-col justify-between rounded-3xl p-8 border border-blue-200/70 bg-gradient-to-br from-blue-600 via-blue-500 to-sky-500 text-white shadow-[0_24px_48px_rgba(30,64,175,0.28)];
+    @apply hidden lg:flex flex-col justify-between rounded-3xl p-8 border border-slate-300 bg-white text-slate-900 shadow-sm;
   }
 
   .auth-showcase-kicker {
-    @apply text-[11px] uppercase tracking-[0.16em] text-blue-100/90 font-semibold;
+    @apply text-[11px] uppercase tracking-[0.16em] text-slate-500 font-semibold;
   }
 
   .auth-showcase-title {
@@ -340,7 +335,7 @@
   }
 
   .auth-showcase-copy {
-    @apply mt-3 text-blue-50/90 text-sm leading-relaxed;
+    @apply mt-3 text-slate-600 text-sm leading-relaxed;
   }
 
   .auth-showcase-metrics {
@@ -348,15 +343,15 @@
   }
 
   .auth-showcase-metric {
-    @apply rounded-xl bg-white/12 border border-white/25 px-3 py-2;
+    @apply rounded-xl bg-slate-50 border border-slate-200 px-3 py-2;
   }
 
   .auth-showcase-metric strong {
-    @apply block text-xl font-bold text-white;
+    @apply block text-xl font-bold text-slate-900;
   }
 
   .auth-showcase-metric span {
-    @apply text-[11px] text-blue-100/90;
+    @apply text-[11px] text-slate-500;
   }
 
   .auth-form-wrap {
@@ -364,7 +359,7 @@
   }
 
   .project-hero {
-    @apply rounded-2xl border border-blue-200/80 bg-gradient-to-br from-blue-600 via-blue-500 to-sky-500 text-white px-5 py-5 shadow-[0_18px_40px_rgba(30,58,138,0.20)];
+    @apply rounded-2xl border border-slate-300 bg-white text-slate-900 px-5 py-5 shadow-sm;
   }
 
   .project-hero-head {
@@ -376,7 +371,7 @@
   }
 
   .project-hero-sub {
-    @apply text-sm text-blue-50/90 mt-1;
+    @apply text-sm text-slate-600 mt-1;
   }
 
   .project-hero-grid {
@@ -384,15 +379,15 @@
   }
 
   .project-hero-item {
-    @apply rounded-xl bg-white/12 border border-white/25 px-3 py-2;
+    @apply rounded-xl bg-slate-50 border border-slate-200 px-3 py-2;
   }
 
   .project-hero-item strong {
-    @apply block text-lg font-bold text-white tabular-nums;
+    @apply block text-lg font-bold text-slate-900 tabular-nums;
   }
 
   .project-hero-item span {
-    @apply text-[11px] text-blue-100/90;
+    @apply text-[11px] text-slate-500;
   }
 
   .project-toolbar {
