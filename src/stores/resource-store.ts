@@ -132,6 +132,10 @@ interface ResourceState {
 
 /** 세부항목 기반 진척률/작업량 자동 계산 (B방식) */
 function syncTaskProgress(taskId: string, taskDetails: TaskDetail[]) {
+  const assignments = useResourceStore.getState().assignments.filter((a) => a.task_id === taskId)
+  // 담당자 진척률이 있으면 담당자 진척률을 우선 소스로 사용
+  if (assignments.length > 0) return
+
   const details = taskDetails.filter((d) => d.task_id === taskId)
   if (details.length === 0) return // 세부항목 없으면 수동 모드 유지
   const task = useTaskStore.getState().tasks.find((t) => t.id === taskId)
@@ -150,11 +154,8 @@ function syncTaskProgress(taskId: string, taskDetails: TaskDetail[]) {
   )
 }
 
-/** 담당자별 진척률 기반 자동 계산 (세부항목 없을 때만) */
-function syncTaskProgressFromAssignments(taskId: string, assignments: TaskAssignment[], taskDetails: TaskDetail[]) {
-  const hasDetails = taskDetails.some((d) => d.task_id === taskId)
-  if (hasDetails) return
-
+/** 담당자별 진척률 기반 자동 계산 (담당자 지정 시 우선 소스) */
+function syncTaskProgressFromAssignments(taskId: string, assignments: TaskAssignment[]) {
   const task = useTaskStore.getState().tasks.find((t) => t.id === taskId)
   if (!task || task.actual_progress_override != null) return
 
@@ -251,15 +252,15 @@ export const useResourceStore = create<ResourceState>()((set, get) => ({
       set({ taskDetails: [] })
     }
 
-    // 세부항목이 있는 작업들의 진척률/작업량 자동 동기화
+    // 담당자 진척률 우선 동기화
     if (taskData && taskData.length > 0) {
       const allTaskIds = taskData.map((t: Record<string, unknown>) => t.id as string)
       for (const tid of allTaskIds) {
-        syncTaskProgressFromAssignments(tid, get().assignments, get().taskDetails)
+        syncTaskProgressFromAssignments(tid, get().assignments)
       }
     }
 
-    // 세부항목이 있는 작업들은 세부항목 기준 진척률 우선
+    // 담당자가 없는 작업은 세부항목 기반으로 동기화
     const allDetails = get().taskDetails
     const taskIdsWithDetails = [...new Set(allDetails.map((d) => d.task_id))]
     for (const tid of taskIdsWithDetails) {
@@ -363,7 +364,7 @@ export const useResourceStore = create<ResourceState>()((set, get) => ({
     }).then(({ error }) => {
       if (error) console.error('배정 추가 실패:', error.message)
     })
-    syncTaskProgressFromAssignments(assignment.task_id, get().assignments, get().taskDetails)
+    syncTaskProgressFromAssignments(assignment.task_id, get().assignments)
   },
   updateAssignment: (id, changes) => {
     const before = get().assignments.find((a) => a.id === id)
@@ -382,7 +383,7 @@ export const useResourceStore = create<ResourceState>()((set, get) => ({
     const updated = get().assignments.find((a) => a.id === id)
     const taskId = updated?.task_id || before?.task_id
     if (taskId) {
-      syncTaskProgressFromAssignments(taskId, get().assignments, get().taskDetails)
+      syncTaskProgressFromAssignments(taskId, get().assignments)
     }
   },
   removeAssignment: (id) => {
@@ -392,7 +393,7 @@ export const useResourceStore = create<ResourceState>()((set, get) => ({
       if (error) console.error('배정 삭제 실패:', error.message)
     })
     if (before?.task_id) {
-      syncTaskProgressFromAssignments(before.task_id, get().assignments, get().taskDetails)
+      syncTaskProgressFromAssignments(before.task_id, get().assignments)
     }
   },
   getTaskAssignments: (taskId) => get().assignments.filter((a) => a.task_id === taskId),
