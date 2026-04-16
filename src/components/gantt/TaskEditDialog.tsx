@@ -148,12 +148,26 @@ export function TaskEditDialog({ taskId, open, onClose }: TaskEditDialogProps) {
   }, [taskId, taskDetails])
 
   const hasDetails = currentDetails.length > 0
+  const hasAssignments = taskAssignments.length > 0
 
   const detailProgress = useMemo(() => {
     if (currentDetails.length === 0) return null
     const done = currentDetails.filter((d) => d.status === 'done').length
     return Math.round((done / currentDetails.length) * 100)
   }, [currentDetails])
+
+  const assignmentProgress = useMemo(() => {
+    if (taskAssignments.length === 0) return null
+    const totalAllocation = taskAssignments.reduce((sum, a) => sum + Math.max(0, a.allocation_percent || 0), 0)
+    const totalWeight = totalAllocation > 0 ? totalAllocation : taskAssignments.length
+    if (totalWeight <= 0) return 0
+    const weighted = taskAssignments.reduce((sum, a) => {
+      const weight = totalAllocation > 0 ? Math.max(0, a.allocation_percent || 0) : 1
+      const memberProgress = Math.max(0, Math.min(100, a.progress_percent || 0))
+      return sum + (memberProgress * weight)
+    }, 0) / totalWeight
+    return Math.round(weighted)
+  }, [taskAssignments])
 
   const handleDetailStatusChange = (detailId: string, currentStatus: string) => {
     const next = currentStatus === 'todo' ? 'in_progress' : currentStatus === 'in_progress' ? 'done' : 'todo'
@@ -189,6 +203,13 @@ export function TaskEditDialog({ taskId, open, onClose }: TaskEditDialogProps) {
         } else {
           changes.actual_progress_override = undefined
           changes.actual_progress = ((detailProgress ?? 0) / 100)
+        }
+      } else if (hasAssignments) {
+        if (useActualOverride) {
+          changes.actual_progress = actualProgress ? parseFloat(actualProgress) / 100 : 0
+        } else {
+          // 담당자 진척률 자동 계산 모드 유지 (override만 해제)
+          changes.actual_progress_override = undefined
         }
       } else {
         changes.actual_progress = actualProgress ? parseFloat(actualProgress) / 100 : 0
@@ -299,12 +320,18 @@ export function TaskEditDialog({ taskId, open, onClose }: TaskEditDialogProps) {
                         type="number"
                         min="0"
                         max="100"
-                        value={hasDetails ? (useActualOverride ? actualProgress : String(detailProgress ?? 0)) : actualProgress}
+                        value={
+                          hasDetails
+                            ? (useActualOverride ? actualProgress : String(detailProgress ?? 0))
+                            : hasAssignments
+                              ? (useActualOverride ? actualProgress : String(assignmentProgress ?? 0))
+                              : actualProgress
+                        }
                         onChange={(e) => setActualProgress(e.target.value)}
-                        className={cn(fieldCls, hasDetails && !useActualOverride && "bg-muted/60 text-muted-foreground")}
-                        disabled={isGroup || (hasDetails && !useActualOverride)}
+                        className={cn(fieldCls, (hasDetails || hasAssignments) && !useActualOverride && "bg-muted/60 text-muted-foreground")}
+                        disabled={isGroup || ((hasDetails || hasAssignments) && !useActualOverride)}
                       />
-                      {hasDetails && (
+                      {(hasDetails || hasAssignments) && (
                         <label className="mt-1 flex items-center gap-1.5 text-[10px] text-muted-foreground/70">
                           <input
                             type="checkbox"
@@ -313,7 +340,7 @@ export function TaskEditDialog({ taskId, open, onClose }: TaskEditDialogProps) {
                             className="w-3 h-3 rounded accent-primary"
                             disabled={isGroup}
                           />
-                          PM 수동값 사용 (해제하면 세부항목 자동 계산)
+                          PM 수동값 사용 (해제하면 {hasDetails ? '세부항목' : '담당자'} 자동 계산)
                         </label>
                       )}
                     </Field>
