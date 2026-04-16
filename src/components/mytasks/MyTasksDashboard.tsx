@@ -462,6 +462,7 @@ export function MyTasksDashboard() {
         draggable="true"
         onDragStart={(e) => handleDragStart(e, card)}
         onDragEnd={handleDragEnd}
+        onClick={() => setCardDetailId(detail.id)}
         className={cn(
           'rounded-lg border border-border/40 border-l-[3px] shadow-sm transition-all hover:shadow-md cursor-pointer',
           colors.bg,
@@ -500,7 +501,7 @@ export function MyTasksDashboard() {
             )}
           </button>
 
-          <div className="flex-1 min-w-0" onClick={() => setCardDetailId(detail.id)}>
+          <div className="flex-1 min-w-0">
             <span
               className={cn(
                 'text-sm font-semibold leading-snug text-foreground hover:text-primary/80 transition-colors',
@@ -610,8 +611,9 @@ export function MyTasksDashboard() {
     return (
       <div
         key={`task-${task.id}`}
+        onClick={() => setEditTaskId(task.id)}
         className={cn(
-          'rounded-lg border border-border/40 border-l-[3px] shadow-sm transition-all hover:shadow-md',
+          'rounded-lg border border-border/40 border-l-[3px] shadow-sm transition-all hover:shadow-md cursor-pointer',
           colors.bg,
           colors.border,
           overdue && 'ring-1 ring-red-300 border-l-red-500'
