@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { useNavigate, Link } from 'react-router-dom'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { BarChart3, Eye, EyeOff, Loader2 } from 'lucide-react'
+import { Eye, EyeOff, Loader2 } from 'lucide-react'
 import { useAuthStore } from '@/stores/auth-store'
 
 export function LoginPage() {
@@ -41,9 +41,7 @@ export function LoginPage() {
     <div className="auth-shell">
       <div className="auth-container">
         <div className="auth-brand">
-          <div className="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-primary text-primary-foreground mb-4">
-            <BarChart3 className="h-7 w-7" />
-          </div>
+          <img src="/logo.png" alt="GMT 로고" className="w-14 h-14 rounded-2xl bg-white border border-slate-200 p-2 mx-auto mb-4 shadow-sm" />
           <h1 className="text-2xl font-bold">GMTgantts</h1>
           <p className="text-sm text-muted-foreground mt-1">프로젝트 관리를 더 스마트하게</p>
         </div>
