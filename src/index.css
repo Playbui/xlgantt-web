@@ -282,15 +282,15 @@
   }
 
   .auth-shell {
-    @apply min-h-screen bg-slate-100 flex items-center justify-center px-4;
+    @apply min-h-screen bg-slate-100 flex items-start justify-center px-4 py-16;
   }
 
   .auth-container {
-    @apply w-full max-w-5xl;
+    @apply w-full max-w-[30rem];
   }
 
   .auth-brand {
-    @apply text-center mb-8;
+    @apply text-center mb-5;
   }
 
   .auth-brand h1 {
@@ -302,16 +302,7 @@
   }
 
   .auth-panel {
-    @apply bg-white border border-slate-300/90 rounded-2xl shadow-[0_14px_42px_rgba(30,58,138,0.12)] p-6 relative overflow-hidden;
-  }
-
-  .auth-panel::before {
-    content: '';
-    position: absolute;
-    inset: 0 auto auto 0;
-    width: 100%;
-    height: 3px;
-    background: linear-gradient(90deg, oklch(0.5 0.17 255), oklch(0.62 0.12 235));
+    @apply bg-white border border-slate-200 rounded-xl shadow-[0_12px_30px_-20px_rgba(15,23,42,0.35)] p-6;
   }
 
   .auth-hint {
@@ -355,7 +346,7 @@
   }
 
   .auth-form-wrap {
-    @apply flex flex-col justify-center;
+    @apply flex flex-col w-full;
   }
 
   .project-hero {
@@ -411,7 +402,7 @@
   }
 
   .workspace-header {
-    @apply flex h-12 items-center bg-white/95 backdrop-blur-md border-b border-slate-300/90 px-4 gap-3 shadow-[0_2px_10px_rgba(30,41,59,0.08)] relative z-10;
+    @apply flex h-12 items-center bg-white/95 backdrop-blur-md border-b border-slate-300/90 px-4 gap-3 shadow-[0_2px_10px_rgba(30,41,59,0.08)] relative z-40;
   }
 
   .chrome-divider {
@@ -419,7 +410,7 @@
   }
 
   .chrome-pill {
-    @apply relative flex items-center gap-1.5 px-2.5 py-1.5 text-[13px] font-medium rounded-md transition-all text-slate-600 hover:text-slate-900 hover:bg-slate-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40;
+    @apply relative flex shrink-0 items-center gap-1.5 whitespace-nowrap px-2.5 py-1.5 text-[13px] font-medium rounded-md transition-all text-slate-600 hover:text-slate-900 hover:bg-slate-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40;
   }
 
   .chrome-pill--active {

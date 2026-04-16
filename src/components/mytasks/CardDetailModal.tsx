@@ -576,7 +576,7 @@ export function CardDetailModal({ detailId, open, onClose }: CardDetailModalProp
         className={cn(
           'fixed top-0 right-0 h-full z-50 bg-background border-l border-border/40 shadow-2xl flex flex-col',
           'transition-all duration-300 ease-out',
-          isFullscreen ? 'w-full' : 'w-[480px] max-w-[95vw]'
+          isFullscreen ? 'w-full' : 'w-[624px] max-w-[95vw]'
         )}
       >
         {/* Header */}

@@ -307,7 +307,7 @@ export function Header() {
       </Button>
 
       {/* Notification Bell */}
-      <div className="relative flex-shrink-0" ref={bellRef}>
+      <div className="relative z-50 flex-shrink-0" ref={bellRef}>
         <Button
           variant="ghost"
           size="icon"
@@ -323,7 +323,7 @@ export function Header() {
           )}
         </Button>
         {bellOpen && (
-          <div className="absolute right-0 top-9 w-72 chrome-popover z-50">
+          <div className="absolute right-0 top-9 w-72 chrome-popover z-[70]">
             <div className="px-3 py-2 border-b border-border/40 bg-muted/30 flex items-center justify-between">
               <div>
                 <span className="text-xs font-semibold">알림</span>

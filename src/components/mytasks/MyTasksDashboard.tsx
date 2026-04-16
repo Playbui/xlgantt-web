@@ -754,7 +754,7 @@ export function MyTasksDashboard() {
   const visibleStatuses = allStatuses.filter((s) => !(hideDone && s.key === 'done'))
 
   return (
-    <div className="h-full flex flex-col overflow-hidden">
+    <div className="h-full w-[96%] lg:w-[94%] 2xl:w-[90%] mx-auto px-3 md:px-4 lg:px-5 flex flex-col overflow-hidden">
       {/* 상단 요약 + 검색/필터 */}
       <div className="flex-shrink-0 px-4 py-2.5 border-b border-border/30 bg-background space-y-2">
         <div className="flex items-center gap-4">
