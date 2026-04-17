@@ -1,7 +1,7 @@
 import { useEffect, useCallback } from 'react'
 import { useTaskStore } from '@/stores/task-store'
 import { useProjectStore } from '@/stores/project-store'
-import { recalculateWBSCodes } from '@/lib/wbs'
+import { findIndentParent, recalculateWBSCodes } from '@/lib/wbs'
 
 /**
  * 글로벌 키보드 단축키 훅.
@@ -120,17 +120,15 @@ export function useKeyboard() {
     const task = tasks.find((t) => t.id === taskId)
     if (!task || task.wbs_level >= 6) return
 
-    const sorted = [...tasks].sort((a, b) => a.sort_order - b.sort_order)
-    const index = sorted.findIndex((t) => t.id === taskId)
-    if (index <= 0) return
+    const parentTask = findIndentParent(tasks, taskId)
+    if (!parentTask) return
 
-    const prevTask = sorted[index - 1]
     updateTask(taskId, {
       wbs_level: task.wbs_level + 1,
-      parent_id: prevTask.id,
+      parent_id: parentTask.id,
     })
-    if (!prevTask.is_group) {
-      updateTask(prevTask.id, { is_group: true })
+    if (!parentTask.is_group) {
+      updateTask(parentTask.id, { is_group: true })
     }
     recalcWBS()
   }, [getSelectedId, recalcWBS])
