@@ -64,8 +64,8 @@ export function ProgressDashboard() {
   return (
     <div className="flex h-full flex-col overflow-hidden bg-[linear-gradient(to_bottom,oklch(0.985_0.004_250)_0%,oklch(0.972_0.006_250)_100%)]">
       {/* Header */}
-      <div className="flex-none px-6 pt-5 pb-0">
-        <div className="mx-auto w-full max-w-[1560px]">
+      <div className="flex-none px-5 pt-5 pb-0 md:px-6 xl:px-8">
+        <div className="mx-auto w-full max-w-[1520px]">
           <div className="overflow-hidden rounded-[28px] border border-[oklch(0.84_0.014_250)] bg-[oklch(0.992_0.003_250)] shadow-[0_18px_50px_rgba(15,23,42,0.06)]">
             <div className="grid gap-5 border-b border-[oklch(0.9_0.01_250)] px-6 py-6 lg:grid-cols-[minmax(0,1fr)_260px] lg:px-8">
               <div className="space-y-3">
@@ -122,7 +122,7 @@ export function ProgressDashboard() {
 
       {/* Content */}
       <div className="flex-1 overflow-y-auto">
-        <div className="mx-auto flex w-full max-w-[1560px] flex-col gap-6 p-6">
+        <div className="mx-auto flex w-full max-w-[1520px] flex-col gap-6 px-5 py-6 md:px-6 xl:px-8">
         {activeTab === 'overview' && <OverviewTab metrics={metrics} />}
         {activeTab === 'timeline' && (
           <TimelineTab
@@ -1114,7 +1114,7 @@ function WBSGroupTab({ tasks, statusDate }: { tasks: Parameters<typeof calcProgr
   }
 
   return (
-    <div className="space-y-6 max-w-5xl mx-auto">
+    <div className="space-y-6 w-full">
       {/* Grouped bar chart */}
       <Card title="WBS 그룹별 계획 vs 실적" className="min-h-[304px]">
         <ResponsiveContainer width="100%" height={Math.max(200, wbsData.length * 50 + 60)}>

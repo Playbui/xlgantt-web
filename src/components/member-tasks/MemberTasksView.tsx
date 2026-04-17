@@ -417,9 +417,9 @@ export function MemberTasksView() {
             </div>
           </div>
         ) : (
-          <>
+          <div className="flex-1 flex flex-col min-w-0 px-4 py-3 md:px-6 xl:px-8">
             {/* Selected member header */}
-            <div className="px-5 py-3 border-b border-slate-300 bg-white flex items-center gap-3">
+            <div className="rounded-t-2xl border border-slate-300 border-b-0 bg-white px-5 py-3 flex items-center gap-3">
               <div
                 className="w-9 h-9 rounded-full flex items-center justify-center text-white text-sm font-bold flex-shrink-0"
                 style={{ backgroundColor: selectedMemberCompany?.color || '#888' }}
@@ -453,7 +453,7 @@ export function MemberTasksView() {
             </div>
 
             {/* 작업 검색 + 완료 숨기기 */}
-            <div className="px-4 py-2 border-b border-slate-300/90 bg-white flex items-center gap-2">
+            <div className="border border-slate-300/90 border-t-0 bg-white px-4 py-2 flex items-center gap-2">
               <div className="relative flex-1">
                 <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground/50" />
                 <Input
@@ -470,7 +470,7 @@ export function MemberTasksView() {
             </div>
 
             {/* Task list */}
-            <div className="flex-1 overflow-y-auto">
+            <div className="flex-1 overflow-y-auto rounded-b-2xl border border-slate-300 border-t-0 bg-white shadow-[0_18px_40px_-32px_rgba(15,23,42,0.35)]">
               {filteredMemberTasks.length === 0 ? (
                 <div className="px-5 py-8 text-center text-xs text-muted-foreground/50">
                   {taskSearchQuery ? '검색 결과가 없습니다' : '배정된 작업이 없습니다'}
@@ -685,7 +685,7 @@ export function MemberTasksView() {
                 </div>
               )}
             </div>
-          </>
+          </div>
         )}
       </div>
 
