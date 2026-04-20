@@ -14,6 +14,8 @@ interface OrganizationUserPickerProps {
   onChange: (userId?: string) => void
   placeholder?: string
   disabled?: boolean
+  className?: string
+  popoverClassName?: string
 }
 
 interface GroupedUsers {
@@ -39,6 +41,8 @@ export function OrganizationUserPicker({
   onChange,
   placeholder = '회원을 선택하세요...',
   disabled,
+  className,
+  popoverClassName,
 }: OrganizationUserPickerProps) {
   const [open, setOpen] = useState(false)
   const [search, setSearch] = useState('')
@@ -190,14 +194,14 @@ export function OrganizationUserPicker({
           role="combobox"
           aria-expanded={open}
           disabled={disabled}
-          className={cn('h-9 w-full justify-between text-sm font-normal', !selectedUser && 'text-muted-foreground')}
+          className={cn('h-9 w-full justify-between text-sm font-normal', !selectedUser && 'text-muted-foreground', className)}
         >
           <span className="truncate">
             {selectedUser ? `${selectedUser.name} (${selectedUser.email})` : placeholder}
           </span>
         </Button>
       </PopoverTrigger>
-      <PopoverContent className="w-[380px] p-0" align="start">
+      <PopoverContent className={cn('w-[min(92vw,640px)] max-w-[640px] p-0', popoverClassName)} align="start">
         <div className="border-b p-2">
           <div className="relative">
             <Search className="absolute left-2 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
@@ -209,7 +213,7 @@ export function OrganizationUserPicker({
             />
           </div>
         </div>
-        <div className="max-h-[360px] overflow-y-auto p-2">
+        <div className="max-h-[420px] overflow-y-auto p-2">
           {groupedUsers.length === 0 && (
             <div className="py-8 text-center text-sm text-muted-foreground">선택 가능한 회원이 없습니다.</div>
           )}

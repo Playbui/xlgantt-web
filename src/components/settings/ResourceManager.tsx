@@ -129,7 +129,9 @@ export function ResourceManager() {
 
   const tasks = useTaskStore((s) => s.tasks)
   const currentUser = useAuthStore((s) => s.currentUser)
+  const authMode = useAuthStore((s) => s.authMode)
   const allUsers = useAuthStore((s) => s.users).filter((u) => u.approved)
+  const fetchAllUsers = useAuthStore((s) => s.fetchAllUsers)
   const project = useProjectStore((s) => s.currentProject)
   const { addProjectMember, projectMembers, updateProjectMemberRole } = useProjectStore()
   const loadOrganization = useOrganizationStore((s) => s.loadOrganization)
@@ -213,6 +215,12 @@ export function ResourceManager() {
   useEffect(() => {
     loadOrganization()
   }, [loadOrganization])
+
+  useEffect(() => {
+    if (authMode !== 'supabase') return
+    if (!canManageMembers) return
+    fetchAllUsers()
+  }, [authMode, canManageMembers, fetchAllUsers])
 
   useEffect(() => {
     if (!selectedUserId) return
@@ -412,6 +420,8 @@ export function ResourceManager() {
                   users={availableUsers}
                   value={selectedUserId || undefined}
                   onChange={(userId) => setSelectedUserId(userId || '')}
+                  className="w-full max-w-[640px]"
+                  popoverClassName="w-[min(92vw,720px)] max-w-[720px]"
                 />
               </div>
               {selectedUserId && (
