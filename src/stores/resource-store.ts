@@ -56,6 +56,7 @@ function dbToMember(row: Record<string, unknown>): TeamMember {
   return {
     id: row.id as string,
     company_id: row.company_id as string,
+    linked_user_id: (row.linked_user_id as string) || undefined,
     name: row.name as string,
     email: (row.email as string) || undefined,
     role: (row.role as string) || undefined,
@@ -348,6 +349,7 @@ export const useResourceStore = create<ResourceState>()((set, get) => ({
     const { error } = await supabase.from('team_members').insert({
       id: member.id,
       company_id: member.company_id,
+      linked_user_id: member.linked_user_id || null,
       name: member.name,
       email: member.email || null,
       role: member.role || null,

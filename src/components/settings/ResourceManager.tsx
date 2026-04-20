@@ -185,11 +185,32 @@ export function ResourceManager() {
     return map
   }, [allUsers])
 
+  const usersById = useMemo(() => {
+    const map = new Map<string, (typeof allUsers)[number]>()
+    for (const user of allUsers) {
+      map.set(user.id, user)
+    }
+    return map
+  }, [allUsers])
+
   const getLinkedUser = useCallback((email?: string) => {
     const normalizedEmail = email?.trim().toLowerCase()
     if (!normalizedEmail) return undefined
     return usersByEmail.get(normalizedEmail)
   }, [usersByEmail])
+
+  const resolveLinkedUser = useCallback((member: (typeof members)[number]) => {
+    if (member.linked_user_id) {
+      const linkedById = usersById.get(member.linked_user_id)
+      if (linkedById) return linkedById
+      return { id: member.linked_user_id } as (typeof allUsers)[number]
+    }
+    return getLinkedUser(member.email)
+  }, [getLinkedUser, members, usersById])
+
+  const resolveLinkedUserId = useCallback((member: (typeof members)[number]) => {
+    return member.linked_user_id || getLinkedUser(member.email)?.id
+  }, [getLinkedUser])
 
   const getProjectRoleLabel = useCallback((role?: ProjectRole) => {
     switch (role) {
@@ -224,6 +245,18 @@ export function ResourceManager() {
     if (!canManageMembers) return
     fetchAllUsers()
   }, [authMode, canManageMembers, fetchAllUsers])
+
+  useEffect(() => {
+    if (!canManageMembers) return
+    if (allUsers.length === 0) return
+
+    members.forEach((member) => {
+      if (member.linked_user_id) return
+      const linkedUser = getLinkedUser(member.email)
+      if (!linkedUser) return
+      updateMember(member.id, { linked_user_id: linkedUser.id })
+    })
+  }, [allUsers, canManageMembers, getLinkedUser, members, updateMember])
 
   useEffect(() => {
     if (!selectedUserId) return
@@ -344,15 +377,15 @@ export function ResourceManager() {
 
   const companyMemberCounts = useMemo(() => {
     return members.reduce<Record<string, number>>((acc, member) => {
-      const linkedUser = getLinkedUser(member.email)
-      const assignment = linkedUser ? getUserAssignment(linkedUser.id) : undefined
+      const linkedUserId = resolveLinkedUserId(member)
+      const assignment = linkedUserId ? getUserAssignment(linkedUserId) : undefined
       const orgCompany = assignment ? orgCompanies.find((company) => company.id === assignment.company_id) : undefined
       const projectCompany = companies.find((company) => company.id === member.company_id)
       const key = orgCompany?.id || projectCompany?.id || 'ungrouped'
       acc[key] = (acc[key] || 0) + 1
       return acc
     }, {})
-  }, [members, getLinkedUser, getUserAssignment, orgCompanies, companies])
+  }, [members, resolveLinkedUserId, getUserAssignment, orgCompanies, companies])
 
   const memberTree = useMemo(() => {
     type TreeMember = {
@@ -415,14 +448,15 @@ export function ResourceManager() {
     }
 
     members.forEach((member) => {
-      const linkedUser = getLinkedUser(member.email)
-      const assignment = linkedUser ? getUserAssignment(linkedUser.id) : undefined
+      const linkedUser = resolveLinkedUser(member)
+      const linkedUserId = member.linked_user_id || linkedUser?.id
+      const assignment = linkedUserId ? getUserAssignment(linkedUserId) : undefined
       const orgCompany = assignment ? orgCompanies.find((company) => company.id === assignment.company_id) : undefined
       const orgDepartment = assignment ? orgDepartments.find((department) => department.id === assignment.department_id) : undefined
       const orgTeam = assignment?.team_id ? orgTeams.find((team) => team.id === assignment.team_id) : undefined
       const projectCompany = companies.find((company) => company.id === member.company_id)
-      const projectRole = (linkedUser && project)
-        ? projectMembers.find((m) => m.projectId === project.id && m.userId === linkedUser.id)?.role
+      const projectRole = (linkedUserId && project)
+        ? projectMembers.find((m) => m.projectId === project.id && m.userId === linkedUserId)?.role
         : undefined
 
       const treeMember: TreeMember = {
@@ -430,7 +464,7 @@ export function ResourceManager() {
         linkedUser,
         projectRole,
         taskCount: memberTaskCounts[member.id] || 0,
-        orgPath: linkedUser ? useOrganizationStore.getState().getPathLabel(linkedUser.id) : undefined,
+        orgPath: linkedUserId ? useOrganizationStore.getState().getPathLabel(linkedUserId) : undefined,
       }
 
       const companyNode = ensureCompanyNode(
@@ -468,7 +502,7 @@ export function ResourceManager() {
         directMembers: companyNode.directMembers.sort((a, b) => a.member.name.localeCompare(b.member.name, 'ko')),
       }))
       .sort((a, b) => a.name.localeCompare(b.name, 'ko'))
-  }, [members, allUsers, getLinkedUser, getUserAssignment, orgCompanies, orgDepartments, orgTeams, companies, project, projectMembers, memberTaskCounts])
+  }, [members, allUsers, resolveLinkedUser, getUserAssignment, orgCompanies, orgDepartments, orgTeams, companies, project, projectMembers, memberTaskCounts])
 
   const renderMemberRow = useCallback((params: {
     member: (typeof members)[number]
@@ -836,6 +870,7 @@ export function ResourceManager() {
                 if (existingMember) {
                   updateMember(existingMember.id, {
                     company_id: newMemberCompany,
+                    linked_user_id: user.id,
                     name: user.name,
                     email: user.email,
                     role: mappedOrgCompany ? `${roleLabel} · ${mappedOrgCompany.name}` : roleLabel,
@@ -844,6 +879,7 @@ export function ResourceManager() {
                   addMember({
                     id: crypto.randomUUID(),
                     company_id: newMemberCompany,
+                    linked_user_id: user.id,
                     name: user.name,
                     email: user.email,
                     role: mappedOrgCompany ? `${roleLabel} · ${mappedOrgCompany.name}` : roleLabel,

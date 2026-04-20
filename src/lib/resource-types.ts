@@ -13,6 +13,7 @@ export interface Company {
 export interface TeamMember {
   id: string
   company_id: string
+  linked_user_id?: string
   name: string
   email?: string
   role?: string        // 직책/역할
