@@ -485,23 +485,26 @@
   }
 
   .mtv-task-row {
-    @apply grid grid-cols-[34px_70px_1fr_132px_70px_70px] gap-1 px-5 py-3 cursor-pointer items-center border-y border-slate-300 transition-colors;
+    @apply grid grid-cols-[56px_96px_minmax(0,1fr)_140px_76px_76px] gap-3 px-5 py-3 cursor-pointer items-center border-y border-slate-300 transition-colors box-border;
   }
 
   .mtv-task-row--done {
-    @apply border-l-4 border-l-emerald-700 bg-emerald-200 hover:bg-emerald-300;
+    @apply bg-emerald-200 hover:bg-emerald-300;
+    box-shadow: inset 4px 0 0 #047857;
   }
 
   .mtv-task-row--progress {
-    @apply border-l-4 border-l-sky-700 bg-sky-200 hover:bg-sky-300;
+    @apply bg-sky-200 hover:bg-sky-300;
+    box-shadow: inset 4px 0 0 #0369a1;
   }
 
   .mtv-task-row--todo {
-    @apply border-l-4 border-l-amber-700 bg-amber-200 hover:bg-amber-300;
+    @apply bg-amber-200 hover:bg-amber-300;
+    box-shadow: inset 4px 0 0 #b45309;
   }
 
   .mtv-row-wbs {
-    @apply text-[10px] text-slate-700 font-mono font-semibold;
+    @apply text-[10px] text-slate-700 font-mono font-semibold whitespace-nowrap tracking-tight;
   }
 
   .mtv-row-period {

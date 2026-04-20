@@ -1,4 +1,4 @@
-import { useState, useMemo, useCallback, useEffect } from 'react'
+import { useState, useMemo, useCallback, useEffect, useRef } from 'react'
 import { Search, Users, ClipboardList, ExternalLink, UserCheck, List, LayoutGrid, ChevronDown, ChevronRight, Clock, ArrowUpDown } from 'lucide-react'
 import { Input } from '@/components/ui/input'
 import { useResourceStore } from '@/stores/resource-store'
@@ -96,6 +96,7 @@ export function MemberTasksView() {
   const [sortBy, setSortBy] = useState<'wbs' | 'name' | 'allocation' | 'date' | 'progress'>('wbs')
   const [sortAsc, setSortAsc] = useState(true)
   const [taskSearchQuery, setTaskSearchQuery] = useState('')
+  const lastCollapsedMemberIdRef = useRef<string | null>(null)
 
   useEffect(() => {
     if (typeof window === 'undefined') return
@@ -306,6 +307,18 @@ export function MemberTasksView() {
 
   const selectedMember = selectedMemberId ? members.find((m) => m.id === selectedMemberId) : null
   const selectedMemberCompany = selectedMember ? companies.find((c) => c.id === selectedMember.company_id) : null
+
+  useEffect(() => {
+    if (!selectedMemberId || lastCollapsedMemberIdRef.current === selectedMemberId) return
+
+    const defaultCollapsed = new Set(
+      selectedMemberTasks
+        .filter(({ details }) => details.length > 0)
+        .map(({ task }) => task.id)
+    )
+    setCollapsedTasks(defaultCollapsed)
+    lastCollapsedMemberIdRef.current = selectedMemberId
+  }, [selectedMemberId, selectedMemberTasks])
 
   return (
     <div className="flex h-full overflow-hidden">
@@ -529,7 +542,7 @@ export function MemberTasksView() {
                 <div className="border-t border-border/50">
                   {/* Table header with sort */}
                   <div className="mtv-table-header">
-                    <div className="grid grid-cols-[34px_70px_1fr_132px_70px_70px] gap-1 flex-1 text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">
+                    <div className="grid grid-cols-[56px_96px_minmax(0,1fr)_140px_76px_76px] gap-3 flex-1 text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">
                       <span></span>
                       <span
                         className="cursor-pointer hover:text-foreground flex items-center gap-0.5 select-none"
@@ -621,12 +634,12 @@ export function MemberTasksView() {
                           title={`${task.task_name} (클릭하여 상세 편집)`}
                         >
                           {/* 접기 토글 */}
-                          <span className="flex-shrink-0 flex items-center">
+                          <span className="flex h-8 w-14 flex-shrink-0 items-center justify-center">
                             {details.length > 0 && (
                               <button
                                 onClick={toggleCollapse}
                                 className={cn(
-                                  'h-6 px-1.5 rounded border border-border/60 bg-background/80 hover:bg-accent/40 inline-flex items-center gap-0.5 text-[10px] font-semibold text-muted-foreground transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40'
+                                  'h-7 min-w-[44px] px-2 rounded-md border border-border/60 bg-background/90 hover:bg-accent/50 inline-flex items-center justify-center gap-1 text-[10px] font-semibold text-muted-foreground transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40'
                                 )}
                                 title={isCollapsed ? '세부항목 펼치기' : '세부항목 접기'}
                               >
