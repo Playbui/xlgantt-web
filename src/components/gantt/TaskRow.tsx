@@ -1,5 +1,5 @@
 import { useCallback, useMemo } from 'react'
-import { ChevronRight, GripVertical } from 'lucide-react'
+import { ArrowUp, ChevronRight, GripVertical } from 'lucide-react'
 import type { Task } from '@/lib/types'
 import { ROW_HEIGHT } from '@/lib/types'
 import { useTaskStore } from '@/stores/task-store'
@@ -24,7 +24,7 @@ interface TaskRowProps {
 }
 
 export function TaskRow({ task, rowIndex, columns, onDoubleClick, onContextMenu, isDragging, isDropTarget, dropPosition, onDragStart, onDragEnd }: TaskRowProps) {
-  const { selectedTaskIds, selectTask, toggleCollapse, updateTask } =
+  const { selectedTaskIds, selectTask, toggleCollapse, updateTask, restoreTask } =
     useTaskStore()
   const { assignments, members, companies, taskDetails } = useResourceStore()
   const theme = useProjectStore((s) => s.theme)
@@ -90,6 +90,14 @@ export function TaskRow({ task, rowIndex, columns, onDoubleClick, onContextMenu,
       updateTask(task.id, { [field]: value })
     },
     [task.id, updateTask]
+  )
+
+  const handleRestore = useCallback(
+    (e: React.MouseEvent) => {
+      e.stopPropagation()
+      restoreTask(task.id)
+    },
+    [restoreTask, task.id]
   )
 
   const renderCell = (col: ColumnDef) => {
@@ -416,6 +424,20 @@ export function TaskRow({ task, rowIndex, columns, onDoubleClick, onContextMenu,
       </div>
 
       {columns.map((col) => renderCell(col))}
+
+      {task.archived_at && (
+        <div className="absolute right-2 top-1/2 -translate-y-1/2 z-10">
+          <button
+            type="button"
+            onClick={handleRestore}
+            className="inline-flex h-6 items-center gap-1 rounded-md border border-emerald-300 bg-white/90 px-2 text-[10px] font-semibold text-emerald-700 shadow-sm transition-colors hover:bg-emerald-50 hover:border-emerald-400"
+            title="아카이브에서 복원"
+          >
+            <ArrowUp className="h-3 w-3" />
+            복원
+          </button>
+        </div>
+      )}
     </div>
   )
 }
