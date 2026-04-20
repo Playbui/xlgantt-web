@@ -282,7 +282,7 @@ export function GanttToolbar({ onOpenTaskDialog, onScrollToToday }: GanttToolbar
 
       <Separator orientation="vertical" className="mx-1 h-5" />
 
-      <ToolbarButton icon={Plus} label="작업 추가 (Enter)" onClick={handleAddTask} />
+      <ToolbarButton icon={Plus} label="작업 추가" onClick={handleAddTask} />
       <ToolbarButton icon={Trash2} label="작업 삭제 (Delete)" onClick={handleDeleteTask} disabled={!hasSelection} />
 
       <Separator orientation="vertical" className="mx-1 h-5" />

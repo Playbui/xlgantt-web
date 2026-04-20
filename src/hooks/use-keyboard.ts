@@ -6,7 +6,6 @@ import { findIndentParent, recalculateWBSCodes } from '@/lib/wbs'
 /**
  * 글로벌 키보드 단축키 훅.
  *
- * - Enter: 선택 작업 아래에 새 작업 추가
  * - Delete / Backspace: 선택 작업 삭제
  * - Tab: 들여쓰기 (indent)
  * - Shift+Tab: 내어쓰기 (outdent)
@@ -55,47 +54,6 @@ export function useKeyboard() {
       useTaskStore.getState().setTasks(recalculated)
     }, 0)
   }, [])
-
-  /** Enter: 아래에 새 작업 추가 */
-  const handleAddBelow = useCallback(() => {
-    const taskId = getSelectedId()
-    if (!taskId) return
-    const project = useProjectStore.getState().currentProject
-    if (!project) return
-
-    const { tasks, addTask, selectTask } = useTaskStore.getState()
-    const task = tasks.find((t) => t.id === taskId)
-    if (!task) return
-
-    const sorted = [...tasks].sort((a, b) => a.sort_order - b.sort_order)
-    const index = sorted.findIndex((t) => t.id === taskId)
-    const nextTask = index < sorted.length - 1 ? sorted[index + 1] : null
-    const newSortOrder = nextTask
-      ? Math.floor((task.sort_order + nextTask.sort_order) / 2)
-      : task.sort_order + 1000
-
-    const newTask = {
-      id: crypto.randomUUID(),
-      project_id: project.id,
-      sort_order: newSortOrder,
-      wbs_code: '',
-      wbs_level: task.wbs_level,
-      is_group: false,
-      task_name: '새 작업',
-      calendar_type: 'STD' as const,
-      planned_progress: 0,
-      actual_progress: 0,
-      is_milestone: false,
-      parent_id: task.parent_id,
-      is_collapsed: false,
-      created_at: new Date().toISOString(),
-      updated_at: new Date().toISOString(),
-    }
-
-    addTask(newTask)
-    selectTask(newTask.id)
-    recalcWBS()
-  }, [getSelectedId, recalcWBS])
 
   /** Delete / Backspace: 삭제 */
   const handleDelete = useCallback(() => {
@@ -165,11 +123,19 @@ export function useKeyboard() {
       return
     }
 
-    const index = visible.findIndex((t) => t.id === taskId)
+    let index = visible.findIndex((t) => t.id === taskId)
+    if (index === -1 && taskId) {
+      const selected = getSortedTasks().find((t) => t.id === taskId)
+      if (selected) {
+        index = visible.findLastIndex((t) => t.sort_order < selected.sort_order)
+      }
+    }
     if (index > 0) {
       useTaskStore.getState().selectTask(visible[index - 1].id)
+    } else if (index === -1) {
+      useTaskStore.getState().selectTask(visible[visible.length - 1].id)
     }
-  }, [getSelectedId, getVisibleSortedTasks])
+  }, [getSelectedId, getSortedTasks, getVisibleSortedTasks])
 
   /** ArrowDown: 다음 작업 선택 */
   const handleMoveDown = useCallback(() => {
@@ -183,11 +149,19 @@ export function useKeyboard() {
       return
     }
 
-    const index = visible.findIndex((t) => t.id === taskId)
+    let index = visible.findIndex((t) => t.id === taskId)
+    if (index === -1 && taskId) {
+      const selected = getSortedTasks().find((t) => t.id === taskId)
+      if (selected) {
+        index = visible.findIndex((t) => t.sort_order > selected.sort_order) - 1
+      }
+    }
     if (index < visible.length - 1) {
       useTaskStore.getState().selectTask(visible[index + 1].id)
+    } else if (index === -1) {
+      useTaskStore.getState().selectTask(visible[0].id)
     }
-  }, [getSelectedId, getVisibleSortedTasks])
+  }, [getSelectedId, getSortedTasks, getVisibleSortedTasks])
 
   /** Ctrl+D: 선택 작업 복제 */
   const handleDuplicate = useCallback(() => {
@@ -272,13 +246,6 @@ export function useKeyboard() {
       if (hasOpenDialog) return
 
       switch (e.key) {
-        case 'Enter':
-          if (!isCtrl && !isInput) {
-            e.preventDefault()
-            handleAddBelow()
-          }
-          break
-
         case 'Delete':
         case 'Backspace':
           if (!isCtrl && !isInput) {
@@ -359,7 +326,6 @@ export function useKeyboard() {
     window.addEventListener('keydown', handleKeyDown)
     return () => window.removeEventListener('keydown', handleKeyDown)
   }, [
-    handleAddBelow,
     handleDelete,
     handleIndent,
     handleOutdent,

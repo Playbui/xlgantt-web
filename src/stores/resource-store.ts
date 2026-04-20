@@ -14,6 +14,12 @@ function notifyAssignmentSaveFailure(message: string) {
   }
 }
 
+function notifyResourceSaveFailure(message: string) {
+  if (typeof window !== 'undefined') {
+    window.alert(message)
+  }
+}
+
 function logActivity(params: {
   action: 'create' | 'update' | 'delete' | 'complete' | 'status_change'
   targetType: 'task' | 'detail' | 'assignment' | 'dependency'
@@ -337,20 +343,25 @@ export const useResourceStore = create<ResourceState>()((set, get) => ({
     })
   },
 
-  addMember: (member) => {
+  addMember: async (member) => {
     set((s) => ({ members: [...s.members, member] }))
-    supabase.from('team_members').insert({
+    const { error } = await supabase.from('team_members').insert({
       id: member.id,
       company_id: member.company_id,
       name: member.name,
       email: member.email || null,
       role: member.role || null,
       phone: member.phone || null,
-    }).then(({ error }) => {
-      if (error) console.error('팀원 추가 실패:', error.message)
     })
+    if (error) {
+      console.error('팀원 추가 실패:', error.message)
+      set((s) => ({ members: s.members.filter((m) => m.id !== member.id) }))
+      notifyResourceSaveFailure('담당자 추가가 DB에 저장되지 않았습니다. 권한 또는 DB 설정을 확인해주세요.')
+    }
   },
-  updateMember: (id, changes) => {
+  updateMember: async (id, changes) => {
+    const before = get().members.find((m) => m.id === id)
+    if (!before) return
     set((s) => ({
       members: s.members.map((m) => m.id === id ? { ...m, ...changes } : m),
     }))
@@ -359,22 +370,35 @@ export const useResourceStore = create<ResourceState>()((set, get) => ({
       dbChanges[key] = value ?? null
     }
     if (Object.keys(dbChanges).length > 0) {
-      supabase.from('team_members').update(dbChanges).eq('id', id).then(({ error }) => {
-        if (error) console.error('팀원 업데이트 실패:', error.message)
-      })
+      const { error } = await supabase.from('team_members').update(dbChanges).eq('id', id).select('id')
+      if (error) {
+        console.error('팀원 업데이트 실패:', error.message)
+        set((s) => ({
+          members: s.members.map((m) => m.id === id ? before : m),
+        }))
+        notifyResourceSaveFailure('담당자 수정이 DB에 저장되지 않았습니다. 다시 시도해주세요.')
+      }
     }
   },
-  deleteMember: (id) => {
+  deleteMember: async (id) => {
+    const beforeMember = get().members.find((m) => m.id === id)
+    const beforeAssignments = get().assignments.filter((a) => a.member_id === id)
     set((s) => ({
       members: s.members.filter((m) => m.id !== id),
       assignments: s.assignments.filter((a) => a.member_id !== id),
     }))
-    supabase.from('team_members').delete().eq('id', id).then(({ error }) => {
-      if (error) console.error('팀원 삭제 실패:', error.message)
-    })
+    const { error } = await supabase.from('team_members').delete().eq('id', id)
+    if (error) {
+      console.error('팀원 삭제 실패:', error.message)
+      set((s) => ({
+        members: beforeMember ? [...s.members, beforeMember] : s.members,
+        assignments: [...s.assignments, ...beforeAssignments],
+      }))
+      notifyResourceSaveFailure('담당자 삭제가 DB에 반영되지 않았습니다.')
+    }
   },
 
-  addAssignment: (assignment) => {
+  addAssignment: async (assignment) => {
     set((s) => ({ assignments: [...s.assignments, assignment] }))
     // 로그: 담당자 배정
     const member = get().members.find((m) => m.id === assignment.member_id)
@@ -387,15 +411,19 @@ export const useResourceStore = create<ResourceState>()((set, get) => ({
       parentTaskName: task?.task_name,
       details: `[${task?.task_name || ''}]에 ${member?.name || ''} 배정`,
     })
-    supabase.from('task_assignments').insert({
+    const { error } = await supabase.from('task_assignments').insert({
       id: assignment.id,
       task_id: assignment.task_id,
       member_id: assignment.member_id,
       allocation_percent: assignment.allocation_percent,
       progress_percent: assignment.progress_percent ?? 0,
-    }).then(({ error }) => {
-      if (error) console.error('배정 추가 실패:', error.message)
     })
+    if (error) {
+      console.error('배정 추가 실패:', error.message)
+      set((s) => ({ assignments: s.assignments.filter((a) => a.id !== assignment.id) }))
+      notifyResourceSaveFailure('배정 추가가 DB에 저장되지 않았습니다.')
+      return
+    }
     syncTaskProgressFromAssignments(assignment.task_id, get().assignments)
   },
   updateAssignment: (id, changes) => {

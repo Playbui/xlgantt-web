@@ -310,7 +310,7 @@ export function TaskEditDialog({ taskId, open, onClose }: TaskEditDialogProps) {
                     </Field>
                   </div>
 
-                  <div className="grid grid-cols-3 gap-2">
+                  <div className="grid grid-cols-2 gap-2">
                     <Field label={hasDetails ? '작업량 (자동)' : '작업량 (M/D)'}>
                       <Input type="number" step="0.1" value={hasDetails ? currentDetails.length : totalWorkload} onChange={(e) => setTotalWorkload(e.target.value)} className={cn(fieldCls, hasDetails && "bg-muted/60 text-muted-foreground")} disabled={isGroup || hasDetails} />
                       {hasDetails && <span className="text-[10px] text-muted-foreground/60 mt-0.5 block">세부항목 기준 자동 계산</span>}
@@ -343,9 +343,6 @@ export function TaskEditDialog({ taskId, open, onClose }: TaskEditDialogProps) {
                           PM 수동값 사용 (해제하면 {hasDetails ? '세부항목' : '담당자'} 자동 계산)
                         </label>
                       )}
-                    </Field>
-                    <Field label="비고">
-                      <Input value={remarks} onChange={(e) => setRemarks(e.target.value)} className="h-7 text-xs" placeholder="메모" />
                     </Field>
                   </div>
                 </div>
@@ -624,6 +621,20 @@ export function TaskEditDialog({ taskId, open, onClose }: TaskEditDialogProps) {
               </Section>
             </div>
           </div>
+
+          <Section icon={StickyNote} title="본문 / 수행방안">
+            <div className="space-y-2">
+              <p className="text-[11px] text-muted-foreground">
+                세부항목이 없어도 작업 배경, 수행방안, 산출물 기준, 이슈 메모를 자유롭게 기록할 수 있습니다.
+              </p>
+              <textarea
+                value={remarks}
+                onChange={(e) => setRemarks(e.target.value)}
+                placeholder={'예:\n1. 업무 종료 후 자동 적재 파이프라인 구축\n2. 업무단위 분류/시간정보 기준 정합 절차 수립\n3. 연간 누적 관리체계 마련'}
+                className="min-h-[140px] w-full rounded-md border border-border/60 bg-background px-3 py-2 text-sm leading-6 outline-none transition-colors focus:border-primary/50 focus:ring-1 focus:ring-primary/20"
+              />
+            </div>
+          </Section>
 
           {/* ─── 세부항목 (전체 너비) ─── */}
           <Section icon={StickyNote} title="세부항목" count={currentDetails.length} className="relative">

@@ -152,7 +152,7 @@ export function ResourceManager() {
           .map((member) => member.userId)
       : []
   )
-  const availableUsers = allUsers.filter((user) => !currentProjectMemberUserIds.has(user.id))
+  const availableUsers = allUsers.filter((user) => user.role !== 'admin' && !currentProjectMemberUserIds.has(user.id))
   const [selectedUserId, setSelectedUserId] = useState('')
   const [selectedRole, setSelectedRole] = useState<ProjectRole>('editor')
   const [addMode, setAddMode] = useState<'user' | 'manual'>('user')
@@ -342,44 +342,265 @@ export function ResourceManager() {
     }))
   }, [companies, orgCompanies])
 
-  const groupedMembers = useMemo(() => {
-    return members.reduce<Array<{
-      key: string
-      title: string
-      subtitle?: string
+  const companyMemberCounts = useMemo(() => {
+    return members.reduce<Record<string, number>>((acc, member) => {
+      const linkedUser = getLinkedUser(member.email)
+      const assignment = linkedUser ? getUserAssignment(linkedUser.id) : undefined
+      const orgCompany = assignment ? orgCompanies.find((company) => company.id === assignment.company_id) : undefined
+      const projectCompany = companies.find((company) => company.id === member.company_id)
+      const key = orgCompany?.id || projectCompany?.id || 'ungrouped'
+      acc[key] = (acc[key] || 0) + 1
+      return acc
+    }, {})
+  }, [members, getLinkedUser, getUserAssignment, orgCompanies, companies])
+
+  const memberTree = useMemo(() => {
+    type TreeMember = {
+      member: (typeof members)[number]
+      linkedUser?: (typeof allUsers)[number]
+      projectRole?: ProjectRole
+      taskCount: number
+      orgPath?: string
+    }
+
+    type TeamNode = {
+      id: string
+      name: string
+      members: TreeMember[]
+    }
+
+    type DepartmentNode = {
+      id: string
+      name: string
+      teamNodes: TeamNode[]
+      directMembers: TreeMember[]
+    }
+
+    type CompanyNode = {
+      id: string
+      name: string
       color: string
-      members: typeof members
-    }>>((groups, member) => {
+      shortName?: string
+      departments: DepartmentNode[]
+      directMembers: TreeMember[]
+    }
+
+    const tree: CompanyNode[] = []
+
+    const ensureCompanyNode = (id: string, name: string, color: string, shortName?: string) => {
+      let node = tree.find((item) => item.id === id)
+      if (!node) {
+        node = { id, name, color, shortName, departments: [], directMembers: [] }
+        tree.push(node)
+      }
+      return node
+    }
+
+    const ensureDepartmentNode = (companyNode: CompanyNode, id: string, name: string) => {
+      let node = companyNode.departments.find((item) => item.id === id)
+      if (!node) {
+        node = { id, name, teamNodes: [], directMembers: [] }
+        companyNode.departments.push(node)
+      }
+      return node
+    }
+
+    const ensureTeamNode = (departmentNode: DepartmentNode, id: string, name: string) => {
+      let node = departmentNode.teamNodes.find((item) => item.id === id)
+      if (!node) {
+        node = { id, name, members: [] }
+        departmentNode.teamNodes.push(node)
+      }
+      return node
+    }
+
+    members.forEach((member) => {
       const linkedUser = getLinkedUser(member.email)
       const assignment = linkedUser ? getUserAssignment(linkedUser.id) : undefined
       const orgCompany = assignment ? orgCompanies.find((company) => company.id === assignment.company_id) : undefined
       const orgDepartment = assignment ? orgDepartments.find((department) => department.id === assignment.department_id) : undefined
       const orgTeam = assignment?.team_id ? orgTeams.find((team) => team.id === assignment.team_id) : undefined
       const projectCompany = companies.find((company) => company.id === member.company_id)
+      const projectRole = (linkedUser && project)
+        ? projectMembers.find((m) => m.projectId === project.id && m.userId === linkedUser.id)?.role
+        : undefined
 
-      const key = orgCompany?.id || projectCompany?.id || 'ungrouped'
-      const title = orgCompany?.name || projectCompany?.name || '미지정'
-      const subtitle = orgCompany
-        ? [orgDepartment?.name, orgTeam?.name].filter(Boolean).join(' / ')
-        : projectCompany?.shortName
-      const color = orgCompany?.color || projectCompany?.color || '#64748b'
-
-      const existing = groups.find((group) => group.key === key)
-      if (existing) {
-        existing.members.push(member)
-        return groups
+      const treeMember: TreeMember = {
+        member,
+        linkedUser,
+        projectRole,
+        taskCount: memberTaskCounts[member.id] || 0,
+        orgPath: linkedUser ? useOrganizationStore.getState().getPathLabel(linkedUser.id) : undefined,
       }
 
-      groups.push({
-        key,
-        title,
-        subtitle,
-        color,
-        members: [member],
-      })
-      return groups
-    }, [])
-  }, [members, getLinkedUser, getUserAssignment, orgCompanies, orgDepartments, orgTeams, companies])
+      const companyNode = ensureCompanyNode(
+        orgCompany?.id || projectCompany?.id || 'ungrouped',
+        orgCompany?.name || projectCompany?.name || '조직 미지정',
+        orgCompany?.color || projectCompany?.color || '#64748b',
+        orgCompany?.short_name || projectCompany?.shortName
+      )
+
+      if (!orgDepartment) {
+        companyNode.directMembers.push(treeMember)
+        return
+      }
+
+      const departmentNode = ensureDepartmentNode(companyNode, orgDepartment.id, orgDepartment.name)
+      if (!orgTeam) {
+        departmentNode.directMembers.push(treeMember)
+        return
+      }
+
+      const teamNode = ensureTeamNode(departmentNode, orgTeam.id, orgTeam.name)
+      teamNode.members.push(treeMember)
+    })
+
+    return tree
+      .map((companyNode) => ({
+        ...companyNode,
+        departments: companyNode.departments
+          .map((departmentNode) => ({
+            ...departmentNode,
+            teamNodes: departmentNode.teamNodes.sort((a, b) => a.name.localeCompare(b.name, 'ko')),
+            directMembers: departmentNode.directMembers.sort((a, b) => a.member.name.localeCompare(b.member.name, 'ko')),
+          }))
+          .sort((a, b) => a.name.localeCompare(b.name, 'ko')),
+        directMembers: companyNode.directMembers.sort((a, b) => a.member.name.localeCompare(b.member.name, 'ko')),
+      }))
+      .sort((a, b) => a.name.localeCompare(b.name, 'ko'))
+  }, [members, allUsers, getLinkedUser, getUserAssignment, orgCompanies, orgDepartments, orgTeams, companies, project, projectMembers, memberTaskCounts])
+
+  const renderMemberRow = useCallback((params: {
+    member: (typeof members)[number]
+    linkedUser?: (typeof allUsers)[number]
+    projectRole?: ProjectRole
+    taskCount: number
+    color: string
+    orgPath?: string
+  }) => {
+    const { member, linkedUser, projectRole, taskCount, color, orgPath } = params
+    const isExpanded = expandedMemberId === member.id
+    const isLinkedUser = !!linkedUser
+
+    return (
+      <div key={member.id}>
+        <div
+          className={cn(
+            "flex items-center px-4 py-2 hover:bg-accent/30 text-sm gap-2 cursor-pointer transition-colors rounded-lg",
+            isExpanded && "bg-accent/20"
+          )}
+          onClick={() => toggleMemberExpand(member.id)}
+        >
+          <span className="text-muted-foreground w-4 flex-shrink-0">
+            {isExpanded ? (
+              <ChevronDown className="h-3.5 w-3.5" />
+            ) : (
+              <ChevronRight className="h-3.5 w-3.5" />
+            )}
+          </span>
+
+          <div className="w-8 h-8 rounded-full flex items-center justify-center text-white text-xs font-bold flex-shrink-0" style={{ backgroundColor: color }}>
+            {member.name.charAt(0)}
+          </div>
+
+          <div className="min-w-0 flex-1 grid grid-cols-[minmax(120px,180px)_minmax(180px,1fr)_minmax(160px,240px)] items-center gap-3">
+            <div className="flex items-center gap-2 min-w-0">
+              <span className="font-medium truncate">{member.name}</span>
+              {isLinkedUser && (
+                <span className="text-[10px] text-primary bg-primary/10 border border-primary/20 px-1.5 py-0.5 rounded-md flex-shrink-0">
+                  회원
+                </span>
+              )}
+            </div>
+            <div className="min-w-0">
+              <div className="truncate text-xs text-muted-foreground/80">{member.email || '이메일 없음'}</div>
+              {orgPath && <div className="truncate text-[11px] text-muted-foreground">{orgPath}</div>}
+            </div>
+            <div className="flex items-center gap-2 justify-end">
+              {taskCount > 0 && (
+                <span className="flex items-center gap-0.5 text-[10px] text-muted-foreground bg-muted/60 px-1.5 py-0.5 rounded-md">
+                  <ClipboardList className="h-3 w-3" />
+                  {taskCount}
+                </span>
+              )}
+              {project && linkedUser && (
+                canManageMembers ? (
+                  <Select
+                    value={projectRole || 'viewer'}
+                    onValueChange={(v) => {
+                      if (!v) return
+                      const nextRole = v as ProjectRole
+                      const hasProjectMember = projectMembers.some((m) => m.projectId === project.id && m.userId === linkedUser.id)
+                      if (hasProjectMember) {
+                        updateProjectMemberRole(project.id, linkedUser.id, nextRole)
+                      } else {
+                        addProjectMember({ projectId: project.id, userId: linkedUser.id, role: nextRole })
+                      }
+                      updateMember(member.id, {
+                        role: getProjectRoleLabel(nextRole),
+                      })
+                    }}
+                  >
+                    <SelectTrigger
+                      className="h-7 w-[96px] text-xs flex-shrink-0"
+                      onClick={(e) => e.stopPropagation()}
+                    >
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="pm" className="text-xs">PM</SelectItem>
+                      <SelectItem value="editor" className="text-xs">편집자</SelectItem>
+                      <SelectItem value="viewer" className="text-xs">뷰어</SelectItem>
+                    </SelectContent>
+                  </Select>
+                ) : (
+                  <span className="text-xs text-muted-foreground bg-muted/70 px-2 py-1 rounded-md flex-shrink-0 min-w-[72px] text-center">
+                    {getProjectRoleLabel(projectRole)}
+                  </span>
+                )
+              )}
+              {!isLinkedUser && (
+                <>
+                  <input
+                    className="font-medium bg-transparent border-b border-transparent hover:border-border focus:border-primary outline-none w-20"
+                    defaultValue={member.name}
+                    onClick={(e) => e.stopPropagation()}
+                    onBlur={(e) => updateMember(member.id, { name: e.target.value })}
+                  />
+                  <input
+                    className="text-xs text-muted-foreground bg-transparent border-b border-transparent hover:border-border focus:border-primary outline-none w-24"
+                    defaultValue={member.email || ''}
+                    placeholder="이메일"
+                    onClick={(e) => e.stopPropagation()}
+                    onBlur={(e) => updateMember(member.id, { email: e.target.value || undefined })}
+                  />
+                </>
+              )}
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-7 w-7"
+                onClick={(e) => {
+                  e.stopPropagation()
+                  if (confirm(`"${member.name}" 인원을 삭제하시겠습니까?`)) {
+                    deleteMember(member.id)
+                  }
+                }}
+              >
+                <Trash2 className="h-3.5 w-3.5 text-red-500" />
+              </Button>
+            </div>
+          </div>
+        </div>
+
+        {isExpanded && (
+          <div className="bg-muted/10 border-t border-border/20 rounded-b-lg">
+            <MemberTaskList memberId={member.id} onOpenTask={handleOpenTask} />
+          </div>
+        )}
+      </div>
+    )
+  }, [expandedMemberId, toggleMemberExpand, project, canManageMembers, projectMembers, updateProjectMemberRole, addProjectMember, updateMember, getProjectRoleLabel, deleteMember, handleOpenTask])
 
   return (
     <div className="p-6 max-w-4xl mx-auto space-y-6 overflow-y-auto h-full">
@@ -494,7 +715,7 @@ export function ResourceManager() {
                 )}
               </div>
               <span className="text-xs text-muted-foreground mr-2">
-                {groupedMembers.find((group) => group.title === company.name)?.members.length || 0}명
+                {companyMemberCounts[company.id] || 0}명
               </span>
               {!company.managedByOrganization && (
                 <Button
@@ -680,164 +901,82 @@ export function ResourceManager() {
         </div>
         )}
 
-        {/* 인원 목록 (회사별 그룹) */}
-        {groupedMembers.map((group) => {
-          if (group.members.length === 0) return null
-
-          return (
-            <div key={group.key}>
-              <div className="px-4 py-1.5 bg-muted/50 text-xs font-semibold flex items-center gap-2">
-                <div className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: group.color }} />
-                {group.title} ({group.members.length}명)
-                {group.subtitle && (
-                  <span className="text-[10px] font-normal text-muted-foreground">/ {group.subtitle}</span>
-                )}
+        {/* 인원 목록 (회사 > 부서 > 팀 > 사람) */}
+        <div className="p-4 space-y-4">
+          {memberTree.map((companyNode) => (
+            <div key={companyNode.id} className="rounded-xl border border-border/50 overflow-hidden">
+              <div className="flex items-center gap-2 px-4 py-3 bg-muted/40 border-b border-border/40">
+                <div className="w-3 h-3 rounded-full" style={{ backgroundColor: companyNode.color }} />
+                <div className="font-semibold text-sm">{companyNode.name}</div>
+                <span className="text-[11px] text-muted-foreground">{companyMemberCounts[companyNode.id] || 0}명</span>
               </div>
-              <div className="divide-y">
-                {group.members.map((member) => {
-                  const isExpanded = expandedMemberId === member.id
-                  const taskCount = memberTaskCounts[member.id] || 0
-                  const linkedUser = getLinkedUser(member.email)
-                  const isLinkedUser = !!linkedUser
-                  const currentProjectRole = (linkedUser && project)
-                    ? projectMembers.find((m) => m.projectId === project.id && m.userId === linkedUser.id)?.role
-                    : undefined
 
-                  return (
-                    <div key={member.id}>
-                      <div
-                        className={cn(
-                          "flex items-center px-4 py-2 hover:bg-accent/30 text-sm gap-2 cursor-pointer transition-colors",
-                          isExpanded && "bg-accent/20"
-                        )}
-                        onClick={() => toggleMemberExpand(member.id)}
-                      >
-                        {/* Expand/collapse chevron */}
-                        <span className="text-muted-foreground w-4 flex-shrink-0">
-                          {isExpanded ? (
-                            <ChevronDown className="h-3.5 w-3.5" />
-                          ) : (
-                            <ChevronRight className="h-3.5 w-3.5" />
-                          )}
-                        </span>
-                        <div className="w-8 h-8 rounded-full flex items-center justify-center text-white text-xs font-bold flex-shrink-0"
-                          style={{ backgroundColor: group.color }}>
-                          {member.name.charAt(0)}
-                        </div>
-                        {isLinkedUser ? (
-                          <>
-                            <span className="font-medium w-20 truncate" title="등록회원">{member.name}</span>
-                            <span className="text-[10px] text-primary bg-primary/10 border border-primary/20 px-1.5 py-0.5 rounded-md flex-shrink-0">
-                              회원
-                            </span>
-                            <span
-                              className="text-xs text-muted-foreground/70 flex-1 truncate"
-                              title="등록회원 이메일은 담당자 관리에서 수정할 수 없습니다"
-                            >
-                              {member.email}
-                            </span>
-                            <div className="hidden lg:block min-w-[180px] max-w-[260px] text-[11px] text-muted-foreground truncate">
-                              <OrganizationPath userId={linkedUser.id} emptyLabel="조직 미지정" />
-                            </div>
-                            {project && linkedUser && (
-                              canManageMembers ? (
-                                <Select
-                                  value={currentProjectRole || 'viewer'}
-                                  onValueChange={(v) => {
-                                    if (!v) return
-                                    const nextRole = v as ProjectRole
-                                    const hasProjectMember = projectMembers.some((m) => m.projectId === project.id && m.userId === linkedUser.id)
-                                    if (hasProjectMember) {
-                                      updateProjectMemberRole(project.id, linkedUser.id, nextRole)
-                                    } else {
-                                      addProjectMember({ projectId: project.id, userId: linkedUser.id, role: nextRole })
-                                    }
-                                    updateMember(member.id, {
-                                      role: getProjectRoleLabel(nextRole),
-                                    })
-                                  }}
-                                >
-                                  <SelectTrigger
-                                    className="h-7 w-[96px] text-xs flex-shrink-0"
-                                    onClick={(e) => e.stopPropagation()}
-                                  >
-                                    <SelectValue />
-                                  </SelectTrigger>
-                                  <SelectContent>
-                                    <SelectItem value="pm" className="text-xs">PM</SelectItem>
-                                    <SelectItem value="editor" className="text-xs">편집자</SelectItem>
-                                    <SelectItem value="viewer" className="text-xs">뷰어</SelectItem>
-                                  </SelectContent>
-                                </Select>
-                              ) : (
-                                <span className="text-xs text-muted-foreground bg-muted/70 px-2 py-1 rounded-md flex-shrink-0 min-w-[72px] text-center">
-                                  {getProjectRoleLabel(currentProjectRole)}
-                                </span>
-                              )
-                            )}
-                          </>
-                        ) : (
-                          <>
-                            <input
-                              className="font-medium bg-transparent border-b border-transparent hover:border-border focus:border-primary outline-none w-20"
-                              defaultValue={member.name}
-                              onClick={(e) => e.stopPropagation()}
-                              onBlur={(e) => updateMember(member.id, { name: e.target.value })}
-                            />
-                            <input
-                              className="text-xs text-muted-foreground bg-transparent border-b border-transparent hover:border-border focus:border-primary outline-none w-16"
-                              defaultValue={member.role || ''}
-                              placeholder="직책"
-                              onClick={(e) => e.stopPropagation()}
-                              onBlur={(e) => updateMember(member.id, { role: e.target.value || undefined })}
-                            />
-                            <input
-                              className="text-xs text-muted-foreground bg-transparent border-b border-transparent hover:border-border focus:border-primary outline-none flex-1"
-                              defaultValue={member.email || ''}
-                              placeholder="이메일"
-                              onClick={(e) => e.stopPropagation()}
-                              onBlur={(e) => updateMember(member.id, { email: e.target.value || undefined })}
-                            />
-                          </>
-                        )}
-                        {/* Task count badge */}
-                        {taskCount > 0 && (
-                          <span className="flex items-center gap-0.5 text-[10px] text-muted-foreground bg-muted/60 px-1.5 py-0.5 rounded-md">
-                            <ClipboardList className="h-3 w-3" />
-                            {taskCount}
-                          </span>
-                        )}
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="h-7 w-7"
-                          onClick={(e) => {
-                            e.stopPropagation()
-                            if (confirm(`"${member.name}" 인원을 삭제하시겠습니까?`)) {
-                              deleteMember(member.id)
-                            }
-                          }}
-                        >
-                          <Trash2 className="h-3.5 w-3.5 text-red-500" />
-                        </Button>
-                      </div>
+              <div className="p-3 space-y-3">
+                {companyNode.directMembers.length > 0 && (
+                  <div className="rounded-lg border border-dashed border-border/50 bg-muted/15">
+                    <div className="px-4 py-2 text-xs font-semibold text-muted-foreground">부서 미지정</div>
+                    <div className="px-2 pb-2 space-y-1">
+                      {companyNode.directMembers.map((treeMember) => renderMemberRow({
+                        member: treeMember.member,
+                        linkedUser: treeMember.linkedUser,
+                        projectRole: treeMember.projectRole,
+                        taskCount: treeMember.taskCount,
+                        color: companyNode.color,
+                        orgPath: treeMember.orgPath,
+                      }))}
+                    </div>
+                  </div>
+                )}
 
-                      {/* Expanded: task list */}
-                      {isExpanded && (
-                        <div className="bg-muted/10 border-t border-border/20">
-                          <MemberTaskList
-                            memberId={member.id}
-                            onOpenTask={handleOpenTask}
-                          />
+                {companyNode.departments.map((departmentNode) => (
+                  <div key={departmentNode.id} className="rounded-lg border border-border/40 bg-background">
+                    <div className="px-4 py-2.5 border-b border-border/30 flex items-center gap-2">
+                      <ChevronRight className="h-3.5 w-3.5 text-muted-foreground" />
+                      <span className="text-xs font-semibold tracking-wide text-muted-foreground uppercase">부서</span>
+                      <span className="font-medium text-sm">{departmentNode.name}</span>
+                    </div>
+
+                    <div className="p-3 space-y-3">
+                      {departmentNode.directMembers.length > 0 && (
+                        <div className="rounded-lg border border-dashed border-border/50 bg-muted/15">
+                          <div className="px-4 py-2 text-xs font-semibold text-muted-foreground">팀 미지정</div>
+                          <div className="px-2 pb-2 space-y-1">
+                            {departmentNode.directMembers.map((treeMember) => renderMemberRow({
+                              member: treeMember.member,
+                              linkedUser: treeMember.linkedUser,
+                              projectRole: treeMember.projectRole,
+                              taskCount: treeMember.taskCount,
+                              color: companyNode.color,
+                              orgPath: treeMember.orgPath,
+                            }))}
+                          </div>
                         </div>
                       )}
+
+                      {departmentNode.teamNodes.map((teamNode) => (
+                        <div key={teamNode.id} className="rounded-lg border border-border/40 bg-muted/10 overflow-hidden">
+                          <div className="px-4 py-2 text-xs font-semibold text-muted-foreground border-b border-border/30">
+                            팀 · {teamNode.name}
+                          </div>
+                          <div className="px-2 py-2 space-y-1">
+                            {teamNode.members.map((treeMember) => renderMemberRow({
+                              member: treeMember.member,
+                              linkedUser: treeMember.linkedUser,
+                              projectRole: treeMember.projectRole,
+                              taskCount: treeMember.taskCount,
+                              color: companyNode.color,
+                              orgPath: treeMember.orgPath,
+                            }))}
+                          </div>
+                        </div>
+                      ))}
                     </div>
-                  )
-                })}
+                  </div>
+                ))}
               </div>
             </div>
-          )
-        })}
+          ))}
+        </div>
       </div>
 
       {/* Task Edit Dialog */}

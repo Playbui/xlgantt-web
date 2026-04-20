@@ -4,6 +4,12 @@ import type { Project, ColorTheme } from '@/lib/types'
 import { THEME_PRESETS } from '@/lib/types'
 import { supabase } from '@/lib/supabase'
 
+function notifyProjectMemberSaveFailure(message: string) {
+  if (typeof window !== 'undefined') {
+    window.alert(message)
+  }
+}
+
 export type ProjectRole = 'owner' | 'pm' | 'editor' | 'viewer'
 
 export interface ProjectMember {
@@ -211,36 +217,59 @@ export const useProjectStore = create<ProjectState>()(persist((set, get) => ({
     }
   },
 
-  addProjectMember: (member) => {
+  addProjectMember: async (member) => {
     set((s) => ({
       projectMembers: [...s.projectMembers.filter((m) => !(m.projectId === member.projectId && m.userId === member.userId)), member],
     }))
-    supabase.from('project_members').upsert({
+    const { error } = await supabase.from('project_members').upsert({
       project_id: member.projectId,
       user_id: member.userId,
       role: member.role,
-    }).then(({ error }) => {
-      if (error) console.error('프로젝트 멤버 추가 실패:', error.message)
     })
+    if (error) {
+      console.error('프로젝트 멤버 추가 실패:', error.message)
+      set((s) => ({
+        projectMembers: s.projectMembers.filter((m) => !(m.projectId === member.projectId && m.userId === member.userId)),
+      }))
+      notifyProjectMemberSaveFailure('프로젝트 역할/배정 추가가 DB에 저장되지 않았습니다.')
+    }
   },
 
-  removeProjectMember: (projectId, userId) => {
+  removeProjectMember: async (projectId, userId) => {
+    const before = get().projectMembers.find((m) => m.projectId === projectId && m.userId === userId)
     set((s) => ({
       projectMembers: s.projectMembers.filter((m) => !(m.projectId === projectId && m.userId === userId)),
     }))
-    supabase.from('project_members').delete().eq('project_id', projectId).eq('user_id', userId)
-      .then(({ error }) => { if (error) console.error('프로젝트 멤버 삭제 실패:', error.message) })
+    const { error } = await supabase.from('project_members').delete().eq('project_id', projectId).eq('user_id', userId)
+    if (error) {
+      console.error('프로젝트 멤버 삭제 실패:', error.message)
+      if (before) {
+        set((s) => ({ projectMembers: [...s.projectMembers, before] }))
+      }
+      notifyProjectMemberSaveFailure('프로젝트 멤버 삭제가 DB에 반영되지 않았습니다.')
+    }
   },
 
-  updateProjectMemberRole: (projectId, userId, role) => {
+  updateProjectMemberRole: async (projectId, userId, role) => {
+    const before = get().projectMembers.find((m) => m.projectId === projectId && m.userId === userId)
     set((s) => ({
       projectMembers: s.projectMembers.map((m) =>
         m.projectId === projectId && m.userId === userId ? { ...m, role } : m
       ),
     }))
-    supabase.from('project_members').update({ role })
+    const { error } = await supabase.from('project_members').update({ role })
       .eq('project_id', projectId).eq('user_id', userId)
-      .then(({ error }) => { if (error) console.error('프로젝트 멤버 역할 변경 실패:', error.message) })
+    if (error) {
+      console.error('프로젝트 멤버 역할 변경 실패:', error.message)
+      if (before) {
+        set((s) => ({
+          projectMembers: s.projectMembers.map((m) =>
+            m.projectId === projectId && m.userId === userId ? before : m
+          ),
+        }))
+      }
+      notifyProjectMemberSaveFailure('프로젝트 역할 변경이 DB에 저장되지 않았습니다.')
+    }
   },
 
   getProjectMembers: (projectId) => get().projectMembers.filter((m) => m.projectId === projectId),

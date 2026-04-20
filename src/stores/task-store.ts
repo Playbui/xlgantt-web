@@ -11,6 +11,12 @@ import { useProjectStore } from '@/stores/project-store'
 import { clampProgress, getEffectiveActualProgress, getEffectivePlannedProgress, resolveStatusDate } from '@/lib/task-progress'
 import { supabase } from '@/lib/supabase'
 
+function notifyTaskSaveFailure(message: string) {
+  if (typeof window !== 'undefined') {
+    window.alert(message)
+  }
+}
+
 function logTaskActivity(params: {
   action: 'create' | 'update' | 'delete' | 'complete' | 'status_change'
   targetType: 'task' | 'detail' | 'assignment' | 'dependency'
@@ -430,10 +436,14 @@ export const useTaskStore = create<TaskState>((set, get) => ({
         const { error: retryError } = await supabase.from('tasks').insert(fallback)
         if (retryError) {
           console.error('작업 추가(레거시 fallback) 실패:', retryError.message)
+          set((state) => ({ tasks: state.tasks.filter((item) => item.id !== task.id) }))
+          notifyTaskSaveFailure('작업 추가가 DB에 저장되지 않았습니다.')
         }
         return
       }
       console.error('작업 추가 실패:', error.message)
+      set((state) => ({ tasks: state.tasks.filter((item) => item.id !== task.id) }))
+      notifyTaskSaveFailure('작업 추가가 DB에 저장되지 않았습니다.')
     })
   },
 
@@ -479,7 +489,8 @@ export const useTaskStore = create<TaskState>((set, get) => ({
       normalizedChanges.actual_progress_override = clampProgress(changes.actual_progress)
     }
 
-    const beforeTask = useTaskStore.getState().tasks.find((t) => t.id === taskId)
+    const beforeTasks = useTaskStore.getState().tasks
+    const beforeTask = beforeTasks.find((t) => t.id === taskId)
     pushCurrentSnapshot()
     set((state) => {
       const statusDate = resolveStatusDate(useProjectStore.getState().currentProject?.status_date)
@@ -536,10 +547,14 @@ export const useTaskStore = create<TaskState>((set, get) => ({
         const { error: retryError } = await supabase.from('tasks').update(fallback).eq('id', taskId)
         if (retryError) {
           console.error('작업 업데이트(레거시 fallback) 실패:', retryError.message)
+          set({ tasks: beforeTasks })
+          notifyTaskSaveFailure('작업 수정이 DB에 저장되지 않았습니다. 화면 값을 이전 상태로 되돌렸습니다.')
         }
         return
       }
       console.error('작업 업데이트 실패:', error.message)
+      set({ tasks: beforeTasks })
+      notifyTaskSaveFailure('작업 수정이 DB에 저장되지 않았습니다. 화면 값을 이전 상태로 되돌렸습니다.')
     })
   },
 
@@ -767,6 +782,7 @@ export const useTaskStore = create<TaskState>((set, get) => ({
     set({ tasks, dependencies }),
 
   _updateTaskSilent: (taskId, changes) => {
+    const beforeTasks = get().tasks
     const currentTask = get().tasks.find((t) => t.id === taskId)
     const dbSafeChanges: Partial<Task> = { ...changes }
     if (currentTask?.actual_progress_override != null && dbSafeChanges.actual_progress !== undefined) {
@@ -799,7 +815,10 @@ export const useTaskStore = create<TaskState>((set, get) => ({
       dbChanges[key] = value ?? null
     }
     supabase.from('tasks').update(dbChanges).eq('id', taskId).then(({ error }) => {
-      if (error) console.error('작업 자동 업데이트 실패:', error.message)
+      if (error) {
+        console.error('작업 자동 업데이트 실패:', error.message)
+        set({ tasks: beforeTasks })
+      }
     })
   },
 }))
