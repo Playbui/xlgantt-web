@@ -38,6 +38,10 @@ export function WbsExcelImportDialog({
   const [importMode, setImportMode] = useState<ImportMode>('append')
   const [confirmReplaceOpen, setConfirmReplaceOpen] = useState(false)
 
+  const appendValidationError = (message: string) => {
+    setValidationErrors((prev) => Array.from(new Set([...prev, message])))
+  }
+
   const resetState = () => {
     setSelectedFileName('')
     setValidationState('idle')
@@ -82,6 +86,7 @@ export function WbsExcelImportDialog({
     if (validationState !== 'ready' || validatedRows.length === 0) return
 
     setValidationState('importing')
+    setValidationErrors([])
     try {
       const importedTasks = buildTasksFromExcelRows({
         projectId,
@@ -95,11 +100,18 @@ export function WbsExcelImportDialog({
           .map((task) => task.id)
 
         if (projectTaskIds.length > 0) {
-          await supabase.from('task_assignments').delete().in('task_id', projectTaskIds)
-          await supabase.from('task_details').delete().in('task_id', projectTaskIds)
+          const { error: assignmentDeleteError } = await supabase.from('task_assignments').delete().in('task_id', projectTaskIds)
+          if (assignmentDeleteError) throw new Error(`담당자 배정 삭제 실패: ${assignmentDeleteError.message}`)
+
+          const { error: detailDeleteError } = await supabase.from('task_details').delete().in('task_id', projectTaskIds)
+          if (detailDeleteError) throw new Error(`세부항목 삭제 실패: ${detailDeleteError.message}`)
         }
-        await supabase.from('dependencies').delete().eq('project_id', projectId)
-        await supabase.from('tasks').delete().eq('project_id', projectId)
+
+        const { error: dependencyDeleteError } = await supabase.from('dependencies').delete().eq('project_id', projectId)
+        if (dependencyDeleteError) throw new Error(`의존관계 삭제 실패: ${dependencyDeleteError.message}`)
+
+        const { error: taskDeleteError } = await supabase.from('tasks').delete().eq('project_id', projectId)
+        if (taskDeleteError) throw new Error(`기존 작업 삭제 실패: ${taskDeleteError.message}`)
 
         setTasks([])
         setDependencies([])
@@ -117,7 +129,7 @@ export function WbsExcelImportDialog({
         : `${validatedRows.length}개 작업을 추가 등록했습니다.`)
     } catch (error) {
       console.error('엑셀 등록 실패:', error)
-      setValidationErrors(['등록 중 오류가 발생했습니다. 다시 시도해주세요.'])
+      appendValidationError(error instanceof Error ? error.message : '등록 중 오류가 발생했습니다. 다시 시도해주세요.')
       setValidationState('error')
     }
   }
@@ -146,7 +158,7 @@ export function WbsExcelImportDialog({
 
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
-      <DialogContent className="max-w-3xl p-0 overflow-hidden">
+      <DialogContent className="flex max-w-3xl flex-col p-0">
         <DialogHeader className="border-b border-border/70 bg-muted/30 px-6 py-5">
           <DialogTitle className="flex items-center gap-2">
             <FileSpreadsheet className="h-5 w-5 text-primary" />
@@ -157,7 +169,8 @@ export function WbsExcelImportDialog({
           </DialogDescription>
         </DialogHeader>
 
-        <div className="space-y-5 px-6 py-5">
+        <div className="min-h-0 flex-1 overflow-y-auto px-6 py-5">
+          <div className="space-y-5">
           <div className="rounded-xl border border-amber-200 bg-amber-50/80 p-4 text-sm text-amber-900">
             <div className="font-semibold">현재 등록 방식</div>
             <div className="mt-1 leading-6">
@@ -331,9 +344,10 @@ export function WbsExcelImportDialog({
               </div>
             )}
           </div>
+          </div>
         </div>
 
-        <DialogFooter>
+        <DialogFooter className="shrink-0">
           <Button variant="outline" onClick={() => handleOpenChange(false)}>
             닫기
           </Button>
@@ -345,7 +359,7 @@ export function WbsExcelImportDialog({
       </DialogContent>
 
       <Dialog open={confirmReplaceOpen} onOpenChange={setConfirmReplaceOpen}>
-        <DialogContent className="max-w-lg">
+        <DialogContent className="flex max-w-lg flex-col">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2 text-amber-700">
               <AlertCircle className="h-5 w-5" />
@@ -374,7 +388,7 @@ export function WbsExcelImportDialog({
             </div>
           </div>
 
-          <DialogFooter>
+          <DialogFooter className="shrink-0">
             <Button variant="outline" onClick={() => setConfirmReplaceOpen(false)}>
               취소
             </Button>
