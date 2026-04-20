@@ -21,6 +21,7 @@ import { OrganizationUserPicker } from '@/components/organization/OrganizationUs
 import { OrganizationPath } from '@/components/organization/OrganizationPath'
 import type { Task } from '@/lib/types'
 import type { TaskAssignment } from '@/lib/resource-types'
+import type { OrganizationCompany } from '@/lib/organization-types'
 
 const COLORS = ['#3b82f6', '#dc2626', '#16a34a', '#ca8a04', '#9333ea', '#0891b2', '#e11d48', '#4f46e5']
 
@@ -137,6 +138,8 @@ export function ResourceManager() {
   const loadOrganization = useOrganizationStore((s) => s.loadOrganization)
   const getUserAssignment = useOrganizationStore((s) => s.getUserAssignment)
   const orgCompanies = useOrganizationStore((s) => s.companies)
+  const orgDepartments = useOrganizationStore((s) => s.departments)
+  const orgTeams = useOrganizationStore((s) => s.teams)
   const isAdmin = currentUser?.role === 'admin'
   const myProjectRole = project ? useProjectStore.getState().getMyProjectRole(project.id, currentUser?.id || '') : null
   const canManageMembers = isAdmin || myProjectRole === 'pm'
@@ -282,6 +285,102 @@ export function ResourceManager() {
     setNewMemberEmail('')
   }
 
+  const ensureProjectCompanyForOrg = useCallback((orgCompany: OrganizationCompany) => {
+    const matched = companies.find((company) =>
+      company.name.trim().toLowerCase() === orgCompany.name.trim().toLowerCase() ||
+      company.shortName.trim().toLowerCase() === (orgCompany.short_name || '').trim().toLowerCase()
+    )
+    if (matched) {
+      return matched.id
+    }
+
+    const newCompanyId = crypto.randomUUID()
+    addCompany({
+      id: newCompanyId,
+      name: orgCompany.name,
+      shortName: orgCompany.short_name || orgCompany.name.substring(0, 3),
+      color: orgCompany.color || COLORS[0],
+      created_at: new Date().toISOString(),
+    })
+    return newCompanyId
+  }, [addCompany, companies])
+
+  useEffect(() => {
+    if (orgCompanies.length === 0) return
+
+    orgCompanies.forEach((orgCompany) => {
+      const matched = companies.find((company) =>
+        company.name.trim().toLowerCase() === orgCompany.name.trim().toLowerCase() ||
+        company.shortName.trim().toLowerCase() === (orgCompany.short_name || '').trim().toLowerCase()
+      )
+      if (!matched) {
+        ensureProjectCompanyForOrg(orgCompany)
+      }
+    })
+  }, [companies, ensureProjectCompanyForOrg, orgCompanies])
+
+  const companySourceOptions = useMemo(() => {
+    if (orgCompanies.length > 0) {
+      return orgCompanies.map((company) => ({
+        id: companies.find((projectCompany) =>
+          projectCompany.name.trim().toLowerCase() === company.name.trim().toLowerCase() ||
+          projectCompany.shortName.trim().toLowerCase() === (company.short_name || '').trim().toLowerCase()
+        )?.id || '',
+        label: company.name,
+        shortLabel: company.short_name || company.name,
+        color: company.color || '#2563eb',
+        managedByOrganization: true,
+      }))
+    }
+
+    return companies.map((company) => ({
+      id: company.id,
+      label: company.name,
+      shortLabel: company.shortName,
+      color: company.color,
+      managedByOrganization: false,
+    }))
+  }, [companies, orgCompanies])
+
+  const groupedMembers = useMemo(() => {
+    return members.reduce<Array<{
+      key: string
+      title: string
+      subtitle?: string
+      color: string
+      members: typeof members
+    }>>((groups, member) => {
+      const linkedUser = getLinkedUser(member.email)
+      const assignment = linkedUser ? getUserAssignment(linkedUser.id) : undefined
+      const orgCompany = assignment ? orgCompanies.find((company) => company.id === assignment.company_id) : undefined
+      const orgDepartment = assignment ? orgDepartments.find((department) => department.id === assignment.department_id) : undefined
+      const orgTeam = assignment?.team_id ? orgTeams.find((team) => team.id === assignment.team_id) : undefined
+      const projectCompany = companies.find((company) => company.id === member.company_id)
+
+      const key = orgCompany?.id || projectCompany?.id || 'ungrouped'
+      const title = orgCompany?.name || projectCompany?.name || '미지정'
+      const subtitle = orgCompany
+        ? [orgDepartment?.name, orgTeam?.name].filter(Boolean).join(' / ')
+        : projectCompany?.shortName
+      const color = orgCompany?.color || projectCompany?.color || '#64748b'
+
+      const existing = groups.find((group) => group.key === key)
+      if (existing) {
+        existing.members.push(member)
+        return groups
+      }
+
+      groups.push({
+        key,
+        title,
+        subtitle,
+        color,
+        members: [member],
+      })
+      return groups
+    }, [])
+  }, [members, getLinkedUser, getUserAssignment, orgCompanies, orgDepartments, orgTeams, companies])
+
   return (
     <div className="p-6 max-w-4xl mx-auto space-y-6 overflow-y-auto h-full">
       <div>
@@ -289,91 +388,128 @@ export function ResourceManager() {
         <p className="text-sm text-muted-foreground mt-0.5">회사 및 인원을 등록하고 관리합니다</p>
       </div>
 
-      {/* ========== 회사 관리 ========== */}
+      {/* ========== 회사 기준 ========== */}
       <div className="bg-card rounded-xl border border-border/50 shadow-sm">
         <div className="px-5 py-3 border-b border-border/40 flex items-center gap-2">
           <Building2 className="h-4 w-4 text-primary" />
-          <h3 className="text-sm font-semibold">회사 관리</h3>
-          <span className="text-xs text-muted-foreground bg-muted/60 px-2 py-0.5 rounded-md font-medium">{companies.length}개</span>
+          <h3 className="text-sm font-semibold">{orgCompanies.length > 0 ? '조직 회사 기준' : '회사 관리'}</h3>
+          <span className="text-xs text-muted-foreground bg-muted/60 px-2 py-0.5 rounded-md font-medium">
+            {orgCompanies.length > 0 ? orgCompanies.length : companies.length}개
+          </span>
         </div>
 
-        {/* 회사 추가 */}
-        <div className="p-4 border-b bg-muted/30">
-          <div className="flex gap-2 items-end">
-            <div className="flex-1">
-              <label className="text-xs text-muted-foreground">회사명</label>
-              <Input
-                placeholder="예: (주) 지엠티"
-                value={newCompanyName}
-                onChange={(e) => setNewCompanyName(e.target.value)}
-              />
+        {orgCompanies.length === 0 && (
+          <div className="p-4 border-b bg-muted/30">
+            <div className="flex gap-2 items-end">
+              <div className="flex-1">
+                <label className="text-xs text-muted-foreground">회사명</label>
+                <Input
+                  placeholder="예: (주) 지엠티"
+                  value={newCompanyName}
+                  onChange={(e) => setNewCompanyName(e.target.value)}
+                />
+              </div>
+              <div className="w-28">
+                <label className="text-xs text-muted-foreground">약칭</label>
+                <Input
+                  placeholder="GMT"
+                  value={newCompanyShort}
+                  onChange={(e) => setNewCompanyShort(e.target.value)}
+                />
+              </div>
+              <div>
+                <label className="text-xs text-muted-foreground">색상</label>
+                <div className="flex items-center gap-2 mt-1">
+                  <input
+                    type="color"
+                    value={newCompanyColor}
+                    onChange={(e) => setNewCompanyColor(e.target.value)}
+                    className="w-8 h-8 rounded border border-border cursor-pointer p-0"
+                  />
+                  <span className="text-xs text-muted-foreground font-mono">{newCompanyColor}</span>
+                </div>
+              </div>
+              <Button onClick={handleAddCompany} size="sm" className="mb-0.5">
+                <Plus className="h-4 w-4 mr-1" />
+                추가
+              </Button>
             </div>
-            <div className="w-28">
-              <label className="text-xs text-muted-foreground">약칭</label>
-              <Input
-                placeholder="GMT"
-                value={newCompanyShort}
-                onChange={(e) => setNewCompanyShort(e.target.value)}
-              />
-            </div>
-            <div>
-              <label className="text-xs text-muted-foreground">색상</label>
-              <div className="flex items-center gap-2 mt-1">
+          </div>
+        )}
+
+        {orgCompanies.length > 0 && (
+          <div className="px-4 py-3 border-b bg-muted/30 text-xs text-muted-foreground">
+            조직 관리에서 등록한 회사를 기준으로 담당자 소속을 표시합니다. 회사 추가/수정은 사용자 관리의 `조직 관리` 탭에서 진행하세요.
+          </div>
+        )}
+
+        <div className="divide-y">
+          {(orgCompanies.length > 0
+            ? orgCompanies.map((company) => ({
+                id: company.id,
+                name: company.name,
+                shortName: company.short_name || '',
+                color: company.color || '#2563eb',
+                managedByOrganization: true,
+              }))
+            : companies.map((company) => ({
+                id: company.id,
+                name: company.name,
+                shortName: company.shortName,
+                color: company.color,
+                managedByOrganization: false,
+              }))
+          ).map((company) => (
+            <div key={company.id} className="flex items-center px-4 py-2.5 hover:bg-accent/30 gap-2">
+              {company.managedByOrganization ? (
+                <div className="w-6 h-6 rounded-full border border-border/40" style={{ backgroundColor: company.color }} />
+              ) : (
                 <input
                   type="color"
-                  value={newCompanyColor}
-                  onChange={(e) => setNewCompanyColor(e.target.value)}
-                  className="w-8 h-8 rounded border border-border cursor-pointer p-0"
+                  value={company.color}
+                  onChange={(e) => updateCompany(company.id, { color: e.target.value })}
+                  className="w-6 h-6 rounded-full border-0 cursor-pointer p-0"
+                  title="색상 변경"
                 />
-                <span className="text-xs text-muted-foreground font-mono">{newCompanyColor}</span>
-              </div>
-            </div>
-            <Button onClick={handleAddCompany} size="sm" className="mb-0.5">
-              <Plus className="h-4 w-4 mr-1" />
-              추가
-            </Button>
-          </div>
-        </div>
-
-        {/* 회사 목록 */}
-        <div className="divide-y">
-          {companies.map((company) => (
-            <div key={company.id} className="flex items-center px-4 py-2.5 hover:bg-accent/30 gap-2">
-              {/* 색상 변경 - 클릭하면 다음 색상으로 */}
-              <input
-                type="color"
-                value={company.color}
-                onChange={(e) => updateCompany(company.id, { color: e.target.value })}
-                className="w-6 h-6 rounded-full border-0 cursor-pointer p-0"
-                title="색상 변경"
-              />
+              )}
               <div className="flex-1 min-w-0">
-                <input
-                  className="font-medium text-sm bg-transparent border-b border-transparent hover:border-border focus:border-primary outline-none w-full"
-                  defaultValue={company.name}
-                  onBlur={(e) => updateCompany(company.id, { name: e.target.value })}
-                />
-                <input
-                  className="text-xs text-muted-foreground bg-transparent border-b border-transparent hover:border-border focus:border-primary outline-none w-16 ml-1"
-                  defaultValue={company.shortName}
-                  onBlur={(e) => updateCompany(company.id, { shortName: e.target.value })}
-                />
+                {company.managedByOrganization ? (
+                  <>
+                    <div className="font-medium text-sm">{company.name}</div>
+                    <div className="text-xs text-muted-foreground ml-1">{company.shortName}</div>
+                  </>
+                ) : (
+                  <>
+                    <input
+                      className="font-medium text-sm bg-transparent border-b border-transparent hover:border-border focus:border-primary outline-none w-full"
+                      defaultValue={company.name}
+                      onBlur={(e) => updateCompany(company.id, { name: e.target.value })}
+                    />
+                    <input
+                      className="text-xs text-muted-foreground bg-transparent border-b border-transparent hover:border-border focus:border-primary outline-none w-16 ml-1"
+                      defaultValue={company.shortName}
+                      onBlur={(e) => updateCompany(company.id, { shortName: e.target.value })}
+                    />
+                  </>
+                )}
               </div>
               <span className="text-xs text-muted-foreground mr-2">
-                {members.filter((m) => m.company_id === company.id).length}명
+                {groupedMembers.find((group) => group.title === company.name)?.members.length || 0}명
               </span>
-              <Button
-                variant="ghost"
-                size="icon"
-                className="h-7 w-7"
-                onClick={() => {
-                  if (confirm(`"${company.name}" 회사를 삭제하시겠습니까?\n소속 인원도 함께 삭제됩니다.`)) {
-                    deleteCompany(company.id)
-                  }
-                }}
-              >
-                <Trash2 className="h-3.5 w-3.5 text-red-500" />
-              </Button>
+              {!company.managedByOrganization && (
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-7 w-7"
+                  onClick={() => {
+                    if (confirm(`"${company.name}" 회사를 삭제하시겠습니까?\n소속 인원도 함께 삭제됩니다.`)) {
+                      deleteCompany(company.id)
+                    }
+                  }}
+                >
+                  <Trash2 className="h-3.5 w-3.5 text-red-500" />
+                </Button>
+              )}
             </div>
           ))}
         </div>
@@ -434,11 +570,18 @@ export function ResourceManager() {
               <div className="w-48">
                 <label className="text-xs text-muted-foreground">소속 회사</label>
                 <Select value={newMemberCompany} onValueChange={(v) => v && setNewMemberCompany(v)}>
-                  <SelectTrigger className="h-9"><SelectValue placeholder="회사">{newMemberCompany ? companies.find(c => c.id === newMemberCompany)?.shortName : undefined}</SelectValue></SelectTrigger>
+                  <SelectTrigger className="h-9">
+                    <SelectValue placeholder="회사">
+                      {newMemberCompany ? companySourceOptions.find((c) => c.id === newMemberCompany)?.shortLabel : undefined}
+                    </SelectValue>
+                  </SelectTrigger>
                   <SelectContent>
-                    {companies.map((c) => (
+                    {companySourceOptions.map((c) => (
                       <SelectItem key={c.id} value={c.id}>
-                        <span className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full" style={{ backgroundColor: c.color }} />{c.shortName}</span>
+                        <span className="flex items-center gap-1.5">
+                          <span className="w-2 h-2 rounded-full" style={{ backgroundColor: c.color }} />
+                          {c.shortLabel}
+                        </span>
                       </SelectItem>
                     ))}
                   </SelectContent>
@@ -500,11 +643,18 @@ export function ResourceManager() {
               <div className="w-36">
                 <label className="text-xs text-muted-foreground">소속 회사</label>
                 <Select value={newMemberCompany} onValueChange={(v) => v && setNewMemberCompany(v)}>
-                  <SelectTrigger><SelectValue placeholder="회사">{newMemberCompany ? companies.find(c => c.id === newMemberCompany)?.shortName : undefined}</SelectValue></SelectTrigger>
+                  <SelectTrigger>
+                    <SelectValue placeholder="회사">
+                      {newMemberCompany ? companySourceOptions.find((c) => c.id === newMemberCompany)?.shortLabel : undefined}
+                    </SelectValue>
+                  </SelectTrigger>
                   <SelectContent>
-                    {companies.map((c) => (
+                    {companySourceOptions.map((c) => (
                       <SelectItem key={c.id} value={c.id}>
-                        <span className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full" style={{ backgroundColor: c.color }} />{c.shortName}</span>
+                        <span className="flex items-center gap-1.5">
+                          <span className="w-2 h-2 rounded-full" style={{ backgroundColor: c.color }} />
+                          {c.shortLabel}
+                        </span>
                       </SelectItem>
                     ))}
                   </SelectContent>
@@ -531,18 +681,20 @@ export function ResourceManager() {
         )}
 
         {/* 인원 목록 (회사별 그룹) */}
-        {companies.map((company) => {
-          const companyMembers = members.filter((m) => m.company_id === company.id)
-          if (companyMembers.length === 0) return null
+        {groupedMembers.map((group) => {
+          if (group.members.length === 0) return null
 
           return (
-            <div key={company.id}>
+            <div key={group.key}>
               <div className="px-4 py-1.5 bg-muted/50 text-xs font-semibold flex items-center gap-2">
-                <div className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: company.color }} />
-                {company.name} ({companyMembers.length}명)
+                <div className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: group.color }} />
+                {group.title} ({group.members.length}명)
+                {group.subtitle && (
+                  <span className="text-[10px] font-normal text-muted-foreground">/ {group.subtitle}</span>
+                )}
               </div>
               <div className="divide-y">
-                {companyMembers.map((member) => {
+                {group.members.map((member) => {
                   const isExpanded = expandedMemberId === member.id
                   const taskCount = memberTaskCounts[member.id] || 0
                   const linkedUser = getLinkedUser(member.email)
@@ -569,7 +721,7 @@ export function ResourceManager() {
                           )}
                         </span>
                         <div className="w-8 h-8 rounded-full flex items-center justify-center text-white text-xs font-bold flex-shrink-0"
-                          style={{ backgroundColor: company.color }}>
+                          style={{ backgroundColor: group.color }}>
                           {member.name.charAt(0)}
                         </div>
                         {isLinkedUser ? (
@@ -584,6 +736,9 @@ export function ResourceManager() {
                             >
                               {member.email}
                             </span>
+                            <div className="hidden lg:block min-w-[180px] max-w-[260px] text-[11px] text-muted-foreground truncate">
+                              <OrganizationPath userId={linkedUser.id} emptyLabel="조직 미지정" />
+                            </div>
                             {project && linkedUser && (
                               canManageMembers ? (
                                 <Select
