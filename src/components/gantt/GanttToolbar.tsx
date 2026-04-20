@@ -25,6 +25,7 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuGroup, DropdownMenuItem,
 import { useTaskStore } from '@/stores/task-store'
 import { useProjectStore } from '@/stores/project-store'
 import { useResourceStore } from '@/stores/resource-store'
+import { useAuthStore } from '@/stores/auth-store'
 import { useUIStore, type FilterStatus } from '@/stores/ui-store'
 import { useUndoRedo } from '@/hooks/use-undo-redo'
 import { ColumnSettingsDropdown } from './ColumnSettingsDropdown'
@@ -40,8 +41,10 @@ interface GanttToolbarProps {
 export function GanttToolbar({ onOpenTaskDialog, onScrollToToday }: GanttToolbarProps) {
   const { tasks, selectedTaskIds, addTask, archiveTask, restoreTask, purgeTask, updateTask, setTasks } = useTaskStore()
   const project = useProjectStore((s) => s.currentProject)
+  const getMyProjectRole = useProjectStore((s) => s.getMyProjectRole)
   const { searchQuery, filterStatus, setSearchQuery, setFilterStatus, showProgressLine, toggleProgressLine, showArchived, toggleShowArchived } = useUIStore()
   const { taskDetails, assignments } = useResourceStore()
+  const currentUser = useAuthStore((s) => s.currentUser)
   const { canUndo, canRedo, undo, redo } = useUndoRedo()
   const searchInputRef = useRef<HTMLInputElement>(null)
   const [excelDialogOpen, setExcelDialogOpen] = useState(false)
@@ -49,6 +52,8 @@ export function GanttToolbar({ onOpenTaskDialog, onScrollToToday }: GanttToolbar
   const selectedId = selectedTaskIds.size === 1 ? Array.from(selectedTaskIds)[0] : null
   const selectedTask = selectedId ? tasks.find((t) => t.id === selectedId) : null
   const hasSelection = selectedTaskIds.size > 0
+  const myProjectRole = project && currentUser ? getMyProjectRole(project.id, currentUser.id) : null
+  const canManageWbsImport = currentUser?.role === 'admin' || currentUser?.role === 'pm' || myProjectRole === 'pm'
 
   // 작업 추가 (선택된 작업 아래에)
   const handleAddTask = () => {
@@ -309,7 +314,13 @@ export function GanttToolbar({ onOpenTaskDialog, onScrollToToday }: GanttToolbar
 
       <DropdownMenu>
         <DropdownMenuTrigger>
-          <Button variant="ghost" size="icon" className="h-8 w-8" title="WBS 일괄등록 도구">
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-8 w-8"
+            title={canManageWbsImport ? 'WBS 일괄등록 도구' : '관리자 또는 PM만 사용할 수 있습니다'}
+            disabled={!canManageWbsImport}
+          >
             <FileSpreadsheet className="h-4 w-4" />
           </Button>
         </DropdownMenuTrigger>
@@ -317,11 +328,11 @@ export function GanttToolbar({ onOpenTaskDialog, onScrollToToday }: GanttToolbar
           <DropdownMenuGroup>
             <DropdownMenuLabel>WBS 일괄등록</DropdownMenuLabel>
             <DropdownMenuSeparator />
-            <DropdownMenuItem className="cursor-pointer text-xs" onClick={handleDownloadTemplate}>
+            <DropdownMenuItem className="cursor-pointer text-xs" onClick={handleDownloadTemplate} disabled={!canManageWbsImport}>
               <Download className="h-3.5 w-3.5" />
               양식 다운로드
             </DropdownMenuItem>
-            <DropdownMenuItem className="cursor-pointer text-xs" onClick={() => setExcelDialogOpen(true)}>
+            <DropdownMenuItem className="cursor-pointer text-xs" onClick={() => setExcelDialogOpen(true)} disabled={!canManageWbsImport}>
               <FileSpreadsheet className="h-3.5 w-3.5" />
               엑셀 등록
             </DropdownMenuItem>
@@ -418,7 +429,10 @@ export function GanttToolbar({ onOpenTaskDialog, onScrollToToday }: GanttToolbar
       {project && (
         <WbsExcelImportDialog
           open={excelDialogOpen}
-          onOpenChange={setExcelDialogOpen}
+          onOpenChange={(nextOpen) => {
+            if (nextOpen && !canManageWbsImport) return
+            setExcelDialogOpen(nextOpen)
+          }}
           projectId={project.id}
           currentMaxSortOrder={tasks.length > 0 ? Math.max(...tasks.map((task) => task.sort_order)) : 0}
           onImported={recalcWBS}
