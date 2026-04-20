@@ -4,6 +4,7 @@ import {
   Indent,
   Outdent,
   Trash2,
+  Copy,
   ArrowUpFromLine,
   ArrowDownFromLine,
 } from 'lucide-react'
@@ -25,7 +26,7 @@ interface GanttContextMenuProps {
 
 export function GanttContextMenu({ menu, onClose, onOpenEdit }: GanttContextMenuProps) {
   const menuRef = useRef<HTMLDivElement>(null)
-  const { tasks, addTask, deleteTask, updateTask, setTasks, selectTask } = useTaskStore()
+  const { tasks, addTask, addTasksBulk, deleteTask, updateTask, setTasks, selectTask } = useTaskStore()
   const project = useProjectStore((s) => s.currentProject)
 
   const task = tasks.find((t) => t.id === menu.taskId)
@@ -165,6 +166,48 @@ export function GanttContextMenu({ menu, onClose, onOpenEdit }: GanttContextMenu
     onClose()
   }, [project, task, tasks, addTask, selectTask, recalcWBS, onClose])
 
+  const handleCopy = useCallback(() => {
+    if (!project || !task) return
+
+    const sorted = [...tasks].sort((a, b) => a.sort_order - b.sort_order)
+    const subtree = sorted.filter((candidate) => candidate.id === task.id || candidate.wbs_code.startsWith(`${task.wbs_code}.`))
+    if (subtree.length === 0) return
+
+    const lastSubtreeTask = subtree[subtree.length - 1]
+    const lastIndex = sorted.findIndex((candidate) => candidate.id === lastSubtreeTask.id)
+    const nextTask = lastIndex >= 0 ? sorted[lastIndex + 1] : null
+    const baseSortOrder = lastSubtreeTask.sort_order
+    const availableGap = nextTask ? (nextTask.sort_order - baseSortOrder) / (subtree.length + 1) : 1000
+    const step = availableGap > 1 ? availableGap : 10
+    const idMap = new Map<string, string>()
+    const now = new Date().toISOString()
+
+    const duplicatedTasks = subtree.map((source, index) => {
+      const newId = crypto.randomUUID()
+      idMap.set(source.id, newId)
+      const isRootCopy = source.id === task.id
+
+      return {
+        ...source,
+        id: newId,
+        sort_order: baseSortOrder + ((index + 1) * step),
+        wbs_code: '',
+        task_name: isRootCopy ? `${source.task_name} 복사본` : source.task_name,
+        parent_id: source.parent_id && idMap.has(source.parent_id) ? idMap.get(source.parent_id) : source.parent_id,
+        is_collapsed: false,
+        archived_at: undefined,
+        archived_by: undefined,
+        created_at: now,
+        updated_at: now,
+      }
+    })
+
+    addTasksBulk(duplicatedTasks)
+    selectTask(duplicatedTasks[0].id)
+    recalcWBS()
+    onClose()
+  }, [project, task, tasks, addTasksBulk, selectTask, recalcWBS, onClose])
+
   // 들여쓰기
   const handleIndent = useCallback(() => {
     if (!task || task.wbs_level >= 6) return
@@ -249,6 +292,7 @@ export function GanttContextMenu({ menu, onClose, onOpenEdit }: GanttContextMenu
       {/* 위에/아래 작업 추가 */}
       <MenuItem icon={ArrowUpFromLine} label="위에 작업 추가" onClick={handleAddAbove} />
       <MenuItem icon={ArrowDownFromLine} label="아래에 작업 추가" onClick={handleAddBelow} />
+      <MenuItem icon={Copy} label="작업 복사" shortcut="하위 포함" onClick={handleCopy} />
 
       <MenuSeparator />
 

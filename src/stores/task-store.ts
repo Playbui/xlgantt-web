@@ -237,6 +237,7 @@ interface TaskState {
   // Task CRUD
   setTasks: (tasks: Task[]) => void
   addTask: (task: Task) => void
+  addTasksBulk: (tasks: Task[]) => void
   updateTask: (taskId: string, changes: Partial<Task>) => void
   deleteTask: (taskId: string) => void
   archiveTask: (taskId: string) => void
@@ -433,6 +434,36 @@ export const useTaskStore = create<TaskState>((set, get) => ({
         return
       }
       console.error('작업 추가 실패:', error.message)
+    })
+  },
+
+  addTasksBulk: (tasksToAdd) => {
+    if (tasksToAdd.length === 0) return
+    pushCurrentSnapshot()
+    set((state) => ({ tasks: [...state.tasks, ...tasksToAdd] }))
+
+    for (const task of tasksToAdd) {
+      logTaskActivity({
+        action: 'create',
+        targetType: 'task',
+        targetId: task.id,
+        targetName: task.task_name,
+        details: `작업 '${task.task_name}' 추가`,
+      })
+    }
+
+    const payload = tasksToAdd.map(taskToDb)
+    supabase.from('tasks').insert(payload).then(async ({ error }) => {
+      if (!error) return
+      if (isMissingOverrideColumnError(error)) {
+        const fallback = payload.map(stripOverrideColumns)
+        const { error: retryError } = await supabase.from('tasks').insert(fallback)
+        if (retryError) {
+          console.error('작업 일괄 추가(레거시 fallback) 실패:', retryError.message)
+        }
+        return
+      }
+      console.error('작업 일괄 추가 실패:', error.message)
     })
   },
 
