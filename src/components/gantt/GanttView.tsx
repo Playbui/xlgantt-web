@@ -18,7 +18,7 @@ export function GanttView() {
   const setTasks = useTaskStore((s) => s.setTasks)
   const project = useProjectStore((s) => s.currentProject)
   const theme = useProjectStore((s) => s.theme)
-  const { zoomLevel, tableWidth, setTableWidth, tableCollapsed, setTableCollapsed, searchQuery, filterStatus, showArchived, customDateRange } = useUIStore()
+  const { zoomLevel, tableWidth, setTableWidth, tableCollapsed, setTableCollapsed, searchQuery, filterStatus, showArchived, customDateRange, setVisibleTaskIds } = useUIStore()
 
   const containerRef = useRef<HTMLDivElement>(null)
   const tableScrollRef = useRef<HTMLDivElement>(null)
@@ -120,6 +120,10 @@ export function GanttView() {
 
     return collapsed.filter((t) => visibleIds.has(t.id))
   }, [tasks, searchQuery, filterStatus, showArchived, project?.status_date, customDateRange])
+
+  useEffect(() => {
+    setVisibleTaskIds(visibleTasks.map((task) => task.id))
+  }, [visibleTasks, setVisibleTaskIds])
 
   const scale = useMemo(() => {
     if (!project) return null

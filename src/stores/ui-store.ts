@@ -46,6 +46,7 @@ interface UIState {
   ganttOptions: GanttOptions // 간트 차트 옵션
   mobileActiveTab: MobileTab // 모바일 하단 탭
   mobileTaskId: string | null // 모바일 태스크 상세 시트
+  visibleTaskIds: string[] // 현재 화면에 실제 렌더된 visible task 순서
 
   setActiveView: (view: ViewMode) => void
   setZoomLevel: (level: ZoomLevel) => void
@@ -70,6 +71,7 @@ interface UIState {
   resetGanttOptions: () => void
   setMobileActiveTab: (tab: MobileTab) => void
   setMobileTaskId: (id: string | null) => void
+  setVisibleTaskIds: (ids: string[]) => void
 }
 
 export const useUIStore = create<UIState>()(
@@ -93,6 +95,7 @@ export const useUIStore = create<UIState>()(
       ganttOptions: { ...DEFAULT_GANTT_OPTIONS },
       mobileActiveTab: 'mytasks' as MobileTab,
       mobileTaskId: null,
+      visibleTaskIds: [],
 
       setActiveView: (activeView) => set({ activeView }),
       setZoomLevel: (zoomLevel) => set({ zoomLevel }),
@@ -152,6 +155,7 @@ export const useUIStore = create<UIState>()(
       resetGanttOptions: () => set({ ganttOptions: { ...DEFAULT_GANTT_OPTIONS } }),
       setMobileActiveTab: (mobileActiveTab) => set({ mobileActiveTab }),
       setMobileTaskId: (mobileTaskId) => set({ mobileTaskId }),
+      setVisibleTaskIds: (visibleTaskIds) => set({ visibleTaskIds }),
     }),
     {
       name: 'xlgantt-ui-settings',

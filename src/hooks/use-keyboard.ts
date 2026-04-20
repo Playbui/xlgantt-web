@@ -1,6 +1,7 @@
 import { useEffect, useCallback } from 'react'
 import { useTaskStore } from '@/stores/task-store'
 import { useProjectStore } from '@/stores/project-store'
+import { useUIStore } from '@/stores/ui-store'
 import { findIndentParent, recalculateWBSCodes } from '@/lib/wbs'
 
 /**
@@ -33,6 +34,27 @@ export function useKeyboard() {
 
   /** visible tasks (collapsed 그룹의 자식 제외) */
   const getVisibleSortedTasks = useCallback(() => {
+    const { tasks } = useTaskStore.getState()
+    const { visibleTaskIds } = useUIStore.getState()
+
+    if (visibleTaskIds.length > 0) {
+      const orderMap = new Map<string, number>(
+        visibleTaskIds.map((id: string, index: number) => [id, index])
+      )
+      const visibleSet = new Set(visibleTaskIds)
+
+      return [...tasks]
+        .filter((task) => visibleSet.has(task.id))
+        .sort((a, b) => {
+          const aIndex = orderMap.get(a.id)
+          const bIndex = orderMap.get(b.id)
+          if (aIndex != null && bIndex != null) return aIndex - bIndex
+          if (aIndex != null) return -1
+          if (bIndex != null) return 1
+          return a.sort_order - b.sort_order
+        })
+    }
+
     const sorted = getSortedTasks()
     const collapsedCodes = new Set<string>()
     return sorted.filter((task) => {

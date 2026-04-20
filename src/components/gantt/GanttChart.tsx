@@ -203,21 +203,21 @@ export function GanttChart({
             if (!selectedTaskIds.has(task.id)) return null
             return (
               <g key={`sel-${task.id}`}>
-                {/* 연한 primary 배경 (TaskRow의 bg-primary/8과 동일 톤) */}
                 <rect
                   x={0}
                   y={index * ROW_HEIGHT}
                   width={totalWidth}
                   height={ROW_HEIGHT}
-                  fill="rgba(59, 130, 246, 0.1)"
+                  fill="rgba(254, 242, 242, 0.88)"
+                  stroke="rgba(248, 113, 113, 0.95)"
+                  strokeWidth={2}
                 />
-                {/* 좌측 primary accent bar (TaskRow의 border-l-2와 동일) */}
                 <rect
                   x={0}
                   y={index * ROW_HEIGHT}
-                  width={2}
+                  width={3}
                   height={ROW_HEIGHT}
-                  fill="#3b82f6"
+                  fill="#ef4444"
                 />
               </g>
             )
