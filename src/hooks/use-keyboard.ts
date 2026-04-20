@@ -6,7 +6,8 @@ import { findIndentParent, recalculateWBSCodes } from '@/lib/wbs'
 /**
  * 글로벌 키보드 단축키 훅.
  *
- * - Delete / Backspace: 선택 작업 삭제
+ * - Ctrl+Delete: 선택 작업 삭제
+ * - Ctrl+Enter: 선택 작업 아래 새 작업 추가
  * - Tab: 들여쓰기 (indent)
  * - Shift+Tab: 내어쓰기 (outdent)
  * - ArrowUp: 이전 작업 선택
@@ -55,7 +56,7 @@ export function useKeyboard() {
     }, 0)
   }, [])
 
-  /** Delete / Backspace: 삭제 */
+  /** Ctrl+Delete: 삭제 */
   const handleDelete = useCallback(() => {
     const { selectedTaskIds, deleteTask, clearSelection } = useTaskStore.getState()
     if (selectedTaskIds.size === 0) return
@@ -68,6 +69,55 @@ export function useKeyboard() {
     clearSelection()
     recalcWBS()
   }, [recalcWBS])
+
+  /** Ctrl+Enter: 선택 작업 아래 새 작업 추가 */
+  const handleAddBelow = useCallback(() => {
+    const project = useProjectStore.getState().currentProject
+    if (!project) return
+
+    const taskId = getSelectedId()
+    const { tasks, addTask, selectTask } = useTaskStore.getState()
+    const sorted = [...tasks].sort((a, b) => a.sort_order - b.sort_order)
+
+    const selectedTask = taskId ? sorted.find((t) => t.id === taskId) : null
+    const selectedIndex = selectedTask
+      ? sorted.findIndex((t) => t.id === selectedTask.id)
+      : sorted.length - 1
+
+    const prevTask = selectedIndex >= 0 ? sorted[selectedIndex] : undefined
+    const nextTask = selectedIndex >= 0 ? sorted[selectedIndex + 1] : sorted[0]
+
+    const newSortOrder = prevTask
+      ? nextTask
+        ? Math.floor((prevTask.sort_order + nextTask.sort_order) / 2)
+        : prevTask.sort_order + 1000
+      : nextTask
+        ? Math.max(1, nextTask.sort_order - 1000)
+        : 1000
+
+    const now = new Date().toISOString()
+    const newTask = {
+      id: crypto.randomUUID(),
+      project_id: project.id,
+      sort_order: newSortOrder,
+      wbs_code: '',
+      wbs_level: selectedTask?.wbs_level || 1,
+      is_group: false,
+      task_name: '새 작업',
+      calendar_type: 'STD' as const,
+      planned_progress: 0,
+      actual_progress: 0,
+      is_milestone: false,
+      parent_id: selectedTask?.parent_id,
+      is_collapsed: false,
+      created_at: now,
+      updated_at: now,
+    }
+
+    addTask(newTask)
+    selectTask(newTask.id)
+    recalcWBS()
+  }, [getSelectedId, recalcWBS])
 
   /** Tab: 들여쓰기 */
   const handleIndent = useCallback(() => {
@@ -247,10 +297,16 @@ export function useKeyboard() {
 
       switch (e.key) {
         case 'Delete':
-        case 'Backspace':
-          if (!isCtrl && !isInput) {
+          if (isCtrl && !isInput) {
             e.preventDefault()
             handleDelete()
+          }
+          break
+
+        case 'Enter':
+          if (isCtrl) {
+            e.preventDefault()
+            handleAddBelow()
           }
           break
 
@@ -327,6 +383,7 @@ export function useKeyboard() {
     return () => window.removeEventListener('keydown', handleKeyDown)
   }, [
     handleDelete,
+    handleAddBelow,
     handleIndent,
     handleOutdent,
     handleMoveUp,

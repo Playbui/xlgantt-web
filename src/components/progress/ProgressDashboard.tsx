@@ -65,7 +65,7 @@ export function ProgressDashboard() {
     <div className="flex h-full flex-col overflow-hidden bg-[linear-gradient(to_bottom,oklch(0.985_0.004_250)_0%,oklch(0.972_0.006_250)_100%)]">
       {/* Header */}
       <div className="flex-none px-5 pt-5 pb-0 md:px-6 xl:px-8">
-        <div className="mx-auto w-full max-w-[1520px]">
+        <div className="mx-auto w-full max-w-[1720px]">
           <div className="overflow-hidden rounded-[28px] border border-[oklch(0.84_0.014_250)] bg-[oklch(0.992_0.003_250)] shadow-[0_18px_50px_rgba(15,23,42,0.06)]">
             <div className="grid gap-5 border-b border-[oklch(0.9_0.01_250)] px-6 py-6 lg:grid-cols-[minmax(0,1fr)_260px] lg:px-8">
               <div className="space-y-3">
@@ -122,7 +122,7 @@ export function ProgressDashboard() {
 
       {/* Content */}
       <div className="flex-1 overflow-y-auto">
-        <div className="mx-auto flex w-full max-w-[1520px] flex-col gap-6 px-5 py-6 md:px-6 xl:px-8">
+        <div className="mx-auto flex w-full max-w-[1720px] flex-col gap-6 px-5 py-6 md:px-6 xl:px-8">
         {activeTab === 'overview' && <OverviewTab metrics={metrics} />}
         {activeTab === 'timeline' && (
           <TimelineTab
@@ -185,11 +185,11 @@ function BreakdownTab({
 }) {
   return (
     <div className="space-y-4">
-      <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 xl:grid-cols-[minmax(0,1.08fr)_minmax(0,1.12fr)] gap-5">
         <ResourceTab tasks={tasks} assignments={assignments} members={members} companies={companies} statusDate={statusDate} />
         <TaskTab tasks={tasks} assignments={assignments} statusDate={statusDate} />
       </div>
-      <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 xl:grid-cols-[minmax(0,1.08fr)_minmax(0,1.12fr)] gap-5">
         <CompanyTab tasks={tasks} assignments={assignments} members={members} companies={companies} statusDate={statusDate} />
         <WBSGroupTab tasks={tasks} statusDate={statusDate} />
       </div>
@@ -728,10 +728,10 @@ function ResourceTab({
       {/* Bar chart */}
       <Card title="담당자별 진척률" className="min-h-[304px]">
         <ResponsiveContainer width="100%" height={Math.max(200, resourceData.length * 40 + 60)}>
-          <BarChart data={chartData} layout="vertical" margin={{ top: 5, right: 30, left: 80, bottom: 5 }}>
+          <BarChart data={chartData} layout="vertical" margin={{ top: 5, right: 30, left: 96, bottom: 5 }}>
             <CartesianGrid strokeDasharray="3 3" stroke="oklch(0.92 0.005 250)" />
             <XAxis type="number" fontSize={11} tickFormatter={(v: number) => `${v}%`} domain={[0, 100]} tick={{ fill: 'oklch(0.5 0.02 250)' }} />
-            <YAxis type="category" dataKey="name" fontSize={12} tick={{ fill: 'oklch(0.5 0.02 250)' }} width={70} />
+            <YAxis type="category" dataKey="name" fontSize={12} tick={{ fill: 'oklch(0.5 0.02 250)' }} width={96} />
             <Tooltip formatter={(value) => `${value}%`} contentStyle={tooltipStyle} />
             <ReferenceLine x={100} stroke="#ddd" />
             <Bar dataKey="진척률" radius={[0, 4, 4, 0]} barSize={24}>
@@ -746,7 +746,7 @@ function ResourceTab({
       {/* Table */}
       <Card title="담당자별 상세" className="min-h-[304px]">
         <div className="overflow-x-auto">
-          <table className="w-full text-sm">
+          <table className="w-full min-w-[760px] text-sm">
             <thead>
               <tr className="bg-muted/40 text-[11px] uppercase tracking-wider text-muted-foreground">
                 <th className="px-3 py-2 text-left font-semibold">담당자</th>
@@ -766,14 +766,14 @@ function ResourceTab({
                   "border-b border-border/20 hover:bg-accent/30 transition-colors",
                   i % 2 === 1 && "bg-muted/10"
                 )}>
-                  <td className="px-3 py-2 font-medium">{r.memberName}</td>
+                  <td className="whitespace-nowrap px-3 py-2 font-medium">{r.memberName}</td>
                   <td className="px-3 py-2">
-                    <span className="inline-flex items-center gap-1.5">
+                    <span className="inline-flex items-center gap-1.5 whitespace-nowrap">
                       <span className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: r.companyColor }} />
                       {r.companyName}
                     </span>
                   </td>
-                  <td className="px-3 py-2 text-muted-foreground">{r.role}</td>
+                  <td className="whitespace-nowrap px-3 py-2 text-muted-foreground">{r.role}</td>
                   <td className="px-3 py-2 text-right font-mono">{r.assignedTaskCount}</td>
                   <td className="px-3 py-2 text-right font-mono">{r.totalWorkload}</td>
                   <td className="px-3 py-2 text-right font-mono">{r.earnedValue}</td>
@@ -823,7 +823,7 @@ function TaskTab({
     <div className="space-y-6 w-full">
       <Card title="업무별 계획 vs 실적" className="min-h-[304px]">
         <div className="overflow-x-auto max-h-[520px] overflow-y-auto">
-          <table className="w-full text-sm">
+          <table className="w-full min-w-[860px] text-sm">
             <thead className="sticky top-0 z-10">
               <tr className="bg-muted/60 text-[11px] uppercase tracking-wider text-muted-foreground">
                 <th className="px-3 py-2 text-left font-semibold">WBS</th>
@@ -838,8 +838,8 @@ function TaskTab({
             <tbody>
               {taskData.map((t, i) => (
                 <tr key={t.taskId} className={cn("border-b border-border/20 hover:bg-accent/30 transition-colors", i % 2 === 1 && "bg-muted/10")}>
-                  <td className="px-3 py-2 font-mono text-xs text-muted-foreground">{t.wbsCode}</td>
-                  <td className="px-3 py-2 font-medium">{t.taskName}</td>
+                  <td className="whitespace-nowrap px-3 py-2 font-mono text-xs text-muted-foreground">{t.wbsCode}</td>
+                  <td className="min-w-[220px] whitespace-nowrap px-3 py-2 font-medium">{t.taskName}</td>
                   <td className="px-3 py-2 text-right font-mono">{t.totalWorkload.toFixed(1)}</td>
                   <td className="px-3 py-2 text-right"><Badge color="blue">{(t.plannedRate * 100).toFixed(1)}%</Badge></td>
                   <td className="px-3 py-2 text-right"><Badge color="green">{(t.progressRate * 100).toFixed(1)}%</Badge></td>
@@ -1035,10 +1035,10 @@ function CompanyTab({
       {/* Bar chart */}
       <Card title="회사별 진척률" className="min-h-[304px]">
         <ResponsiveContainer width="100%" height={Math.max(180, companyData.length * 50 + 60)}>
-          <BarChart data={chartData} layout="vertical" margin={{ top: 5, right: 30, left: 90, bottom: 5 }}>
+          <BarChart data={chartData} layout="vertical" margin={{ top: 5, right: 30, left: 110, bottom: 5 }}>
             <CartesianGrid strokeDasharray="3 3" stroke="oklch(0.92 0.005 250)" />
             <XAxis type="number" fontSize={11} tickFormatter={(v: number) => `${v}%`} domain={[0, 100]} tick={{ fill: 'oklch(0.5 0.02 250)' }} />
-            <YAxis type="category" dataKey="name" fontSize={12} tick={{ fill: 'oklch(0.5 0.02 250)' }} width={80} />
+            <YAxis type="category" dataKey="name" fontSize={12} tick={{ fill: 'oklch(0.5 0.02 250)' }} width={104} />
             <Tooltip formatter={(value) => `${value}%`} contentStyle={tooltipStyle} />
             <Bar dataKey="진척률" radius={[0, 6, 6, 0]} barSize={30}>
               {chartData.map((entry, i) => (
@@ -1052,7 +1052,7 @@ function CompanyTab({
       {/* Table */}
       <Card title="회사별 상세" className="min-h-[304px]">
         <div className="overflow-x-auto">
-          <table className="w-full text-sm">
+          <table className="w-full min-w-[720px] text-sm">
             <thead>
               <tr className="bg-muted/40 text-[11px] uppercase tracking-wider text-muted-foreground">
                 <th className="px-3 py-2 text-left font-semibold">회사</th>
@@ -1070,8 +1070,8 @@ function CompanyTab({
                   "border-b border-border/20 hover:bg-accent/30 transition-colors",
                   i % 2 === 1 && "bg-muted/10"
                 )}>
-                  <td className="px-3 py-2 font-medium">
-                    <span className="inline-flex items-center gap-2">
+                  <td className="whitespace-nowrap px-3 py-2 font-medium">
+                    <span className="inline-flex items-center gap-2 whitespace-nowrap">
                       <span className="w-3 h-3 rounded" style={{ backgroundColor: c.companyColor }} />
                       {c.companyName}
                     </span>
@@ -1118,10 +1118,10 @@ function WBSGroupTab({ tasks, statusDate }: { tasks: Parameters<typeof calcProgr
       {/* Grouped bar chart */}
       <Card title="WBS 그룹별 계획 vs 실적" className="min-h-[304px]">
         <ResponsiveContainer width="100%" height={Math.max(200, wbsData.length * 50 + 60)}>
-          <BarChart data={chartData} layout="vertical" margin={{ top: 5, right: 30, left: 100, bottom: 5 }}>
+          <BarChart data={chartData} layout="vertical" margin={{ top: 5, right: 30, left: 150, bottom: 5 }}>
             <CartesianGrid strokeDasharray="3 3" stroke="oklch(0.92 0.005 250)" />
             <XAxis type="number" fontSize={11} tickFormatter={(v: number) => `${v}%`} domain={[0, 100]} tick={{ fill: 'oklch(0.5 0.02 250)' }} />
-            <YAxis type="category" dataKey="name" fontSize={11} tick={{ fill: 'oklch(0.5 0.02 250)' }} width={90} />
+            <YAxis type="category" dataKey="name" fontSize={11} tick={{ fill: 'oklch(0.5 0.02 250)' }} width={140} />
             <Tooltip formatter={(value) => `${value}%`} contentStyle={tooltipStyle} />
             <Legend wrapperStyle={{ fontSize: '12px' }} />
             <Bar dataKey="계획률" fill="#93c5fd" radius={[0, 3, 3, 0]} barSize={14} />
@@ -1133,7 +1133,7 @@ function WBSGroupTab({ tasks, statusDate }: { tasks: Parameters<typeof calcProgr
       {/* Table */}
       <Card title="WBS 그룹별 상세" className="min-h-[304px]">
         <div className="overflow-x-auto">
-          <table className="w-full text-sm">
+          <table className="w-full min-w-[820px] text-sm">
             <thead>
               <tr className="bg-muted/40 text-[11px] uppercase tracking-wider text-muted-foreground">
                 <th className="px-3 py-2 text-left font-semibold">WBS</th>
@@ -1151,8 +1151,8 @@ function WBSGroupTab({ tasks, statusDate }: { tasks: Parameters<typeof calcProgr
                   "border-b border-border/20 hover:bg-accent/30 transition-colors",
                   i % 2 === 1 && "bg-muted/10"
                 )}>
-                  <td className="px-3 py-2 font-mono text-xs text-muted-foreground">{g.wbsCode}</td>
-                  <td className="px-3 py-2 font-medium">{g.groupName}</td>
+                  <td className="whitespace-nowrap px-3 py-2 font-mono text-xs text-muted-foreground">{g.wbsCode}</td>
+                  <td className="min-w-[220px] whitespace-nowrap px-3 py-2 font-medium">{g.groupName}</td>
                   <td className="px-3 py-2 text-right font-mono">{g.childCount}</td>
                   <td className="px-3 py-2 text-right font-mono">{g.totalWorkload}</td>
                   <td className="px-3 py-2 text-right">

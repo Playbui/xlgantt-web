@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react'
-import { Building2, Check, ChevronDown, ChevronRight, FolderTree, Layers3, Search, Users } from 'lucide-react'
+import { Building2, Check, ChevronDown, ChevronRight, FolderTree, Layers3, Search, Square, Users } from 'lucide-react'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -53,6 +53,7 @@ export function OrganizationUserPicker({
 
   const [expandedCompanies, setExpandedCompanies] = useState<Set<string>>(new Set())
   const [expandedDepartments, setExpandedDepartments] = useState<Set<string>>(new Set())
+  const [expandedTeams, setExpandedTeams] = useState<Set<string>>(new Set())
 
   const selectedUser = useMemo(() => users.find((user) => user.id === value), [users, value])
 
@@ -161,13 +162,21 @@ export function OrganizationUserPicker({
     })
   }
 
+  const toggleTeam = (teamId: string) => {
+    setExpandedTeams((prev) => {
+      const next = new Set(prev)
+      next.has(teamId) ? next.delete(teamId) : next.add(teamId)
+      return next
+    })
+  }
+
   const renderUserRow = (user: User, depth = 0) => (
     <button
       key={user.id}
       type="button"
       className={cn(
         'flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left transition-colors hover:bg-accent/40',
-        value === user.id && 'bg-primary/10'
+        value === user.id && 'bg-primary/10 ring-1 ring-primary/20'
       )}
       style={{ paddingLeft: `${12 + depth * 16}px` }}
       onClick={() => {
@@ -175,6 +184,16 @@ export function OrganizationUserPicker({
         setOpen(false)
       }}
     >
+      <span
+        className={cn(
+          'flex h-4 w-4 items-center justify-center rounded-[4px] border transition-colors',
+          value === user.id
+            ? 'border-primary bg-primary text-primary-foreground'
+            : 'border-border bg-background text-transparent'
+        )}
+      >
+        {value === user.id ? <Check className="h-3 w-3" /> : <Square className="h-3 w-3 opacity-0" />}
+      </span>
       <div className="flex h-6 w-6 items-center justify-center rounded-full bg-primary/15 text-[11px] font-semibold text-primary">
         {user.name.charAt(0)}
       </div>
@@ -182,7 +201,6 @@ export function OrganizationUserPicker({
         <div className="truncate text-sm">{user.name}</div>
         <div className="truncate text-[11px] text-muted-foreground">{user.email}</div>
       </div>
-      {value === user.id && <Check className="h-3.5 w-3.5 text-primary" />}
     </button>
   )
 
@@ -248,7 +266,7 @@ export function OrganizationUserPicker({
                 {isCompanyExpanded && (
                   <div className="border-t border-border/30 px-2 py-2">
                     {company.unassignedDepartmentUsers.length > 0 && (
-                      <div className="mb-2 rounded-md bg-muted/20 py-1">
+                      <div className="mb-2 rounded-md border border-dashed border-border/40 bg-muted/20 py-1">
                         <div className="flex items-center gap-2 px-2 py-1 text-[11px] font-medium text-muted-foreground">
                           <Users className="h-3.5 w-3.5" />
                           부서 미지정
@@ -260,7 +278,7 @@ export function OrganizationUserPicker({
                     {company.departments.map((department) => {
                       const isDepartmentExpanded = expandedDepartments.has(department.departmentId) || search.length > 0
                       return (
-                        <div key={department.departmentId} className="mb-2 rounded-md bg-muted/20">
+                        <div key={department.departmentId} className="mb-2 rounded-md border border-border/40 bg-muted/20">
                           <button
                             type="button"
                             className="flex w-full items-center gap-2 px-2 py-1.5 text-left"
@@ -273,26 +291,44 @@ export function OrganizationUserPicker({
                             )}
                             <FolderTree className="h-3.5 w-3.5 text-primary" />
                             <span className="text-xs font-medium">{department.departmentName}</span>
+                            <Badge variant="outline" className="ml-auto text-[10px]">
+                              {department.ungroupedUsers.length + department.teams.reduce((sum, team) => sum + team.users.length, 0)}
+                            </Badge>
                           </button>
 
                           {isDepartmentExpanded && (
                             <div className="pb-2">
                               {department.ungroupedUsers.length > 0 && (
-                                <div className="mb-1">
-                                  <div className="px-4 py-1 text-[11px] text-muted-foreground">팀 미지정</div>
+                                <div className="mb-1 rounded-md border border-dashed border-border/40 bg-background/80 py-1">
+                                  <div className="px-4 py-1 text-[11px] font-medium text-muted-foreground">팀 미지정</div>
                                   {department.ungroupedUsers.map((user) => renderUserRow(user, 2))}
                                 </div>
                               )}
 
-                              {department.teams.map((team) => (
-                                <div key={team.teamId} className="mb-1">
-                                  <div className="flex items-center gap-2 px-4 py-1 text-[11px] text-muted-foreground">
-                                    <Layers3 className="h-3.5 w-3.5" />
-                                    {team.teamName}
+                              {department.teams.map((team) => {
+                                const isTeamExpanded = expandedTeams.has(team.teamId) || search.length > 0
+                                return (
+                                  <div key={team.teamId} className="mb-1 rounded-md border border-border/30 bg-background/80">
+                                    <button
+                                      type="button"
+                                      className="flex w-full items-center gap-2 px-4 py-1.5 text-left"
+                                      onClick={() => toggleTeam(team.teamId)}
+                                    >
+                                      {isTeamExpanded ? (
+                                        <ChevronDown className="h-3.5 w-3.5 text-muted-foreground" />
+                                      ) : (
+                                        <ChevronRight className="h-3.5 w-3.5 text-muted-foreground" />
+                                      )}
+                                      <Layers3 className="h-3.5 w-3.5 text-primary" />
+                                      <span className="text-[11px] font-medium text-foreground">{team.teamName}</span>
+                                      <Badge variant="outline" className="ml-auto text-[10px]">
+                                        {team.users.length}
+                                      </Badge>
+                                    </button>
+                                    {isTeamExpanded && team.users.map((user) => renderUserRow(user, 3))}
                                   </div>
-                                  {team.users.map((user) => renderUserRow(user, 3))}
-                                </div>
-                              ))}
+                                )
+                              })}
                             </div>
                           )}
                         </div>
