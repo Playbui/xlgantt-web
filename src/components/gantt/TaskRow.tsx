@@ -38,6 +38,46 @@ export function TaskRow({ task, rowIndex, columns, onDoubleClick, onContextMenu,
 
   const isSelected = selectedTaskIds.has(task.id)
 
+  const levelVisual = useMemo(() => {
+    switch (task.wbs_level) {
+      case 1:
+        return {
+          titleClass: 'text-[19px] font-bold tracking-[-0.02em] text-[var(--wbs-1)]',
+          codeClass: 'text-[18px] font-bold tracking-[-0.02em] text-[var(--wbs-1)]',
+          rowClass: 'bg-[color:color-mix(in_srgb,var(--theme-bar-soft)_42%,white)]/70',
+          accentOpacity: 1,
+        }
+      case 2:
+        return {
+          titleClass: 'text-[15px] font-semibold tracking-[-0.01em] text-[var(--wbs-2)]',
+          codeClass: 'text-[14px] font-semibold text-[var(--wbs-2)]',
+          rowClass: 'bg-transparent',
+          accentOpacity: 0.72,
+        }
+      case 3:
+        return {
+          titleClass: 'text-[14px] font-medium text-[var(--wbs-3)]',
+          codeClass: 'text-[13px] font-medium text-[var(--wbs-3)]',
+          rowClass: 'bg-transparent',
+          accentOpacity: 0.48,
+        }
+      case 4:
+        return {
+          titleClass: 'text-[13px] font-normal text-[var(--wbs-4)]',
+          codeClass: 'text-[12px] font-medium text-[var(--wbs-4)]',
+          rowClass: 'bg-transparent',
+          accentOpacity: 0.28,
+        }
+      default:
+        return {
+          titleClass: 'text-[12px] font-normal text-[var(--wbs-5)]',
+          codeClass: 'text-[12px] font-medium text-[var(--wbs-5)]',
+          rowClass: 'bg-transparent',
+          accentOpacity: 0.18,
+        }
+    }
+  }, [task.wbs_level])
+
   // 담당자 표시 문자열 생성
   const assigneeDisplay = useMemo(() => {
     const taskAssigns = assignments.filter((a) => a.task_id === task.id)
@@ -123,6 +163,7 @@ export function TaskRow({ task, rowIndex, columns, onDoubleClick, onContextMenu,
   const renderCell = (col: ColumnDef) => {
     // 작업명 컬럼 - 들여쓰기/접기/펼치기 지원
     if (col.id === 'task_name') {
+      const accentColor = theme.colors[0] || '#2f6feb'
       return (
         <div
           key={col.id}
@@ -130,12 +171,20 @@ export function TaskRow({ task, rowIndex, columns, onDoubleClick, onContextMenu,
           className="flex items-center border-r overflow-hidden"
         >
           {/* Indent spacer */}
-          <div style={{ width: (task.wbs_level - 1) * 16 }} className="flex-shrink-0" />
+          <div style={{ width: 12 + (task.wbs_level - 1) * 18 }} className="flex-shrink-0" />
+
+          <div
+            className="h-[18px] w-[3px] rounded-full mr-2 flex-shrink-0"
+            style={{
+              backgroundColor: accentColor,
+              opacity: levelVisual.accentOpacity,
+            }}
+          />
 
           {/* Expand/collapse toggle for group tasks */}
           {task.is_group ? (
             <button
-              className="flex-shrink-0 p-0.5 hover:bg-accent rounded"
+              className="flex-shrink-0 p-0.5 hover:bg-accent rounded text-[var(--ink-3)] hover:text-[var(--ink-1)]"
               onClick={handleToggleCollapse}
             >
               {task.is_collapsed ? (
@@ -150,19 +199,21 @@ export function TaskRow({ task, rowIndex, columns, onDoubleClick, onContextMenu,
             <div className="w-4 flex-shrink-0" />
           )}
 
-          <TaskCell
-            taskId={task.id}
-            field="task_name"
-            value={task.task_name}
-            onChange={(v) => handleCellChange('task_name', v)}
-            type="text"
-          />
+          <div className={cn('min-w-0 flex-1', levelVisual.titleClass)}>
+            <TaskCell
+              taskId={task.id}
+              field="task_name"
+              value={task.task_name}
+              onChange={(v) => handleCellChange('task_name', v)}
+              type="text"
+            />
+          </div>
           {detailCount && (
             <span className={cn(
-              "flex-shrink-0 text-[10px] font-medium px-1 py-0 rounded mr-1",
+              "flex-shrink-0 text-[10px] font-medium px-1.5 py-0.5 rounded mr-1",
               detailCount.done === detailCount.total
-                ? "bg-green-100 text-green-700"
-                : "bg-blue-100 text-blue-700"
+                ? "bg-[var(--ok-bg)] text-[var(--ok)]"
+                : "bg-[color:color-mix(in_srgb,var(--theme-bar-soft)_82%,white)] text-[var(--theme-text)]"
             )}>
               {detailCount.done}/{detailCount.total}
             </span>
@@ -294,12 +345,9 @@ export function TaskRow({ task, rowIndex, columns, onDoubleClick, onContextMenu,
       const levelColorIdx = [0, 2, 7, 4, 10, 13]
       const idx = levelColorIdx[Math.min(task.wbs_level - 1, 5)] ?? 0
       const barColor = theme.colors[idx] || '#888888'
-      // 레벨에 따라 바 두께 살짝 감소 (L1 가장 굵음)
-      const barWidth = Math.max(5 - (task.wbs_level - 1), 2)
-      // 레벨에 따라 바 좌측 오프셋 증가 (계단식 뎁스)
-      const barOffset = (task.wbs_level - 1) * 4
-      // 텍스트도 살짝 따라 들여쓰기
-      const textPadding = 8 + barOffset
+      const barWidth = 3
+      const barOffset = 8 + (task.wbs_level - 1) * 6
+      const textPadding = 16 + (task.wbs_level - 1) * 12
       return (
         <div
           key={col.id}
@@ -312,11 +360,11 @@ export function TaskRow({ task, rowIndex, columns, onDoubleClick, onContextMenu,
               backgroundColor: barColor,
               width: `${barWidth}px`,
               left: `${barOffset}px`,
-              boxShadow: '1px 0 2px rgba(0,0,0,0.15), -1px 0 0 rgba(255,255,255,0.3)',
+              opacity: levelVisual.accentOpacity,
             }}
           />
           <span
-            className="font-semibold text-foreground"
+            className={cn('font-mono tabular-nums', levelVisual.codeClass)}
             style={{ paddingLeft: `${textPadding}px` }}
           >
             {task.wbs_code}
@@ -384,29 +432,16 @@ export function TaskRow({ task, rowIndex, columns, onDoubleClick, onContextMenu,
     )
   }
 
-  // 레벨별 폰트 크기: 레벨1이 가장 크고 내려갈수록 작아짐 (식별성 강화)
-  const levelFontSize = (() => {
-    switch (task.wbs_level) {
-      case 1: return 'text-[15px]'
-      case 2: return 'text-[14px]'
-      case 3: return 'text-[13px]'
-      case 4: return 'text-[12px]'
-      case 5: return 'text-[11px]'
-      default: return 'text-[10px]'
-    }
-  })()
-
   return (
     <div
       className={cn(
-        'group/row flex border-b border-slate-300 dark:border-slate-700 cursor-pointer transition-all duration-100 relative',
-        levelFontSize,
-        isSelected && 'z-10 bg-red-50/70 border-red-300 ring-2 ring-red-400/90 shadow-[0_10px_30px_rgba(239,68,68,0.18)]',
-        !isSelected && task.is_group && task.wbs_level === 1 && 'bg-slate-100 dark:bg-slate-800/60 font-bold border-b-border/50',
-        !isSelected && task.is_group && task.wbs_level === 2 && 'bg-blue-50/60 dark:bg-blue-900/20 font-semibold',
+        'group/row flex border-b cursor-pointer transition-all duration-100 relative text-[13px]',
+        'border-[var(--hairline)]',
+        isSelected && 'z-10 bg-red-50/55 ring-2 ring-red-400/90 shadow-[0_10px_30px_rgba(239,68,68,0.18)]',
+        !isSelected && task.is_group && levelVisual.rowClass,
         task.archived_at && 'opacity-50 bg-stripes',
-        !isSelected && !task.is_group && 'hover:bg-accent/40',
-        !isSelected && !task.is_group && rowIndex % 2 === 1 && 'bg-muted/20',
+        !isSelected && !task.is_group && 'hover:bg-[color:color-mix(in_srgb,var(--accent)_88%,white)]',
+        !isSelected && !task.is_group && rowIndex % 2 === 1 && 'bg-[color:color-mix(in_srgb,var(--muted)_32%,transparent)]',
         isDragging && 'opacity-40',
       )}
       style={{ height: ROW_HEIGHT, minWidth: totalWidth, ...(level1GroupColor ? { color: level1GroupColor } : {}) }}

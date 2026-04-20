@@ -66,7 +66,7 @@ export function TaskCell({ taskId, field, value, onChange, type }: TaskCellProps
     return (
       <input
         ref={inputRef}
-        className={`w-full h-full px-2 text-xs bg-background border border-primary outline-none ${field === 'task_name' ? 'text-left' : 'text-center'}`}
+        className={`w-full h-full px-2 text-[13px] bg-background border border-primary/40 rounded-sm outline-none ${field === 'task_name' ? 'text-left font-medium' : 'text-center'}`}
         type={type === 'date' ? 'date' : type === 'number' ? 'number' : 'text'}
         value={localValue}
         onChange={(e) => setLocalValue(e.target.value)}
