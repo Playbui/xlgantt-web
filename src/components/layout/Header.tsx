@@ -17,6 +17,7 @@ import {
   PieChart,
   Clock,
   AlertTriangle,
+  CircleHelp,
   X,
   User,
   Shield,
@@ -194,6 +195,7 @@ export function Header() {
   const [rangeDialogOpen, setRangeDialogOpen] = useState(false)
   const [rangeStart, setRangeStart] = useState('')
   const [rangeEnd, setRangeEnd] = useState('')
+  const [helpDialogOpen, setHelpDialogOpen] = useState(false)
 
   const handleExport = () => {
     if (!project) return
@@ -307,6 +309,16 @@ export function Header() {
       {/* Export */}
       <Button variant="ghost" size="icon" className="chrome-icon-btn" onClick={handleExport} title="엑셀 내보내기">
         <Download className="h-3.5 w-3.5" />
+      </Button>
+
+      <Button
+        variant="ghost"
+        size="icon"
+        className="chrome-icon-btn"
+        onClick={() => setHelpDialogOpen(true)}
+        title="사용설명서 / 단축키"
+      >
+        <CircleHelp className="h-3.5 w-3.5" />
       </Button>
 
       {/* Notification Bell */}
@@ -526,6 +538,70 @@ export function Header() {
         </div>
       </DialogContent>
     </Dialog>
+
+    <Dialog open={helpDialogOpen} onOpenChange={setHelpDialogOpen}>
+      <DialogContent className="max-w-2xl">
+        <DialogHeader>
+          <DialogTitle className="text-base flex items-center gap-2">
+            <CircleHelp className="h-4 w-4 text-primary" />
+            사용설명서 / 단축키
+          </DialogTitle>
+        </DialogHeader>
+
+        <div className="grid gap-4 md:grid-cols-2">
+          <section className="rounded-xl border border-border/60 bg-muted/20 p-4">
+            <h3 className="text-sm font-semibold mb-3">기본 사용법</h3>
+            <ul className="space-y-2 text-sm text-muted-foreground">
+              <li>작업 행을 더블클릭하면 상세 편집 창이 열립니다.</li>
+              <li>담당자, 세부항목, 의존관계는 상세 창에서 관리합니다.</li>
+              <li>진행 이력이 있는 작업을 삭제하면 아카이브로 이동하고, 복원할 수 있습니다.</li>
+              <li>기준일을 지정하면 계획 진척률과 진척현황 지표가 그 날짜 기준으로 계산됩니다.</li>
+            </ul>
+          </section>
+
+          <section className="rounded-xl border border-border/60 bg-muted/20 p-4">
+            <h3 className="text-sm font-semibold mb-3">간트 단축키</h3>
+            <div className="space-y-2 text-sm">
+              <ShortcutRow keys="Ctrl + Enter" desc="선택 작업 아래 새 작업 추가" />
+              <ShortcutRow keys="Ctrl + Delete" desc="선택 작업 삭제 / 아카이브" />
+              <ShortcutRow keys="Tab" desc="들여쓰기" />
+              <ShortcutRow keys="Shift + Tab" desc="내어쓰기" />
+              <ShortcutRow keys="Ctrl + D" desc="선택 작업 복제" />
+              <ShortcutRow keys="↑ / ↓" desc="보이는 작업 기준으로 이동" />
+              <ShortcutRow keys="+ / -" desc="그룹 펼치기 / 접기" />
+              <ShortcutRow keys="Esc" desc="선택 해제" />
+            </div>
+          </section>
+
+          <section className="rounded-xl border border-border/60 bg-muted/20 p-4 md:col-span-2">
+            <h3 className="text-sm font-semibold mb-3">알아두면 좋은 점</h3>
+            <div className="grid gap-3 md:grid-cols-3 text-sm text-muted-foreground">
+              <div className="rounded-lg bg-background px-3 py-3 border border-border/50">
+                <div className="font-medium text-foreground mb-1">아카이브</div>
+                <p>아카이브 항목에는 누가 언제 삭제했는지 표시되며, 복원 버튼으로 되돌릴 수 있습니다.</p>
+              </div>
+              <div className="rounded-lg bg-background px-3 py-3 border border-border/50">
+                <div className="font-medium text-foreground mb-1">내 작업 필터</div>
+                <p>진척현황과 일부 화면은 내 배정 업무만 보기로 좁혀서 볼 수 있습니다.</p>
+              </div>
+              <div className="rounded-lg bg-background px-3 py-3 border border-border/50">
+                <div className="font-medium text-foreground mb-1">엑셀 업로드</div>
+                <p>WBS 일괄 등록은 엑셀 양식 다운로드 후 업로드 팝업에서 검증과 등록을 진행합니다.</p>
+              </div>
+            </div>
+          </section>
+        </div>
+      </DialogContent>
+    </Dialog>
     </>
+  )
+}
+
+function ShortcutRow({ keys, desc }: { keys: string; desc: string }) {
+  return (
+    <div className="flex items-center justify-between gap-3 rounded-lg border border-border/50 bg-background px-3 py-2">
+      <span className="font-mono text-xs font-semibold text-foreground">{keys}</span>
+      <span className="text-right text-xs text-muted-foreground">{desc}</span>
+    </div>
   )
 }
