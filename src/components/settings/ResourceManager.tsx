@@ -144,15 +144,6 @@ export function ResourceManager() {
   const myProjectRole = project ? useProjectStore.getState().getMyProjectRole(project.id, currentUser?.id || '') : null
   const canManageMembers = isAdmin || myProjectRole === 'pm'
 
-  // 현재 프로젝트에 이미 참여 중인 회원만 제외
-  const currentProjectMemberUserIds = new Set(
-    project
-      ? projectMembers
-          .filter((member) => member.projectId === project.id)
-          .map((member) => member.userId)
-      : []
-  )
-  const availableUsers = allUsers.filter((user) => user.role !== 'admin' && !currentProjectMemberUserIds.has(user.id))
   const [selectedUserId, setSelectedUserId] = useState('')
   const [selectedRole, setSelectedRole] = useState<ProjectRole>('editor')
   const [addMode, setAddMode] = useState<'user' | 'manual'>('user')
@@ -211,6 +202,19 @@ export function ResourceManager() {
   const resolveLinkedUserId = useCallback((member: (typeof members)[number]) => {
     return member.linked_user_id || getLinkedUser(member.email)?.id
   }, [getLinkedUser])
+
+  const existingMemberUserIds = useMemo(() => {
+    const ids = new Set<string>()
+    for (const member of members) {
+      const linkedId = resolveLinkedUserId(member)
+      if (linkedId) ids.add(linkedId)
+    }
+    return ids
+  }, [members, resolveLinkedUserId])
+
+  const availableUsers = useMemo(() => (
+    allUsers.filter((user) => user.role !== 'admin' && !existingMemberUserIds.has(user.id))
+  ), [allUsers, existingMemberUserIds])
 
   const getProjectRoleLabel = useCallback((role?: ProjectRole) => {
     switch (role) {

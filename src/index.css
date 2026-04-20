@@ -468,12 +468,32 @@
     @apply px-3 py-2 cursor-pointer transition-all border-l-2 border-b border-slate-200/80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 focus-visible:ring-inset;
   }
 
+  .member-item--nested {
+    @apply rounded-l-xl border-l-slate-300;
+  }
+
   .member-item--active {
     @apply bg-blue-50 border-l-blue-600;
   }
 
   .member-item--idle {
     @apply border-l-transparent hover:bg-slate-50;
+  }
+
+  .member-department-wrap {
+    @apply mx-2 my-1 rounded-xl border border-slate-200/80 bg-slate-50/70 overflow-hidden;
+  }
+
+  .member-department-head {
+    @apply flex items-center gap-1.5 px-3 py-2 text-[11px] font-semibold text-slate-700 bg-white/80 border-b border-slate-200/80 hover:bg-slate-100/80 transition-colors;
+  }
+
+  .member-team-wrap {
+    @apply mx-2 my-1 rounded-lg border border-slate-200/70 bg-white/80 overflow-hidden;
+  }
+
+  .member-team-head {
+    @apply flex items-center gap-1.5 px-3 py-1.5 text-[11px] text-slate-600 bg-slate-50/80 border-b border-slate-200/70;
   }
 
   .mtv-table-header {
@@ -486,6 +506,11 @@
 
   .mtv-task-row {
     @apply grid grid-cols-[56px_96px_minmax(0,1fr)_140px_76px_76px] gap-3 px-5 py-3 cursor-pointer items-center border-y border-slate-300 transition-colors box-border;
+  }
+
+  .mtv-task-row--selected {
+    @apply relative ring-2 ring-red-400/90 z-10;
+    box-shadow: inset 4px 0 0 #ef4444, 0 10px 24px rgba(239, 68, 68, 0.16);
   }
 
   .mtv-task-row--done {
@@ -504,7 +529,7 @@
   }
 
   .mtv-row-wbs {
-    @apply text-[10px] text-slate-700 font-mono font-semibold whitespace-nowrap tracking-tight;
+    @apply text-sm text-slate-800 font-mono font-bold whitespace-nowrap tracking-normal;
   }
 
   .mtv-row-period {

@@ -16,6 +16,7 @@ import { useUIStore } from '@/stores/ui-store'
 import { useUndoStore } from '@/stores/undo-store'
 import { useAuthStore } from '@/stores/auth-store'
 import { useActivityStore } from '@/stores/activity-store'
+import { useCalendarStore } from '@/stores/calendar-store'
 import { SAMPLE_PROJECT, SAMPLE_TASKS, SAMPLE_DEPENDENCIES } from '@/lib/sample-data'
 import { useIsMobile } from '@/hooks/use-is-mobile'
 import { MobileShell } from '@/components/mobile/MobileShell'
@@ -57,6 +58,7 @@ export function ProjectWorkspace() {
   const { loadResources } = useResourceStore()
   const fetchAllUsers = useAuthStore((s) => s.fetchAllUsers)
   const loadActivityLogs = useActivityStore((s) => s.loadLogs)
+  const loadCalendars = useCalendarStore((s) => s.loadCalendars)
   const currentUserId = useAuthStore((s) => s.currentUser?.id)
   const clearUndo = useUndoStore((s) => s.clear)
 
@@ -75,6 +77,7 @@ export function ProjectWorkspace() {
           loadDependencies(projectId),
           loadResources(projectId),
           loadProjectMembers(projectId),
+          loadCalendars(projectId),
           fetchAllUsers(),
           // 활동로그도 DB에서 로드 (현재 사용자 기준, 첫 페이지)
           loadActivityLogs(projectId, { userId: currentUserId, offset: 0, limit: 50 }),

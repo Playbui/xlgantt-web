@@ -1,5 +1,5 @@
 import { useState, useMemo, useCallback, useEffect, useRef } from 'react'
-import { Search, Users, ClipboardList, ExternalLink, UserCheck, List, LayoutGrid, ChevronDown, ChevronRight, Clock, ArrowUpDown } from 'lucide-react'
+import { Search, Users, ClipboardList, ExternalLink, UserCheck, List, LayoutGrid, ChevronDown, ChevronRight, Clock, ArrowUpDown, Building2, FolderTree, Layers3 } from 'lucide-react'
 import { Input } from '@/components/ui/input'
 import { useResourceStore } from '@/stores/resource-store'
 import { useTaskStore } from '@/stores/task-store'
@@ -12,7 +12,7 @@ import { TaskEditDialog } from '@/components/gantt/TaskEditDialog'
 import { CardDetailModal } from '@/components/mytasks/CardDetailModal'
 import { OrganizationPath } from '@/components/organization/OrganizationPath'
 import type { Task } from '@/lib/types'
-import type { TaskAssignment, TaskDetail } from '@/lib/resource-types'
+import type { TaskAssignment, TaskDetail, TeamMember } from '@/lib/resource-types'
 
 // ============================================================
 // Types
@@ -22,6 +22,36 @@ interface MemberTaskInfo {
   task: Task
   assignment: TaskAssignment
   details: TaskDetail[]
+}
+
+interface MemberTreeNode {
+  member: TeamMember
+  linkedUserId?: string
+  companyColor: string
+  companyName: string
+  departmentName?: string
+  teamName?: string
+}
+
+interface MemberTreeTeam {
+  id: string
+  name: string
+  members: MemberTreeNode[]
+}
+
+interface MemberTreeDepartment {
+  id: string
+  name: string
+  directMembers: MemberTreeNode[]
+  teams: MemberTreeTeam[]
+}
+
+interface MemberTreeCompany {
+  id: string
+  name: string
+  color: string
+  directMembers: MemberTreeNode[]
+  departments: MemberTreeDepartment[]
 }
 
 const MEMBER_TASKS_VIEW_MODE_KEY = 'xlgantt:memberTasks:detailViewMode'
@@ -96,6 +126,9 @@ export function MemberTasksView() {
   const [sortBy, setSortBy] = useState<'wbs' | 'name' | 'allocation' | 'date' | 'progress'>('wbs')
   const [sortAsc, setSortAsc] = useState(true)
   const [taskSearchQuery, setTaskSearchQuery] = useState('')
+  const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null)
+  const [expandedCompanies, setExpandedCompanies] = useState<Set<string>>(new Set())
+  const [expandedDepartments, setExpandedDepartments] = useState<Set<string>>(new Set())
   const lastCollapsedMemberIdRef = useRef<string | null>(null)
 
   useEffect(() => {
@@ -189,20 +222,24 @@ export function MemberTasksView() {
     return roles
   }, [project, projectMembers, members, allUsers])
 
-  // Filter members by search query
-  const filteredCompanies = useMemo(() => {
+  const resolveLinkedUser = useCallback((member: TeamMember) => {
+    if (member.linked_user_id) {
+      return allUsers.find((user) => user.id === member.linked_user_id)
+    }
+    return allUsers.find(
+      (user) => (member.email && user.email?.toLowerCase() === member.email.toLowerCase()) || user.name === member.name
+    )
+  }, [allUsers])
+
+  // Filter members by search query and build organization tree
+  const groupedMemberTree = useMemo(() => {
     const query = searchQuery.toLowerCase().trim()
     const orgAssignmentMap = new Map(orgAssignments.map((assignment) => [assignment.user_id, assignment]))
-    const grouped = new Map<string, {
-      company: { id: string, name: string, color: string }
-      members: typeof members
-    }>()
+    const grouped = new Map<string, MemberTreeCompany>()
 
     for (const member of members) {
-      const matchedUser = allUsers.find(
-        (u) => (member.email && u.email?.toLowerCase() === member.email.toLowerCase()) || u.name === member.name
-      )
-      const orgAssignment = matchedUser ? orgAssignmentMap.get(matchedUser.id) : undefined
+      const linkedUser = resolveLinkedUser(member)
+      const orgAssignment = linkedUser ? orgAssignmentMap.get(linkedUser.id) : undefined
       const orgCompany = orgAssignment ? orgCompanies.find((item) => item.id === orgAssignment.company_id) : undefined
       const projectCompany = companies.find((company) => company.id === member.company_id)
       const companyId = orgCompany?.id || `project-${projectCompany?.id || 'ungrouped'}`
@@ -222,16 +259,101 @@ export function MemberTasksView() {
 
       if (query && !searchable) continue
 
-      const bucket = grouped.get(companyId) || {
-        company: { id: companyId, name: companyName, color: companyColor },
-        members: [],
+      const companyNode = grouped.get(companyId) || {
+        id: companyId,
+        name: companyName,
+        color: companyColor,
+        directMembers: [],
+        departments: [],
       }
-      bucket.members.push(member)
-      grouped.set(companyId, bucket)
+
+      const memberNode: MemberTreeNode = {
+        member,
+        linkedUserId: linkedUser?.id,
+        companyColor,
+        companyName,
+        departmentName,
+        teamName,
+      }
+
+      if (!departmentName || !orgAssignment?.department_id) {
+        companyNode.directMembers.push(memberNode)
+        grouped.set(companyId, companyNode)
+        continue
+      }
+
+      let departmentNode = companyNode.departments.find((department) => department.id === orgAssignment.department_id)
+      if (!departmentNode) {
+        departmentNode = {
+          id: orgAssignment.department_id,
+          name: departmentName,
+          directMembers: [],
+          teams: [],
+        }
+        companyNode.departments.push(departmentNode)
+      }
+
+      if (!teamName || !orgAssignment.team_id) {
+        departmentNode.directMembers.push(memberNode)
+      } else {
+        let teamNode = departmentNode.teams.find((team) => team.id === orgAssignment.team_id)
+        if (!teamNode) {
+          teamNode = {
+            id: orgAssignment.team_id,
+            name: teamName,
+            members: [],
+          }
+          departmentNode.teams.push(teamNode)
+        }
+        teamNode.members.push(memberNode)
+      }
+
+      grouped.set(companyId, companyNode)
     }
 
     return [...grouped.values()]
-  }, [companies, members, searchQuery, allUsers, orgAssignments, orgCompanies, orgDepartments, orgTeams])
+      .map((company) => ({
+        ...company,
+        directMembers: company.directMembers.sort((a, b) => a.member.name.localeCompare(b.member.name, 'ko')),
+        departments: company.departments
+          .map((department) => ({
+            ...department,
+            directMembers: department.directMembers.sort((a, b) => a.member.name.localeCompare(b.member.name, 'ko')),
+            teams: department.teams
+              .map((team) => ({
+                ...team,
+                members: team.members.sort((a, b) => a.member.name.localeCompare(b.member.name, 'ko')),
+              }))
+              .sort((a, b) => a.name.localeCompare(b.name, 'ko')),
+          }))
+          .sort((a, b) => a.name.localeCompare(b.name, 'ko')),
+      }))
+      .sort((a, b) => a.name.localeCompare(b.name, 'ko'))
+  }, [companies, members, searchQuery, orgAssignments, orgCompanies, orgDepartments, orgTeams, resolveLinkedUser])
+
+  const toggleCompany = useCallback((companyId: string) => {
+    setExpandedCompanies((prev) => {
+      const next = new Set(prev)
+      next.has(companyId) ? next.delete(companyId) : next.add(companyId)
+      return next
+    })
+  }, [])
+
+  const toggleDepartment = useCallback((departmentId: string) => {
+    setExpandedDepartments((prev) => {
+      const next = new Set(prev)
+      next.has(departmentId) ? next.delete(departmentId) : next.add(departmentId)
+      return next
+    })
+  }, [])
+
+  const countCompanyMembers = useCallback((company: MemberTreeCompany) => (
+    company.directMembers.length +
+    company.departments.reduce(
+      (sum, department) => sum + department.directMembers.length + department.teams.reduce((teamSum, team) => teamSum + team.members.length, 0),
+      0
+    )
+  ), [])
 
   // Total counts
   const totalMembers = members.length
@@ -320,6 +442,82 @@ export function MemberTasksView() {
     lastCollapsedMemberIdRef.current = selectedMemberId
   }, [selectedMemberId, selectedMemberTasks])
 
+  useEffect(() => {
+    if (!selectedMemberId) {
+      setSelectedTaskId(null)
+      return
+    }
+
+    const taskIds = filteredMemberTasks.map(({ task }) => task.id)
+    if (taskIds.length === 0) {
+      setSelectedTaskId(null)
+      return
+    }
+
+    setSelectedTaskId((prev) => (prev && taskIds.includes(prev) ? prev : taskIds[0]))
+  }, [selectedMemberId, filteredMemberTasks])
+
+  useEffect(() => {
+    if (!selectedMemberId || filteredMemberTasks.length === 0) return
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      const target = e.target as HTMLElement
+      const isInput =
+        target.tagName === 'INPUT' ||
+        target.tagName === 'TEXTAREA' ||
+        target.tagName === 'SELECT' ||
+        target.isContentEditable
+      if (isInput) return
+
+      const hasOpenDialog = document.querySelector('[role="dialog"][data-state="open"]')
+      if (hasOpenDialog) return
+
+      const taskIds = filteredMemberTasks.map(({ task }) => task.id)
+      if (taskIds.length === 0) return
+
+      const currentIndex = selectedTaskId ? taskIds.indexOf(selectedTaskId) : -1
+      const selectedInfo = filteredMemberTasks.find(({ task }) => task.id === selectedTaskId)
+
+      switch (e.key) {
+        case 'ArrowUp':
+          e.preventDefault()
+          if (currentIndex > 0) setSelectedTaskId(taskIds[currentIndex - 1])
+          else if (currentIndex === -1) setSelectedTaskId(taskIds[taskIds.length - 1])
+          break
+        case 'ArrowDown':
+          e.preventDefault()
+          if (currentIndex >= 0 && currentIndex < taskIds.length - 1) setSelectedTaskId(taskIds[currentIndex + 1])
+          else if (currentIndex === -1) setSelectedTaskId(taskIds[0])
+          break
+        case 'ArrowLeft':
+          if (selectedInfo && selectedInfo.details.length > 0 && !collapsedTasks.has(selectedInfo.task.id)) {
+            e.preventDefault()
+            setCollapsedTasks((prev) => new Set(prev).add(selectedInfo.task.id))
+          }
+          break
+        case 'ArrowRight':
+          if (selectedInfo && selectedInfo.details.length > 0 && collapsedTasks.has(selectedInfo.task.id)) {
+            e.preventDefault()
+            setCollapsedTasks((prev) => {
+              const next = new Set(prev)
+              next.delete(selectedInfo.task.id)
+              return next
+            })
+          }
+          break
+        case 'Enter':
+          if (selectedTaskId) {
+            e.preventDefault()
+            handleOpenTask(selectedTaskId)
+          }
+          break
+      }
+    }
+
+    window.addEventListener('keydown', handleKeyDown)
+    return () => window.removeEventListener('keydown', handleKeyDown)
+  }, [selectedMemberId, filteredMemberTasks, selectedTaskId, collapsedTasks, handleOpenTask])
+
   return (
     <div className="flex h-full overflow-hidden">
       {/* ===== Left Panel: Member List ===== */}
@@ -361,104 +559,161 @@ export function MemberTasksView() {
 
         {/* Member list grouped by company */}
         <div className="flex-1 overflow-y-auto">
-          {filteredCompanies.length === 0 && (
+          {groupedMemberTree.length === 0 && (
             <div className="px-4 py-8 text-center text-xs text-muted-foreground/50">
               {searchQuery ? '검색 결과가 없습니다' : '등록된 담당자가 없습니다'}
             </div>
           )}
-          {filteredCompanies.map(({ company, members: companyMembers }) => (
-            <div key={company.id}>
-              {/* Company header */}
-              <div className="member-company-head">
-                <div className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: company.color }} />
-                <span className="truncate">{company.name}</span>
-                <span className="text-muted-foreground/60 font-normal">({companyMembers.length})</span>
-              </div>
+          {groupedMemberTree.map((company) => {
+            const isCompanyExpanded = expandedCompanies.has(company.id) || searchQuery.length > 0
 
-              {/* Members */}
-              {companyMembers.map((member) => {
-                const isSelected = selectedMemberId === member.id
-                const taskCount = memberTaskCounts[member.id] || 0
-                const completionRate = memberCompletionRates[member.id] || 0
-                const completionPct = Math.round(completionRate * 100)
-                const projectRole = memberProjectRoles[member.id]
+            const renderMemberCard = (node: MemberTreeNode, level: 0 | 1 | 2) => {
+              const member = node.member
+              const isSelected = selectedMemberId === member.id
+              const taskCount = memberTaskCounts[member.id] || 0
+              const completionRate = memberCompletionRates[member.id] || 0
+              const completionPct = Math.round(completionRate * 100)
+              const projectRole = memberProjectRoles[member.id]
 
-                return (
-                  <div
-                    key={member.id}
-                    className={cn('member-item', isSelected ? 'member-item--active' : 'member-item--idle')}
-                    onClick={() => setSelectedMemberId(member.id)}
-                    role="button"
-                    tabIndex={0}
-                    onKeyDown={(e) => {
-                      if (e.key === 'Enter' || e.key === ' ') {
-                        e.preventDefault()
-                        setSelectedMemberId(member.id)
-                      }
-                    }}
-                  >
-                    <div className="flex items-center gap-2">
-                      {/* Avatar */}
-                      <div
-                        className="w-7 h-7 rounded-full flex items-center justify-center text-white text-[11px] font-bold flex-shrink-0"
-                        style={{ backgroundColor: company.color }}
-                      >
-                        {member.name.charAt(0)}
-                      </div>
-
-                      {/* Info */}
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-1.5">
-                          <span className="text-xs font-medium truncate">{member.name}</span>
-                          {projectRole && <RoleBadge role={projectRole} />}
-                        </div>
-                        {member.role && (
-                          <span className="text-[10px] text-muted-foreground">{member.role}</span>
-                        )}
-                        {member.email && (
-                          <div className="mt-0.5">
-                            <OrganizationPath userId={allUsers.find((u) => u.email?.toLowerCase() === member.email?.toLowerCase() || u.name === member.name)?.id || ''} emptyLabel="" />
-                          </div>
-                        )}
-                      </div>
-
-                      {/* Task count badge */}
-                      <span className={cn(
-                        'text-[10px] font-medium px-1.5 py-0.5 rounded-md flex-shrink-0',
-                        taskCount > 0
-                          ? 'bg-primary/10 text-primary'
-                          : 'bg-muted/60 text-muted-foreground/50'
-                      )}>
-                        {taskCount}
-                      </span>
+              return (
+                <div
+                  key={member.id}
+                  className={cn('member-item', isSelected ? 'member-item--active' : 'member-item--idle', level > 0 && 'member-item--nested')}
+                  style={{ marginLeft: `${level * 14}px` }}
+                  onClick={() => setSelectedMemberId(member.id)}
+                  role="button"
+                  tabIndex={0}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' || e.key === ' ') {
+                      e.preventDefault()
+                      setSelectedMemberId(member.id)
+                    }
+                  }}
+                >
+                  <div className="flex items-center gap-2">
+                    <div
+                      className="w-7 h-7 rounded-full flex items-center justify-center text-white text-[11px] font-bold flex-shrink-0"
+                      style={{ backgroundColor: node.companyColor }}
+                    >
+                      {member.name.charAt(0)}
                     </div>
 
-                    {/* Mini progress bar */}
-                    {taskCount > 0 && (
-                      <div className="mt-1.5 flex items-center gap-2">
-                        <div className="flex-1 h-1 bg-muted/60 rounded-full overflow-hidden">
-                          <div
-                            className={cn(
-                              'h-full rounded-full transition-all',
-                              completionPct >= 100
-                                ? 'bg-green-500'
-                                : completionPct > 0
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-1.5">
+                        <span className="text-xs font-medium truncate">{member.name}</span>
+                        {projectRole && <RoleBadge role={projectRole} />}
+                      </div>
+                      {member.role && (
+                        <span className="text-[10px] text-muted-foreground">{member.role}</span>
+                      )}
+                      {node.linkedUserId && (
+                        <div className="mt-0.5">
+                          <OrganizationPath userId={node.linkedUserId} emptyLabel="" />
+                        </div>
+                      )}
+                    </div>
+
+                    <span className={cn(
+                      'text-[10px] font-medium px-1.5 py-0.5 rounded-md flex-shrink-0',
+                      taskCount > 0
+                        ? 'bg-primary/10 text-primary'
+                        : 'bg-muted/60 text-muted-foreground/50'
+                    )}>
+                      {taskCount}
+                    </span>
+                  </div>
+
+                  {taskCount > 0 && (
+                    <div className="mt-1.5 flex items-center gap-2">
+                      <div className="flex-1 h-1 bg-muted/60 rounded-full overflow-hidden">
+                        <div
+                          className={cn(
+                            'h-full rounded-full transition-all',
+                            completionPct >= 100
+                              ? 'bg-green-500'
+                              : completionPct > 0
                                 ? 'bg-primary'
                                 : 'bg-muted'
-                            )}
-                            style={{ width: `${Math.min(completionPct, 100)}%` }}
-                          />
-                        </div>
-                        <span className="text-[9px] text-muted-foreground font-mono w-7 text-right">
-                          {completionPct}%
-                        </span>
+                          )}
+                          style={{ width: `${Math.min(completionPct, 100)}%` }}
+                        />
                       </div>
-                    )}
+                      <span className="text-[9px] text-muted-foreground font-mono w-7 text-right">
+                        {completionPct}%
+                      </span>
+                    </div>
+                  )}
+                </div>
+              )
+            }
+
+            return (
+              <div key={company.id}>
+                <button
+                  type="button"
+                  className="member-company-head w-full"
+                  onClick={() => toggleCompany(company.id)}
+                >
+                  {isCompanyExpanded ? (
+                    <ChevronDown className="h-3.5 w-3.5 text-muted-foreground" />
+                  ) : (
+                    <ChevronRight className="h-3.5 w-3.5 text-muted-foreground" />
+                  )}
+                  <div className="w-4 h-4 rounded flex items-center justify-center flex-shrink-0" style={{ backgroundColor: company.color }}>
+                    <Building2 className="h-2.5 w-2.5 text-white" />
                   </div>
-                )
-              })}
-            </div>
-          ))}
+                  <span className="truncate flex-1 text-left">{company.name}</span>
+                  <span className="text-muted-foreground/60 font-normal">({countCompanyMembers(company)})</span>
+                </button>
+
+                {isCompanyExpanded && (
+                  <div className="pb-1">
+                    {company.directMembers.map((node) => renderMemberCard(node, 0))}
+                    {company.departments.map((department) => {
+                      const isDepartmentExpanded = expandedDepartments.has(department.id) || searchQuery.length > 0
+                      const departmentMemberCount =
+                        department.directMembers.length + department.teams.reduce((sum, team) => sum + team.members.length, 0)
+
+                      return (
+                        <div key={department.id} className="member-department-wrap">
+                          <button
+                            type="button"
+                            className="member-department-head w-full"
+                            onClick={() => toggleDepartment(department.id)}
+                          >
+                            {isDepartmentExpanded ? (
+                              <ChevronDown className="h-3.5 w-3.5 text-muted-foreground" />
+                            ) : (
+                              <ChevronRight className="h-3.5 w-3.5 text-muted-foreground" />
+                            )}
+                            <FolderTree className="h-3.5 w-3.5 text-primary" />
+                            <span className="truncate flex-1 text-left">{department.name}</span>
+                            <span className="text-muted-foreground/60 font-normal">({departmentMemberCount})</span>
+                          </button>
+
+                          {isDepartmentExpanded && (
+                            <div className="pb-1">
+                              {department.directMembers.map((node) => renderMemberCard(node, 1))}
+                              {department.teams.map((team) => (
+                                <div key={team.id} className="member-team-wrap">
+                                  <div className="member-team-head">
+                                    <Layers3 className="h-3.5 w-3.5 text-slate-500" />
+                                    <span className="truncate flex-1">팀 · {team.name}</span>
+                                    <span className="text-muted-foreground/60 font-normal">({team.members.length})</span>
+                                  </div>
+                                  {team.members.map((node) => renderMemberCard(node, 2))}
+                                </div>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                      )
+                    })}
+                  </div>
+                )}
+              </div>
+            )
+          })}
         </div>
       </div>
 
@@ -542,7 +797,7 @@ export function MemberTasksView() {
                 <div className="border-t border-border/50">
                   {/* Table header with sort */}
                   <div className="mtv-table-header">
-                    <div className="grid grid-cols-[56px_96px_minmax(0,1fr)_140px_76px_76px] gap-3 flex-1 text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">
+                    <div className="grid grid-cols-[32px_92px_minmax(0,1fr)_140px_76px_76px] gap-3 flex-1 text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">
                       <span></span>
                       <span
                         className="cursor-pointer hover:text-foreground flex items-center gap-0.5 select-none"
@@ -620,32 +875,38 @@ export function MemberTasksView() {
                         <div
                           className={cn(
                             'mtv-task-row group',
-                            rowTone
+                            rowTone,
+                            selectedTaskId === task.id && 'mtv-task-row--selected'
                           )}
-                          onClick={() => handleOpenTask(task.id)}
+                          onClick={() => setSelectedTaskId(task.id)}
+                          onDoubleClick={() => handleOpenTask(task.id)}
                           role="button"
                           tabIndex={0}
                           onKeyDown={(e) => {
                             if (e.key === 'Enter' || e.key === ' ') {
                               e.preventDefault()
-                              handleOpenTask(task.id)
+                              setSelectedTaskId(task.id)
                             }
                           }}
-                          title={`${task.task_name} (클릭하여 상세 편집)`}
+                          title={`${task.task_name} (더블클릭하여 상세 편집)`}
                         >
                           {/* 접기 토글 */}
-                          <span className="flex h-8 w-14 flex-shrink-0 items-center justify-center">
-                            {details.length > 0 && (
+                          <span className="flex h-8 w-8 flex-shrink-0 items-center justify-center">
+                            {details.length > 0 ? (
                               <button
-                                onClick={toggleCollapse}
+                                onClick={(e) => {
+                                  setSelectedTaskId(task.id)
+                                  toggleCollapse(e)
+                                }}
                                 className={cn(
-                                  'h-7 min-w-[44px] px-2 rounded-md border border-border/60 bg-background/90 hover:bg-accent/50 inline-flex items-center justify-center gap-1 text-[10px] font-semibold text-muted-foreground transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40'
+                                  'flex h-6 w-6 items-center justify-center rounded hover:bg-accent/50 text-slate-600 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40'
                                 )}
                                 title={isCollapsed ? '세부항목 펼치기' : '세부항목 접기'}
                               >
-                                {isCollapsed ? <ChevronRight className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}
-                                <span>{details.length}</span>
+                                {isCollapsed ? <ChevronRight className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
                               </button>
+                            ) : (
+                              <span className="block h-6 w-6" />
                             )}
                           </span>
                           <span className="mtv-row-wbs">

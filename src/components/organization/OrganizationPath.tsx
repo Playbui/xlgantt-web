@@ -10,6 +10,7 @@ export function OrganizationPath({ userId, emptyLabel = '미지정' }: Organizat
   const label = useOrganizationStore((state) => state.getPathLabel(userId))
 
   if (!label) {
+    if (!emptyLabel) return null
     return (
       <Badge variant="outline" className="text-[10px] text-muted-foreground">
         {emptyLabel}

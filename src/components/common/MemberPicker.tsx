@@ -8,6 +8,7 @@ import { useResourceStore } from '@/stores/resource-store'
 import { useAuthStore } from '@/stores/auth-store'
 import { useOrganizationStore } from '@/stores/organization-store'
 import { cn } from '@/lib/utils'
+import type { TeamMember } from '@/lib/resource-types'
 
 interface MemberPickerProps {
   value: string | string[]
@@ -89,12 +90,33 @@ export function MemberPicker({
     return value ? new Set([value]) : new Set<string>()
   }, [value])
 
+  const resolveLinkedUser = useMemo(() => {
+    const usersById = new Map(allUsers.map((user) => [user.id, user]))
+    const usersByEmail = new Map(
+      allUsers
+        .filter((user) => user.email)
+        .map((user) => [user.email!.toLowerCase(), user])
+    )
+
+    return (member: TeamMember) => {
+      if (member.linked_user_id) {
+        const linked = usersById.get(member.linked_user_id)
+        if (linked) return linked
+      }
+      if (member.email) {
+        const linked = usersByEmail.get(member.email.toLowerCase())
+        if (linked) return linked
+      }
+      return allUsers.find((user) => user.name === member.name)
+    }
+  }, [allUsers])
+
   const groupedTree = useMemo(() => {
     const query = search.toLowerCase().trim()
     const assignmentMap = new Map(orgAssignments.map((assignment) => [assignment.user_id, assignment]))
 
     const visibleMembers = members.filter((member) => {
-      const linkedUser = allUsers.find((user) => member.email && user.email?.toLowerCase() === member.email.toLowerCase())
+      const linkedUser = resolveLinkedUser(member)
       const assignment = linkedUser ? assignmentMap.get(linkedUser.id) : undefined
       const orgCompany = assignment ? orgCompanies.find((item) => item.id === assignment.company_id) : undefined
       const orgDepartment = assignment ? orgDepartments.find((item) => item.id === assignment.department_id) : undefined
@@ -117,7 +139,7 @@ export function MemberPicker({
     const grouped = new Map<string, CompanyGroup>()
 
     for (const member of visibleMembers) {
-      const linkedUser = allUsers.find((user) => member.email && user.email?.toLowerCase() === member.email.toLowerCase())
+      const linkedUser = resolveLinkedUser(member)
       const assignment = linkedUser ? assignmentMap.get(linkedUser.id) : undefined
       const projectCompany = companies.find((company) => company.id === member.company_id)
       const orgCompany = assignment ? orgCompanies.find((item) => item.id === assignment.company_id) : undefined
@@ -181,7 +203,24 @@ export function MemberPicker({
     }
 
     return [...grouped.values()]
-  }, [search, members, allUsers, orgAssignments, orgCompanies, orgDepartments, orgTeams, companies])
+      .map((company) => ({
+        ...company,
+        members: company.members.sort((a, b) => a.name.localeCompare(b.name, 'ko')),
+        departments: company.departments
+          .map((department) => ({
+            ...department,
+            members: department.members.sort((a, b) => a.name.localeCompare(b.name, 'ko')),
+            teams: department.teams
+              .map((team) => ({
+                ...team,
+                members: team.members.sort((a, b) => a.name.localeCompare(b.name, 'ko')),
+              }))
+              .sort((a, b) => a.name.localeCompare(b.name, 'ko')),
+          }))
+          .sort((a, b) => a.name.localeCompare(b.name, 'ko')),
+      }))
+      .sort((a, b) => a.name.localeCompare(b.name, 'ko'))
+  }, [search, members, resolveLinkedUser, orgAssignments, orgCompanies, orgDepartments, orgTeams, companies])
 
   const toggleCompany = (companyId: string) => {
     setExpandedCompanies((prev) => {

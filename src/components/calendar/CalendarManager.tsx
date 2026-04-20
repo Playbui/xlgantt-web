@@ -1,4 +1,4 @@
-import { useState, useMemo, useCallback } from 'react'
+import { useState, useMemo, useCallback, useEffect } from 'react'
 import { ChevronLeft, ChevronRight, Plus, Trash2, Calendar } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -10,43 +10,62 @@ import {
 import { cn } from '@/lib/utils'
 import { useCalendarStore } from '@/stores/calendar-store'
 import type { CalendarType } from '@/lib/types'
+import { useProjectStore } from '@/stores/project-store'
 
 const DAY_NAMES = ['일', '월', '화', '수', '목', '금', '토']
 const DAY_NAMES_FULL = ['일요일', '월요일', '화요일', '수요일', '목요일', '금요일', '토요일']
 
-const TAB_CONFIG: { key: CalendarType; label: string; description: string }[] = [
-  { key: 'STD', label: 'STD', description: '표준' },
-  { key: 'UD1', label: 'UD1', description: '사용자1' },
-  { key: 'UD2', label: 'UD2', description: '사용자2' },
-]
+const TAB_KEYS: CalendarType[] = ['STD', 'UD1', 'UD2']
 
 export function CalendarManager() {
   const {
     holidays,
     workingDays,
+    calendarMeta,
     activeCalendarTab,
+    loadCalendars,
     setActiveCalendarTab,
     addHoliday,
     removeHoliday,
     setWorkingDays,
+    setCalendarName,
   } = useCalendarStore()
+  const projectId = useProjectStore((s) => s.currentProject?.id)
 
   const [currentMonth, setCurrentMonth] = useState(new Date())
   const [newDate, setNewDate] = useState('')
   const [newName, setNewName] = useState('')
+  const [draftNames, setDraftNames] = useState<Record<CalendarType, string>>({
+    STD: '',
+    UD1: '',
+    UD2: '',
+  })
+
+  useEffect(() => {
+    if (!projectId) return
+    loadCalendars(projectId)
+  }, [projectId, loadCalendars])
+
+  useEffect(() => {
+    setDraftNames({
+      STD: calendarMeta.STD.name,
+      UD1: calendarMeta.UD1.name,
+      UD2: calendarMeta.UD2.name,
+    })
+  }, [calendarMeta])
 
   const currentHolidays = holidays[activeCalendarTab]
   const currentWorkingDays = workingDays[activeCalendarTab]
 
   const handleAdd = useCallback(() => {
     if (!newDate) return
-    addHoliday(activeCalendarTab, { date: newDate, name: newName || '공휴일' })
+    void addHoliday(activeCalendarTab, { date: newDate, name: newName || '공휴일' })
     setNewDate('')
     setNewName('')
   }, [newDate, newName, activeCalendarTab, addHoliday])
 
   const handleDelete = useCallback((id: string) => {
-    removeHoliday(activeCalendarTab, id)
+    void removeHoliday(activeCalendarTab, id)
   }, [activeCalendarTab, removeHoliday])
 
   const toggleWorkingDay = useCallback((dayIndex: number) => {
@@ -54,8 +73,14 @@ export function CalendarManager() {
     const next = current.includes(dayIndex)
       ? current.filter((d) => d !== dayIndex)
       : [...current, dayIndex].sort()
-    setWorkingDays(activeCalendarTab, next)
+    void setWorkingDays(activeCalendarTab, next)
   }, [activeCalendarTab, workingDays, setWorkingDays])
+
+  const handleCalendarNameSave = useCallback((calType: CalendarType) => {
+    const nextName = draftNames[calType].trim()
+    if (!nextName) return
+    void setCalendarName(calType, nextName)
+  }, [draftNames, setCalendarName])
 
   // Holiday lookup
   const holidayMap = useMemo(() => {
@@ -98,21 +123,44 @@ export function CalendarManager() {
 
       {/* 3-Tab Navigation */}
       <div className="flex gap-1 mb-4 bg-muted/50 rounded-lg p-1 w-fit">
-        {TAB_CONFIG.map((tab) => (
+        {TAB_KEYS.map((tabKey) => (
           <button
-            key={tab.key}
-            onClick={() => setActiveCalendarTab(tab.key)}
+            key={tabKey}
+            onClick={() => setActiveCalendarTab(tabKey)}
             className={cn(
               'px-4 py-1.5 rounded-md text-sm font-medium transition-all',
-              activeCalendarTab === tab.key
+              activeCalendarTab === tabKey
                 ? 'bg-background text-foreground shadow-sm'
                 : 'text-muted-foreground hover:text-foreground hover:bg-background/50'
             )}
           >
-            {tab.label}
-            <span className="ml-1 text-xs opacity-60">({tab.description})</span>
+            {tabKey}
+            <span className="ml-1 text-xs opacity-60">({calendarMeta[tabKey].name})</span>
           </button>
         ))}
+      </div>
+
+      <div className="bg-card rounded-xl border border-border/50 shadow-sm p-4 mb-4">
+        <h4 className="text-sm font-semibold mb-3">달력 이름</h4>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+          {TAB_KEYS.map((tabKey) => (
+            <div key={tabKey} className="space-y-1.5">
+              <label className="text-xs text-muted-foreground">{tabKey} 표시 이름</label>
+              <div className="flex gap-2">
+                <Input
+                  value={draftNames[tabKey]}
+                  onChange={(e) => setDraftNames((prev) => ({ ...prev, [tabKey]: e.target.value }))}
+                  onBlur={() => handleCalendarNameSave(tabKey)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') handleCalendarNameSave(tabKey)
+                  }}
+                  placeholder={tabKey === 'STD' ? '표준' : tabKey === 'UD1' ? '사용자1' : '사용자2'}
+                  className="h-9"
+                />
+              </div>
+            </div>
+          ))}
+        </div>
       </div>
 
       {/* Working Days Config */}
