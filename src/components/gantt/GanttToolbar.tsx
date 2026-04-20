@@ -17,10 +17,12 @@ import {
   ListOrdered,
   Download,
   Upload,
+  FileSpreadsheet,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Separator } from '@/components/ui/separator'
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
 import { useTaskStore } from '@/stores/task-store'
 import { useProjectStore } from '@/stores/project-store'
 import { useResourceStore } from '@/stores/resource-store'
@@ -347,15 +349,25 @@ export function GanttToolbar({ onOpenTaskDialog, onScrollToToday }: GanttToolbar
 
       <Separator orientation="vertical" className="mx-1 h-5" />
 
-      <Button variant="outline" size="sm" className="h-8 text-xs" onClick={handleDownloadTemplate}>
-        <Download className="mr-1 h-3.5 w-3.5" />
-        양식 다운로드
-      </Button>
-
-      <Button variant="outline" size="sm" className="h-8 text-xs" onClick={handleUploadClick}>
-        <Upload className="mr-1 h-3.5 w-3.5" />
-        엑셀 업로드
-      </Button>
+      <DropdownMenu>
+        <DropdownMenuTrigger>
+          <Button variant="ghost" size="icon" className="h-8 w-8" title="WBS 일괄등록 도구">
+            <FileSpreadsheet className="h-4 w-4" />
+          </Button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="start" className="w-48">
+          <DropdownMenuLabel>WBS 일괄등록</DropdownMenuLabel>
+          <DropdownMenuSeparator />
+          <DropdownMenuItem className="cursor-pointer text-xs" onClick={handleDownloadTemplate}>
+            <Download className="h-3.5 w-3.5" />
+            양식 다운로드
+          </DropdownMenuItem>
+          <DropdownMenuItem className="cursor-pointer text-xs" onClick={handleUploadClick}>
+            <Upload className="h-3.5 w-3.5" />
+            엑셀 업로드
+          </DropdownMenuItem>
+        </DropdownMenuContent>
+      </DropdownMenu>
 
       <input
         ref={uploadInputRef}

@@ -22,10 +22,10 @@ export interface WbsExcelValidationResult {
   errors: string[]
 }
 
+const LEVEL_HEADERS = ['WBS Lv1 *', 'WBS Lv2', 'WBS Lv3', 'WBS Lv4', 'WBS Lv5', 'WBS Lv6', 'WBS Lv7'] as const
+
 const TEMPLATE_HEADERS = [
-  'WBS',
-  '작업명',
-  '그룹(Y/N)',
+  ...LEVEL_HEADERS,
   '마일스톤(Y/N)',
   '계획시작일(YYYY-MM-DD)',
   '계획완료일(YYYY-MM-DD)',
@@ -38,9 +38,12 @@ const TEMPLATE_HEADERS = [
 ] as const
 
 const TEMPLATE_SAMPLE = [
-  ['1', '사업관리', 'Y', 'N', '2026-04-01', '2026-04-30', 5, 'STD', '상위 그룹', '주간보고', '', ''],
-  ['1.1', '주간보고 #1', 'N', 'Y', '2026-04-03', '2026-04-03', 1, 'STD', '', '보고서', '', ''],
-  ['1.2', '주간보고 #2', 'N', 'Y', '2026-04-10', '2026-04-10', 1, 'STD', '', '보고서', '', ''],
+  ['주간보고', '', '', '', '', '', '', 'N', '2026-04-01', '2026-04-30', 5, 'STD', '상위 그룹', '주간보고 취합', '', ''],
+  ['', '1주차', '', '', '', '', '', 'Y', '2026-04-03', '2026-04-03', 1, 'STD', '', '보고서', '', ''],
+  ['', '2주차', '', '', '', '', '', 'Y', '2026-04-10', '2026-04-10', 1, 'STD', '', '보고서', '', ''],
+  ['', '3주차', '', '', '', '', '', 'N', '2026-04-17', '2026-04-17', 1, 'STD', '', '', '', ''],
+  ['', '', '임시', '', '', '', '', 'N', '2026-04-17', '2026-04-17', 0.5, 'STD', '', '', '', ''],
+  ['', '', '완료', '', '', '', '', 'N', '2026-04-17', '2026-04-17', 0.5, 'STD', '', '', '', ''],
 ] as const
 
 function normalizeString(value: unknown): string {
@@ -62,6 +65,32 @@ function parseOptionalProgress(value: unknown): number | undefined {
   const parsed = parseOptionalNumber(value)
   if (parsed == null) return undefined
   return parsed / 100
+}
+
+function getOutlineLevelAndName(raw: Record<string, unknown>): { level: number; taskName: string; outlineUsed: boolean; errors: string[] } {
+  const filledLevels = LEVEL_HEADERS
+    .map((header, index) => ({ index, value: normalizeString(raw[header]) }))
+    .filter((item) => item.value)
+
+  if (filledLevels.length === 0) {
+    return { level: 0, taskName: '', outlineUsed: false, errors: [] }
+  }
+
+  if (filledLevels.length > 1) {
+    return {
+      level: 0,
+      taskName: '',
+      outlineUsed: true,
+      errors: ['한 행에는 하나의 WBS 레벨 칸만 입력할 수 있습니다.'],
+    }
+  }
+
+  return {
+    level: filledLevels[0].index + 1,
+    taskName: filledLevels[0].value,
+    outlineUsed: true,
+    errors: [],
+  }
 }
 
 function isIsoDate(value?: string): boolean {
@@ -91,14 +120,13 @@ export function downloadWbsExcelTemplate() {
 
   const guideSheet = XLSX.utils.aoa_to_sheet([
     ['항목', '설명'],
-    ['WBS', '필수. 예: 1, 1.1, 1.1.1 형식으로 입력합니다.'],
-    ['작업명', '필수. 화면에 표시될 작업명입니다.'],
-    ['그룹(Y/N)', '하위 작업이 있는 상위 WBS면 Y를 권장합니다. 비워도 하위가 있으면 자동 그룹 처리됩니다.'],
+    ['WBS Lv1~Lv7', '필수 입력은 각 행당 1칸입니다. 작업이 속한 레벨 칸에만 작업명을 입력하세요. WBS 번호는 시스템이 자동 계산합니다.'],
     ['마일스톤(Y/N)', '마일스톤이면 Y를 입력합니다.'],
     ['계획시작일/계획완료일', 'YYYY-MM-DD 형식으로 입력합니다.'],
     ['작업량(M/D)', '숫자만 입력합니다.'],
     ['달력(STD/UD1/UD2)', '비우면 STD로 처리됩니다.'],
     ['계획진척률(%)/실적진척률(%)', '0~100 숫자입니다. 입력하면 수동 override로 저장됩니다.'],
+    ['주의', '레벨이 1 -> 3처럼 한 번에 점프하면 업로드가 거부됩니다.'],
   ])
 
   XLSX.utils.book_append_sheet(workbook, templateSheet, 'WBS_양식')
@@ -117,11 +145,17 @@ export function parseWbsExcelFile(file: File): Promise<WbsExcelValidationResult>
     const errors: string[] = []
     const rows: WbsExcelRow[] = []
     const seenWbs = new Set<string>()
+    const counters = Array<number>(LEVEL_HEADERS.length).fill(0)
 
     rawRows.forEach((raw, index) => {
       const rowNo = index + 2
-      const wbs = normalizeString(raw['WBS'])
-      const task_name = normalizeString(raw['작업명'])
+      const outline = getOutlineLevelAndName(raw)
+      const legacyWbs = normalizeString(raw['WBS'])
+      const legacyTaskName = normalizeString(raw['작업명 *'] ?? raw['작업명'])
+      const usingLegacy = !!legacyWbs || !!legacyTaskName
+      const level = outline.outlineUsed ? outline.level : 0
+      const task_name = outline.outlineUsed ? outline.taskName : legacyTaskName
+      let wbs = ''
       const planned_start = normalizeString(raw['계획시작일(YYYY-MM-DD)']) || undefined
       const planned_end = normalizeString(raw['계획완료일(YYYY-MM-DD)']) || undefined
       const calendarValue = normalizeString(raw['달력(STD/UD1/UD2)']) || 'STD'
@@ -129,11 +163,26 @@ export function parseWbsExcelFile(file: File): Promise<WbsExcelValidationResult>
       const planned_progress_override = parseOptionalProgress(raw['계획진척률(%)'])
       const actual_progress_override = parseOptionalProgress(raw['실적진척률(%)'])
 
-      if (!wbs && !task_name) return
+      if (!outline.outlineUsed && !usingLegacy) return
 
-      if (!wbs) errors.push(`${rowNo}행: WBS는 필수입니다.`)
-      if (!task_name) errors.push(`${rowNo}행: 작업명은 필수입니다.`)
-      if (wbs && !/^\d+(?:\.\d+)*$/.test(wbs)) errors.push(`${rowNo}행: WBS 형식이 올바르지 않습니다. 예: 1 / 1.2 / 1.2.1`)
+      outline.errors.forEach((message) => errors.push(`${rowNo}행: ${message}`))
+
+      if (outline.outlineUsed) {
+        if (!task_name) errors.push(`${rowNo}행: 작업명은 WBS Lv 칸 중 하나에 입력해야 합니다.`)
+        if (level > 1 && counters[level - 2] === 0) {
+          errors.push(`${rowNo}행: 상위 레벨 없이 Lv${level}를 바로 입력할 수 없습니다.`)
+        } else if (level > 0) {
+          counters[level - 1] += 1
+          for (let i = level; i < counters.length; i += 1) counters[i] = 0
+          wbs = counters.slice(0, level).join('.')
+        }
+      } else {
+        wbs = legacyWbs
+        if (!wbs) errors.push(`${rowNo}행: WBS는 필수입니다.`)
+        if (!task_name) errors.push(`${rowNo}행: 작업명은 필수입니다.`)
+        if (wbs && !/^\d+(?:\.\d+)*$/.test(wbs)) errors.push(`${rowNo}행: WBS 형식이 올바르지 않습니다. 예: 1 / 1.2 / 1.2.1`)
+      }
+
       if (wbs && seenWbs.has(wbs)) errors.push(`${rowNo}행: 중복된 WBS '${wbs}'가 있습니다.`)
       if (wbs) seenWbs.add(wbs)
 
@@ -150,7 +199,7 @@ export function parseWbsExcelFile(file: File): Promise<WbsExcelValidationResult>
         row_no: rowNo,
         wbs,
         task_name,
-        is_group: parseYesNo(raw['그룹(Y/N)']),
+        is_group: false,
         is_milestone: parseYesNo(raw['마일스톤(Y/N)']),
         planned_start,
         planned_end,
