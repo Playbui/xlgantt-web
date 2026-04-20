@@ -401,7 +401,7 @@ export function TaskRow({ task, rowIndex, columns, onDoubleClick, onContextMenu,
       className={cn(
         'group/row flex border-b border-slate-300 dark:border-slate-700 cursor-pointer transition-all duration-100 relative',
         levelFontSize,
-        isSelected && 'bg-primary/8 border-l-2 border-l-primary',
+        isSelected && 'z-10 bg-red-50/70 border-red-300 ring-2 ring-red-400/90 shadow-[0_10px_30px_rgba(239,68,68,0.18)]',
         !isSelected && task.is_group && task.wbs_level === 1 && 'bg-slate-100 dark:bg-slate-800/60 font-bold border-b-border/50',
         !isSelected && task.is_group && task.wbs_level === 2 && 'bg-blue-50/60 dark:bg-blue-900/20 font-semibold',
         task.archived_at && 'opacity-50 bg-stripes',
