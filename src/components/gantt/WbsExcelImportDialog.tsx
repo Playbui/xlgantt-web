@@ -36,6 +36,7 @@ export function WbsExcelImportDialog({
   const [validatedRows, setValidatedRows] = useState<WbsExcelRow[]>([])
   const [validationErrors, setValidationErrors] = useState<string[]>([])
   const [importMode, setImportMode] = useState<ImportMode>('append')
+  const [confirmReplaceOpen, setConfirmReplaceOpen] = useState(false)
 
   const resetState = () => {
     setSelectedFileName('')
@@ -43,6 +44,7 @@ export function WbsExcelImportDialog({
     setValidatedRows([])
     setValidationErrors([])
     setImportMode('append')
+    setConfirmReplaceOpen(false)
   }
 
   const handleOpenChange = (nextOpen: boolean) => {
@@ -76,7 +78,7 @@ export function WbsExcelImportDialog({
     }
   }
 
-  const handleImport = async () => {
+  const executeImport = async () => {
     if (validationState !== 'ready' || validatedRows.length === 0) return
 
     setValidationState('importing')
@@ -118,6 +120,14 @@ export function WbsExcelImportDialog({
       setValidationErrors(['등록 중 오류가 발생했습니다. 다시 시도해주세요.'])
       setValidationState('error')
     }
+  }
+
+  const handleImport = async () => {
+    if (importMode === 'replace') {
+      setConfirmReplaceOpen(true)
+      return
+    }
+    await executeImport()
   }
 
   const summary = useMemo(() => {
@@ -294,8 +304,11 @@ export function WbsExcelImportDialog({
                       <tr className="border-b border-border/70 text-left text-xs uppercase tracking-[0.12em] text-muted-foreground">
                         <th className="px-4 py-2">WBS</th>
                         <th className="px-4 py-2">작업명</th>
+                        <th className="px-4 py-2">마일스톤</th>
                         <th className="px-4 py-2">기간</th>
                         <th className="px-4 py-2">작업량</th>
+                        <th className="px-4 py-2">비고</th>
+                        <th className="px-4 py-2">산출물</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -303,10 +316,13 @@ export function WbsExcelImportDialog({
                         <tr key={`${row.row_no}-${row.wbs}`} className="border-b border-border/50 last:border-b-0">
                           <td className="px-4 py-2 font-mono text-xs text-muted-foreground">{row.wbs}</td>
                           <td className="px-4 py-2 font-medium text-foreground">{row.task_name}</td>
+                          <td className="px-4 py-2 text-muted-foreground">{row.is_milestone ? 'Y' : '-'}</td>
                           <td className="px-4 py-2 text-muted-foreground">
                             {row.planned_start || '-'} ~ {row.planned_end || '-'}
                           </td>
                           <td className="px-4 py-2 text-muted-foreground">{row.total_workload ?? '-'}</td>
+                          <td className="px-4 py-2 text-muted-foreground">{row.remarks || '-'}</td>
+                          <td className="px-4 py-2 text-muted-foreground">{row.deliverables || '-'}</td>
                         </tr>
                       ))}
                     </tbody>
@@ -321,15 +337,60 @@ export function WbsExcelImportDialog({
           <Button variant="outline" onClick={() => handleOpenChange(false)}>
             닫기
           </Button>
-          <Button
-            onClick={handleImport}
-            disabled={validationState !== 'ready' || validatedRows.length === 0}
-          >
+          <Button onClick={handleImport} disabled={validationState !== 'ready' || validatedRows.length === 0}>
             {validationState === 'importing' && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
             {importMode === 'replace' ? '전체 대체 실행' : '등록 실행'}
           </Button>
         </DialogFooter>
       </DialogContent>
+
+      <Dialog open={confirmReplaceOpen} onOpenChange={setConfirmReplaceOpen}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-amber-700">
+              <AlertCircle className="h-5 w-5" />
+              전체 대체 최종 확인
+            </DialogTitle>
+            <DialogDescription>
+              이 작업은 현재 프로젝트의 기존 WBS 데이터를 비우고, 검증을 통과한 엑셀 내용으로 다시 구성합니다.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4 text-sm">
+            <div className="rounded-xl border border-amber-200 bg-amber-50/80 p-4 text-amber-950">
+              <div className="font-semibold">삭제 후 다시 구성되는 항목</div>
+              <ul className="mt-2 list-disc space-y-1 pl-5">
+                <li>현재 프로젝트의 WBS 작업</li>
+                <li>의존관계</li>
+                <li>담당자 배정</li>
+                <li>세부항목</li>
+              </ul>
+            </div>
+
+            <div className="rounded-xl border border-border/80 bg-muted/20 p-4">
+              <div className="text-xs uppercase tracking-[0.18em] text-muted-foreground">등록 예정</div>
+              <div className="mt-2 text-base font-semibold">{validatedRows.length}개 작업</div>
+              <div className="mt-1 text-sm text-muted-foreground">{summary || '레벨 정보 없음'}</div>
+            </div>
+          </div>
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setConfirmReplaceOpen(false)}>
+              취소
+            </Button>
+            <Button
+              variant="default"
+              className="bg-amber-600 hover:bg-amber-700"
+              onClick={async () => {
+                setConfirmReplaceOpen(false)
+                await executeImport()
+              }}
+            >
+              전체 대체 확정
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </Dialog>
   )
 }
