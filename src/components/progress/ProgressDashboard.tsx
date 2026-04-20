@@ -65,7 +65,7 @@ export function ProgressDashboard() {
     <div className="flex h-full flex-col overflow-hidden bg-[linear-gradient(to_bottom,oklch(0.985_0.004_250)_0%,oklch(0.972_0.006_250)_100%)]">
       {/* Header */}
       <div className="flex-none px-5 pt-5 pb-0 md:px-6 xl:px-8">
-        <div className="mx-auto w-full max-w-[1720px]">
+        <div className="mx-auto w-full max-w-[1800px]">
           <div className="overflow-hidden rounded-[28px] border border-[oklch(0.84_0.014_250)] bg-[oklch(0.992_0.003_250)] shadow-[0_18px_50px_rgba(15,23,42,0.06)]">
             <div className="grid gap-5 border-b border-[oklch(0.9_0.01_250)] px-6 py-6 lg:grid-cols-[minmax(0,1fr)_260px] lg:px-8">
               <div className="space-y-3">
@@ -122,7 +122,7 @@ export function ProgressDashboard() {
 
       {/* Content */}
       <div className="flex-1 overflow-y-auto">
-        <div className="mx-auto flex w-full max-w-[1720px] flex-col gap-6 px-5 py-6 md:px-6 xl:px-8">
+        <div className="mx-auto flex w-full max-w-[1800px] flex-col gap-6 px-5 py-6 md:px-6 xl:px-8">
         {activeTab === 'overview' && <OverviewTab metrics={metrics} />}
         {activeTab === 'timeline' && (
           <TimelineTab
@@ -185,11 +185,11 @@ function BreakdownTab({
 }) {
   return (
     <div className="space-y-4">
-      <div className="grid grid-cols-1 xl:grid-cols-[minmax(0,1.08fr)_minmax(0,1.12fr)] gap-5">
+      <div className="grid grid-cols-1 xl:grid-cols-[minmax(0,1fr)_minmax(0,1.16fr)] gap-5">
         <ResourceTab tasks={tasks} assignments={assignments} members={members} companies={companies} statusDate={statusDate} />
         <TaskTab tasks={tasks} assignments={assignments} statusDate={statusDate} />
       </div>
-      <div className="grid grid-cols-1 xl:grid-cols-[minmax(0,1.08fr)_minmax(0,1.12fr)] gap-5">
+      <div className="grid grid-cols-1 xl:grid-cols-[minmax(0,1fr)_minmax(0,1.16fr)] gap-5">
         <CompanyTab tasks={tasks} assignments={assignments} members={members} companies={companies} statusDate={statusDate} />
         <WBSGroupTab tasks={tasks} statusDate={statusDate} />
       </div>
@@ -728,10 +728,10 @@ function ResourceTab({
       {/* Bar chart */}
       <Card title="담당자별 진척률" className="min-h-[304px]">
         <ResponsiveContainer width="100%" height={Math.max(200, resourceData.length * 40 + 60)}>
-          <BarChart data={chartData} layout="vertical" margin={{ top: 5, right: 30, left: 96, bottom: 5 }}>
+          <BarChart data={chartData} layout="vertical" margin={{ top: 5, right: 30, left: 120, bottom: 5 }}>
             <CartesianGrid strokeDasharray="3 3" stroke="oklch(0.92 0.005 250)" />
             <XAxis type="number" fontSize={11} tickFormatter={(v: number) => `${v}%`} domain={[0, 100]} tick={{ fill: 'oklch(0.5 0.02 250)' }} />
-            <YAxis type="category" dataKey="name" fontSize={12} tick={{ fill: 'oklch(0.5 0.02 250)' }} width={96} />
+            <YAxis type="category" dataKey="name" fontSize={12} tick={{ fill: 'oklch(0.5 0.02 250)' }} width={118} />
             <Tooltip formatter={(value) => `${value}%`} contentStyle={tooltipStyle} />
             <ReferenceLine x={100} stroke="#ddd" />
             <Bar dataKey="진척률" radius={[0, 4, 4, 0]} barSize={24}>
@@ -1035,10 +1035,10 @@ function CompanyTab({
       {/* Bar chart */}
       <Card title="회사별 진척률" className="min-h-[304px]">
         <ResponsiveContainer width="100%" height={Math.max(180, companyData.length * 50 + 60)}>
-          <BarChart data={chartData} layout="vertical" margin={{ top: 5, right: 30, left: 110, bottom: 5 }}>
+          <BarChart data={chartData} layout="vertical" margin={{ top: 5, right: 30, left: 132, bottom: 5 }}>
             <CartesianGrid strokeDasharray="3 3" stroke="oklch(0.92 0.005 250)" />
             <XAxis type="number" fontSize={11} tickFormatter={(v: number) => `${v}%`} domain={[0, 100]} tick={{ fill: 'oklch(0.5 0.02 250)' }} />
-            <YAxis type="category" dataKey="name" fontSize={12} tick={{ fill: 'oklch(0.5 0.02 250)' }} width={104} />
+            <YAxis type="category" dataKey="name" fontSize={12} tick={{ fill: 'oklch(0.5 0.02 250)' }} width={122} />
             <Tooltip formatter={(value) => `${value}%`} contentStyle={tooltipStyle} />
             <Bar dataKey="진척률" radius={[0, 6, 6, 0]} barSize={30}>
               {chartData.map((entry, i) => (
@@ -1118,10 +1118,10 @@ function WBSGroupTab({ tasks, statusDate }: { tasks: Parameters<typeof calcProgr
       {/* Grouped bar chart */}
       <Card title="WBS 그룹별 계획 vs 실적" className="min-h-[304px]">
         <ResponsiveContainer width="100%" height={Math.max(200, wbsData.length * 50 + 60)}>
-          <BarChart data={chartData} layout="vertical" margin={{ top: 5, right: 30, left: 150, bottom: 5 }}>
+          <BarChart data={chartData} layout="vertical" margin={{ top: 5, right: 30, left: 188, bottom: 5 }}>
             <CartesianGrid strokeDasharray="3 3" stroke="oklch(0.92 0.005 250)" />
             <XAxis type="number" fontSize={11} tickFormatter={(v: number) => `${v}%`} domain={[0, 100]} tick={{ fill: 'oklch(0.5 0.02 250)' }} />
-            <YAxis type="category" dataKey="name" fontSize={11} tick={{ fill: 'oklch(0.5 0.02 250)' }} width={140} />
+            <YAxis type="category" dataKey="name" fontSize={11} tick={{ fill: 'oklch(0.5 0.02 250)' }} width={176} />
             <Tooltip formatter={(value) => `${value}%`} contentStyle={tooltipStyle} />
             <Legend wrapperStyle={{ fontSize: '12px' }} />
             <Bar dataKey="계획률" fill="#93c5fd" radius={[0, 3, 3, 0]} barSize={14} />

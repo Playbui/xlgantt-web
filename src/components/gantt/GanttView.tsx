@@ -174,6 +174,15 @@ export function GanttView() {
     setEditTaskId(null)
   }, [])
 
+  const scrollChartToDate = useCallback((targetDate: Date) => {
+    if (!scale || !chartScrollRef.current) return
+
+    const targetX = dateToX(targetDate, scale)
+    const viewportWidth = chartScrollRef.current.clientWidth
+    const leadPadding = Math.min(180, Math.max(72, viewportWidth * 0.14))
+    chartScrollRef.current.scrollLeft = Math.max(0, targetX - leadPadding)
+  }, [scale])
+
   // Toggle table collapse/expand
   const handleToggleTable = useCallback(() => {
     if (tableCollapsed) {
@@ -228,10 +237,7 @@ export function GanttView() {
     <div className="flex flex-col h-full">
       {/* Toolbar */}
       <GanttToolbar onOpenTaskDialog={handleOpenTaskDialog} onScrollToToday={() => {
-        if (scale && chartScrollRef.current) {
-          const todayX = dateToX(new Date(), scale)
-          chartScrollRef.current.scrollLeft = Math.max(0, todayX - chartScrollRef.current.clientWidth / 2)
-        }
+        scrollChartToDate(new Date())
       }} />
 
       {/* Main split pane */}
