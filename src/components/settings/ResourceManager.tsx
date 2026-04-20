@@ -561,7 +561,7 @@ export function ResourceManager() {
       <div key={member.id}>
         <div
           className={cn(
-            "flex items-center px-4 py-2 hover:bg-accent/30 text-sm gap-2 cursor-pointer transition-colors rounded-lg",
+            "flex items-start px-4 py-2.5 hover:bg-accent/30 text-sm gap-2 cursor-pointer transition-colors rounded-lg",
             isExpanded && "bg-accent/20"
           )}
           onClick={() => toggleMemberExpand(member.id)}
@@ -578,7 +578,7 @@ export function ResourceManager() {
             {member.name.charAt(0)}
           </div>
 
-          <div className="min-w-0 flex-1 grid grid-cols-[minmax(120px,180px)_minmax(180px,1fr)_minmax(160px,240px)] items-center gap-3">
+          <div className="min-w-0 flex-1 grid grid-cols-[minmax(132px,220px)_minmax(280px,1fr)_minmax(164px,240px)] items-start gap-4">
             <div className="flex items-center gap-2 min-w-0">
               <span className="font-medium truncate">{member.name}</span>
               {isLinkedUser && (
@@ -589,9 +589,9 @@ export function ResourceManager() {
             </div>
             <div className="min-w-0">
               <div className="truncate text-xs text-muted-foreground/80">{member.email || '이메일 없음'}</div>
-              {orgPath && <div className="truncate text-[11px] text-muted-foreground">{orgPath}</div>}
+              {orgPath && <div className="mt-0.5 text-[11px] leading-5 text-muted-foreground break-keep">{orgPath}</div>}
             </div>
-            <div className="flex items-center gap-2 justify-end">
+            <div className="flex items-center gap-2 justify-end pt-0.5">
               {taskCount > 0 && (
                 <span className="flex items-center gap-0.5 text-[10px] text-muted-foreground bg-muted/60 px-1.5 py-0.5 rounded-md">
                   <ClipboardList className="h-3 w-3" />
@@ -678,7 +678,7 @@ export function ResourceManager() {
   }, [expandedMemberId, toggleMemberExpand, project, canManageMembers, projectMembers, updateProjectMemberRole, addProjectMember, updateMember, getProjectRoleLabel, deleteMember, handleOpenTask])
 
   return (
-    <div className="p-6 max-w-4xl mx-auto space-y-6 overflow-y-auto h-full">
+    <div className="h-full overflow-y-auto p-6 mx-auto w-full max-w-[1440px] space-y-6">
       <div>
         <h2 className="text-lg font-bold text-foreground">담당자 관리</h2>
         <p className="text-sm text-muted-foreground mt-0.5">회사 및 인원을 등록하고 관리합니다</p>
