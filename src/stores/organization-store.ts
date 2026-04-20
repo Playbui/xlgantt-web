@@ -69,10 +69,6 @@ interface OrganizationState {
   getPathLabel: (userId: string) => string
 }
 
-function hasOrganizationData(state: Pick<OrganizationState, 'companies' | 'departments' | 'teams' | 'assignments'>) {
-  return state.companies.length > 0 || state.departments.length > 0 || state.teams.length > 0 || state.assignments.length > 0
-}
-
 export const useOrganizationStore = create<OrganizationState>()(
   persist(
     (set, get) => ({
@@ -83,13 +79,6 @@ export const useOrganizationStore = create<OrganizationState>()(
       isLoaded: false,
 
       loadOrganization: async () => {
-        const localSnapshot = {
-          companies: get().companies,
-          departments: get().departments,
-          teams: get().teams,
-          assignments: get().assignments,
-        }
-
         try {
           const [companiesRes, departmentsRes, teamsRes, assignmentsRes] = await Promise.all([
             supabase.from('org_companies').select('*').order('sort_order', { ascending: true }).order('name', { ascending: true }),
@@ -103,93 +92,20 @@ export const useOrganizationStore = create<OrganizationState>()(
               '조직 마스터 로드 실패:',
               companiesRes.error?.message || departmentsRes.error?.message || teamsRes.error?.message || assignmentsRes.error?.message
             )
-            set({
-              companies: localSnapshot.companies,
-              departments: localSnapshot.departments,
-              teams: localSnapshot.teams,
-              assignments: localSnapshot.assignments,
-              isLoaded: true,
-            })
+            set({ isLoaded: true })
             return
           }
 
-          const remoteSnapshot = {
+          set({
             companies: (companiesRes.data || []).map(dbToCompany),
             departments: (departmentsRes.data || []).map(dbToDepartment),
             teams: (teamsRes.data || []).map(dbToTeam),
             assignments: (assignmentsRes.data || []).map(dbToAssignment),
-          }
-
-          if (!hasOrganizationData(remoteSnapshot) && hasOrganizationData(localSnapshot)) {
-            const [companySync, departmentSync, teamSync, assignmentSync] = await Promise.all([
-              localSnapshot.companies.length > 0
-                ? supabase.from('org_companies').upsert(localSnapshot.companies.map((company) => ({
-                    id: company.id,
-                    name: company.name,
-                    short_name: company.short_name || null,
-                    color: company.color || null,
-                    sort_order: company.sort_order,
-                  })))
-                : Promise.resolve({ error: null }),
-              localSnapshot.departments.length > 0
-                ? supabase.from('org_departments').upsert(localSnapshot.departments.map((department) => ({
-                    id: department.id,
-                    company_id: department.company_id,
-                    name: department.name,
-                    sort_order: department.sort_order,
-                  })))
-                : Promise.resolve({ error: null }),
-              localSnapshot.teams.length > 0
-                ? supabase.from('org_teams').upsert(localSnapshot.teams.map((team) => ({
-                    id: team.id,
-                    department_id: team.department_id,
-                    name: team.name,
-                    sort_order: team.sort_order,
-                  })))
-                : Promise.resolve({ error: null }),
-              localSnapshot.assignments.length > 0
-                ? supabase.from('user_org_assignments').upsert(localSnapshot.assignments.map((assignment) => ({
-                    user_id: assignment.user_id,
-                    company_id: assignment.company_id,
-                    department_id: assignment.department_id,
-                    team_id: assignment.team_id || null,
-                  })))
-                : Promise.resolve({ error: null }),
-            ])
-
-            if (companySync.error || departmentSync.error || teamSync.error || assignmentSync.error) {
-              console.warn(
-                '로컬 조직 데이터 원격 동기화 실패:',
-                companySync.error?.message || departmentSync.error?.message || teamSync.error?.message || assignmentSync.error?.message
-              )
-            } else {
-              set({
-                companies: localSnapshot.companies,
-                departments: localSnapshot.departments,
-                teams: localSnapshot.teams,
-                assignments: localSnapshot.assignments,
-                isLoaded: true,
-              })
-              return
-            }
-          }
-
-          set({
-            companies: remoteSnapshot.companies,
-            departments: remoteSnapshot.departments,
-            teams: remoteSnapshot.teams,
-            assignments: remoteSnapshot.assignments,
             isLoaded: true,
           })
         } catch (error) {
           console.warn('조직 마스터 로드 예외:', error)
-          set({
-            companies: localSnapshot.companies,
-            departments: localSnapshot.departments,
-            teams: localSnapshot.teams,
-            assignments: localSnapshot.assignments,
-            isLoaded: true,
-          })
+          set({ isLoaded: true })
         }
       },
 
@@ -202,8 +118,6 @@ export const useOrganizationStore = create<OrganizationState>()(
           sort_order: get().companies.length + 1,
           created_at: new Date().toISOString(),
         }
-        const previousCompanies = get().companies
-        set((state) => ({ companies: [...state.companies, company] }))
         const { error } = await supabase.from('org_companies').insert({
           id: company.id,
           name: company.name,
@@ -213,8 +127,7 @@ export const useOrganizationStore = create<OrganizationState>()(
         })
         if (error) {
           console.warn('회사 저장 실패:', error.message)
-          set({ companies: previousCompanies })
-          return
+          throw new Error(error.message)
         }
         await get().loadOrganization()
       },
@@ -228,8 +141,6 @@ export const useOrganizationStore = create<OrganizationState>()(
           sort_order,
           created_at: new Date().toISOString(),
         }
-        const previousDepartments = get().departments
-        set((state) => ({ departments: [...state.departments, department] }))
         const { error } = await supabase.from('org_departments').insert({
           id: department.id,
           company_id: department.company_id,
@@ -238,8 +149,7 @@ export const useOrganizationStore = create<OrganizationState>()(
         })
         if (error) {
           console.warn('부서 저장 실패:', error.message)
-          set({ departments: previousDepartments })
-          return
+          throw new Error(error.message)
         }
         await get().loadOrganization()
       },
@@ -253,8 +163,6 @@ export const useOrganizationStore = create<OrganizationState>()(
           sort_order,
           created_at: new Date().toISOString(),
         }
-        const previousTeams = get().teams
-        set((state) => ({ teams: [...state.teams, team] }))
         const { error } = await supabase.from('org_teams').insert({
           id: team.id,
           department_id: team.department_id,
@@ -263,45 +171,36 @@ export const useOrganizationStore = create<OrganizationState>()(
         })
         if (error) {
           console.warn('팀 저장 실패:', error.message)
-          set({ teams: previousTeams })
-          return
+          throw new Error(error.message)
         }
         await get().loadOrganization()
       },
 
       deleteCompany: async (id) => {
-        const departmentIds = get().departments.filter((department) => department.company_id === id).map((department) => department.id)
-        set((state) => ({
-          companies: state.companies.filter((company) => company.id !== id),
-          departments: state.departments.filter((department) => department.company_id !== id),
-          teams: state.teams.filter((team) => !departmentIds.includes(team.department_id)),
-          assignments: state.assignments.filter((assignment) => assignment.company_id !== id),
-        }))
         const { error } = await supabase.from('org_companies').delete().eq('id', id)
-        if (error) console.warn('회사 삭제 실패:', error.message)
+        if (error) {
+          console.warn('회사 삭제 실패:', error.message)
+          throw new Error(error.message)
+        }
+        await get().loadOrganization()
       },
 
       deleteDepartment: async (id) => {
-        set((state) => ({
-          departments: state.departments.filter((department) => department.id !== id),
-          teams: state.teams.filter((team) => team.department_id !== id),
-          assignments: state.assignments.filter((assignment) => assignment.department_id !== id),
-        }))
         const { error } = await supabase.from('org_departments').delete().eq('id', id)
-        if (error) console.warn('부서 삭제 실패:', error.message)
+        if (error) {
+          console.warn('부서 삭제 실패:', error.message)
+          throw new Error(error.message)
+        }
+        await get().loadOrganization()
       },
 
       deleteTeam: async (id) => {
-        set((state) => ({
-          teams: state.teams.filter((team) => team.id !== id),
-          assignments: state.assignments.map((assignment) =>
-            assignment.team_id === id
-              ? { ...assignment, team_id: undefined, updated_at: new Date().toISOString() }
-              : assignment
-          ),
-        }))
         const { error } = await supabase.from('org_teams').delete().eq('id', id)
-        if (error) console.warn('팀 삭제 실패:', error.message)
+        if (error) {
+          console.warn('팀 삭제 실패:', error.message)
+          throw new Error(error.message)
+        }
+        await get().loadOrganization()
       },
 
       assignUser: async (userId, value) => {
@@ -313,13 +212,6 @@ export const useOrganizationStore = create<OrganizationState>()(
           team_id: value.teamId || undefined,
           updated_at: new Date().toISOString(),
         }
-        const previousAssignments = get().assignments
-        set((state) => ({
-          assignments: [
-            ...state.assignments.filter((item) => item.user_id !== userId),
-            assignment,
-          ],
-        }))
         const { error } = await supabase.from('user_org_assignments').upsert({
           user_id: assignment.user_id,
           company_id: assignment.company_id,
@@ -328,8 +220,7 @@ export const useOrganizationStore = create<OrganizationState>()(
         })
         if (error) {
           console.warn('사용자 조직 지정 실패:', error.message)
-          set({ assignments: previousAssignments })
-          return
+          throw new Error(error.message)
         }
         await get().loadOrganization()
       },

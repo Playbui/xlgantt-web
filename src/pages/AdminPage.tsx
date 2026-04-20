@@ -42,6 +42,7 @@ export function AdminPage() {
   const [newTeamName, setNewTeamName] = useState('')
   const [newTeamDepartmentId, setNewTeamDepartmentId] = useState('')
   const [adminTab, setAdminTab] = useState('users')
+  const [organizationError, setOrganizationError] = useState('')
   const {
     companies,
     departments,
@@ -82,6 +83,7 @@ export function AdminPage() {
 
   const handleRefresh = async () => {
     setRefreshing(true)
+    setOrganizationError('')
     try {
       await Promise.all([fetchAllUsers(), loadOrganization()])
     } finally {
@@ -174,38 +176,58 @@ export function AdminPage() {
 
   const handleSaveUserOrganization = async () => {
     if (!orgTarget || !orgDraft.companyId || !orgDraft.departmentId) return
-    await assignUser(orgTarget.id, orgDraft)
-    setOrgTarget(null)
-    setOrgDraft({})
+    setOrganizationError('')
+    try {
+      await assignUser(orgTarget.id, orgDraft)
+      setOrgTarget(null)
+      setOrgDraft({})
+    } catch (error) {
+      setOrganizationError(error instanceof Error ? error.message : '조직 지정 저장에 실패했습니다.')
+    }
   }
 
   const handleAddCompany = async () => {
     if (!newCompanyName.trim()) return
-    await addCompany({
-      name: newCompanyName,
-      short_name: newCompanyShortName,
-      color: '#2563eb',
-    })
-    setNewCompanyName('')
-    setNewCompanyShortName('')
+    setOrganizationError('')
+    try {
+      await addCompany({
+        name: newCompanyName,
+        short_name: newCompanyShortName,
+        color: '#2563eb',
+      })
+      setNewCompanyName('')
+      setNewCompanyShortName('')
+    } catch (error) {
+      setOrganizationError(error instanceof Error ? error.message : '회사 저장에 실패했습니다.')
+    }
   }
 
   const handleAddDepartment = async () => {
     if (!newDepartmentCompanyId || !newDepartmentName.trim()) return
-    await addDepartment({
-      company_id: newDepartmentCompanyId,
-      name: newDepartmentName,
-    })
-    setNewDepartmentName('')
+    setOrganizationError('')
+    try {
+      await addDepartment({
+        company_id: newDepartmentCompanyId,
+        name: newDepartmentName,
+      })
+      setNewDepartmentName('')
+    } catch (error) {
+      setOrganizationError(error instanceof Error ? error.message : '부서 저장에 실패했습니다.')
+    }
   }
 
   const handleAddTeam = async () => {
     if (!newTeamDepartmentId || !newTeamName.trim()) return
-    await addTeam({
-      department_id: newTeamDepartmentId,
-      name: newTeamName,
-    })
-    setNewTeamName('')
+    setOrganizationError('')
+    try {
+      await addTeam({
+        department_id: newTeamDepartmentId,
+        name: newTeamName,
+      })
+      setNewTeamName('')
+    } catch (error) {
+      setOrganizationError(error instanceof Error ? error.message : '팀 저장에 실패했습니다.')
+    }
   }
 
   return (
@@ -259,6 +281,11 @@ export function AdminPage() {
         {adminTab === 'organization' && (
           <div className="grid gap-5 lg:grid-cols-[360px_1fr] mb-6">
             <div className="space-y-4">
+              {organizationError && (
+                <div className="std-feedback-error">
+                  조직 DB 저장 실패: {organizationError}
+                </div>
+              )}
               <div className="std-surface p-4">
                 <div className="flex items-center gap-2 mb-3">
                   <Building2 className="h-4 w-4 text-primary" />
@@ -349,17 +376,23 @@ export function AdminPage() {
               <OrganizationTree
                 onDeleteCompany={(id) => {
                   if (confirm('회사를 삭제하시겠습니까? 하위 부서/팀/사용자 연결도 함께 정리됩니다.')) {
-                    deleteCompany(id)
+                    deleteCompany(id).catch((error) => {
+                      setOrganizationError(error instanceof Error ? error.message : '회사 삭제에 실패했습니다.')
+                    })
                   }
                 }}
                 onDeleteDepartment={(id) => {
                   if (confirm('부서를 삭제하시겠습니까? 하위 팀과 사용자 연결이 함께 정리됩니다.')) {
-                    deleteDepartment(id)
+                    deleteDepartment(id).catch((error) => {
+                      setOrganizationError(error instanceof Error ? error.message : '부서 삭제에 실패했습니다.')
+                    })
                   }
                 }}
                 onDeleteTeam={(id) => {
                   if (confirm('팀을 삭제하시겠습니까? 해당 팀 배정은 팀 미지정으로 남습니다.')) {
-                    deleteTeam(id)
+                    deleteTeam(id).catch((error) => {
+                      setOrganizationError(error instanceof Error ? error.message : '팀 삭제에 실패했습니다.')
+                    })
                   }
                 }}
               />
