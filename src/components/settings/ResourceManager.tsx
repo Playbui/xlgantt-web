@@ -210,9 +210,45 @@ export function ResourceManager() {
     return member.linked_user_id || getLinkedUser(member.email)?.id
   }, [getLinkedUser])
 
+  const existingMemberUserIds = useMemo(() => {
+    const ids = new Set<string>()
+    const memberEmails = new Set(
+      members
+        .map((member) => member.email?.trim().toLowerCase())
+        .filter((email): email is string => !!email)
+    )
+
+    members.forEach((member) => {
+      if (member.linked_user_id) {
+        ids.add(member.linked_user_id)
+        return
+      }
+
+      const linkedUser = getLinkedUser(member.email)
+      if (linkedUser?.id) {
+        ids.add(linkedUser.id)
+      }
+    })
+
+    if (project) {
+      projectMembers
+        .filter((member) => member.projectId === project.id)
+        .forEach((member) => ids.add(member.userId))
+    }
+
+    visibleUsers.forEach((user) => {
+      const normalizedEmail = user.email?.trim().toLowerCase()
+      if (normalizedEmail && memberEmails.has(normalizedEmail)) {
+        ids.add(user.id)
+      }
+    })
+
+    return ids
+  }, [members, getLinkedUser, project, projectMembers, visibleUsers])
+
   const pickerUsers = useMemo(() => (
-    visibleUsers.filter((user) => user.role !== 'admin')
-  ), [visibleUsers])
+    visibleUsers.filter((user) => user.role !== 'admin' && !existingMemberUserIds.has(user.id))
+  ), [existingMemberUserIds, visibleUsers])
 
   const getProjectRoleLabel = useCallback((role?: ProjectRole) => {
     switch (role) {
