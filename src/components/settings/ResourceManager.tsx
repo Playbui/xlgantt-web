@@ -210,18 +210,9 @@ export function ResourceManager() {
     return member.linked_user_id || getLinkedUser(member.email)?.id
   }, [getLinkedUser])
 
-  const existingMemberUserIds = useMemo(() => {
-    const ids = new Set<string>()
-    for (const member of members) {
-      const linkedId = resolveLinkedUserId(member)
-      if (linkedId) ids.add(linkedId)
-    }
-    return ids
-  }, [members, resolveLinkedUserId])
-
-  const availableUsers = useMemo(() => (
-    visibleUsers.filter((user) => user.role !== 'admin' && !existingMemberUserIds.has(user.id))
-  ), [visibleUsers, existingMemberUserIds])
+  const pickerUsers = useMemo(() => (
+    visibleUsers.filter((user) => user.role !== 'admin')
+  ), [visibleUsers])
 
   const getProjectRoleLabel = useCallback((role?: ProjectRole) => {
     switch (role) {
@@ -858,7 +849,7 @@ export function ResourceManager() {
               <div>
                 <label className="text-xs text-muted-foreground">등록회원</label>
                 <OrganizationUserPicker
-                  users={availableUsers}
+                  users={pickerUsers}
                   value={selectedUserId || undefined}
                   onChange={(userId) => setSelectedUserId(userId || '')}
                   className="w-full max-w-[640px]"
