@@ -80,6 +80,14 @@ CREATE INDEX IF NOT EXISTS idx_user_org_assignments_company_id ON public.user_or
 CREATE INDEX IF NOT EXISTS idx_user_org_assignments_department_id ON public.user_org_assignments(department_id);
 CREATE INDEX IF NOT EXISTS idx_user_org_assignments_team_id ON public.user_org_assignments(team_id);
 
+CREATE OR REPLACE FUNCTION public.handle_updated_at()
+RETURNS TRIGGER AS $$
+BEGIN
+  NEW.updated_at = now();
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
 CREATE TRIGGER set_updated_at BEFORE UPDATE ON public.org_companies
 FOR EACH ROW EXECUTE FUNCTION public.handle_updated_at();
 
