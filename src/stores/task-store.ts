@@ -571,9 +571,10 @@ export const useTaskStore = create<TaskState>((set, get) => ({
     if (!task) return
     pushCurrentSnapshot()
     const now = new Date().toISOString()
+    const archivedBy = useAuthStore.getState().currentUser?.id
     set((state) => ({
       tasks: state.tasks.map((t) =>
-        t.id === taskId ? { ...t, archived_at: now } : t
+        t.id === taskId ? { ...t, archived_at: now, archived_by: archivedBy } : t
       ),
     }))
     logTaskActivity({
@@ -583,7 +584,7 @@ export const useTaskStore = create<TaskState>((set, get) => ({
       targetName: task.task_name,
       details: `작업 '${task.task_name}' 아카이브`,
     })
-    supabase.from('tasks').update({ archived_at: now }).eq('id', taskId).then(({ error }) => {
+    supabase.from('tasks').update({ archived_at: now, archived_by: archivedBy || null }).eq('id', taskId).then(({ error }) => {
       if (error) console.error('작업 아카이브 실패:', error.message)
     })
   },

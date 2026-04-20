@@ -5,9 +5,12 @@ import { ROW_HEIGHT } from '@/lib/types'
 import { useTaskStore } from '@/stores/task-store'
 import { useResourceStore } from '@/stores/resource-store'
 import { useProjectStore } from '@/stores/project-store'
+import { useAuthStore } from '@/stores/auth-store'
 import { TaskCell } from './TaskCell'
 import { cn } from '@/lib/utils'
 import type { ColumnDef } from '@/lib/column-defs'
+import { format } from 'date-fns'
+import { ko } from 'date-fns/locale'
 
 interface TaskRowProps {
   task: Task
@@ -28,6 +31,7 @@ export function TaskRow({ task, rowIndex, columns, onDoubleClick, onContextMenu,
     useTaskStore()
   const { assignments, members, companies, taskDetails } = useResourceStore()
   const theme = useProjectStore((s) => s.theme)
+  const users = useAuthStore((s) => s.users)
 
   // 레벨1 그룹 작업의 테마 색상 (colors[0] = 그룹 계획 색상)
   const level1GroupColor = task.is_group && task.wbs_level === 1 ? theme.colors[0] : undefined
@@ -55,6 +59,22 @@ export function TaskRow({ task, rowIndex, columns, onDoubleClick, onContextMenu,
     const done = details.filter((d) => d.status === 'done').length
     return { done, total: details.length }
   }, [task.id, taskDetails])
+
+  const archiveMeta = useMemo(() => {
+    if (!task.archived_at) return null
+    const archivedUser = task.archived_by ? users.find((user) => user.id === task.archived_by) : undefined
+    const archivedByName = archivedUser?.name || archivedUser?.email || '알 수 없음'
+    let archivedAtLabel = task.archived_at
+    try {
+      archivedAtLabel = format(new Date(task.archived_at), 'yyyy-MM-dd HH:mm', { locale: ko })
+    } catch {
+      archivedAtLabel = task.archived_at
+    }
+    return {
+      archivedByName,
+      archivedAtLabel,
+    }
+  }, [task.archived_at, task.archived_by, users])
 
   // 총 컬럼 너비 계산
   const totalWidth = useMemo(() => columns.reduce((sum, col) => sum + col.width, 0), [columns])
@@ -426,12 +446,19 @@ export function TaskRow({ task, rowIndex, columns, onDoubleClick, onContextMenu,
       {columns.map((col) => renderCell(col))}
 
       {task.archived_at && (
-        <div className="absolute right-2 top-1/2 -translate-y-1/2 z-10">
+        <div className="absolute right-2 top-1/2 z-10 flex -translate-y-1/2 items-center gap-2">
+          {archiveMeta && (
+            <div className="hidden rounded-md border border-amber-200 bg-white/90 px-2.5 py-1 text-[10px] font-medium text-amber-700 shadow-sm md:block">
+              <span className="whitespace-nowrap">삭제 {archiveMeta.archivedByName}</span>
+              <span className="mx-1 text-amber-300">|</span>
+              <span className="whitespace-nowrap">{archiveMeta.archivedAtLabel}</span>
+            </div>
+          )}
           <button
             type="button"
             onClick={handleRestore}
             className="inline-flex h-6 items-center gap-1 rounded-md border border-emerald-300 bg-white/90 px-2 text-[10px] font-semibold text-emerald-700 shadow-sm transition-colors hover:bg-emerald-50 hover:border-emerald-400"
-            title="아카이브에서 복원"
+            title={archiveMeta ? `${archiveMeta.archivedByName} · ${archiveMeta.archivedAtLabel}` : '아카이브에서 복원'}
           >
             <ArrowUp className="h-3 w-3" />
             복원
