@@ -540,7 +540,7 @@ export function Header() {
     </Dialog>
 
     <Dialog open={helpDialogOpen} onOpenChange={setHelpDialogOpen}>
-      <DialogContent className="max-w-2xl">
+      <DialogContent className="w-[min(96vw,980px)] max-w-[980px]">
         <DialogHeader>
           <DialogTitle className="text-base flex items-center gap-2">
             <CircleHelp className="h-4 w-4 text-primary" />
@@ -548,7 +548,7 @@ export function Header() {
           </DialogTitle>
         </DialogHeader>
 
-        <div className="grid gap-4 md:grid-cols-2">
+        <div className="grid gap-4 md:grid-cols-[minmax(0,1fr)_minmax(0,1.15fr)]">
           <section className="rounded-xl border border-border/60 bg-muted/20 p-4">
             <h3 className="text-sm font-semibold mb-3">기본 사용법</h3>
             <ul className="space-y-2 text-sm text-muted-foreground">
@@ -568,7 +568,7 @@ export function Header() {
               <ShortcutRow keys="Shift + Tab" desc="내어쓰기" />
               <ShortcutRow keys="Ctrl + D" desc="선택 작업 복제" />
               <ShortcutRow keys="↑ / ↓" desc="보이는 작업 기준으로 이동" />
-              <ShortcutRow keys="+ / -" desc="그룹 펼치기 / 접기" />
+              <ShortcutRow keys="← / →" desc="그룹 접기 / 펼치기" />
               <ShortcutRow keys="Esc" desc="선택 해제" />
             </div>
           </section>
@@ -599,9 +599,9 @@ export function Header() {
 
 function ShortcutRow({ keys, desc }: { keys: string; desc: string }) {
   return (
-    <div className="flex items-center justify-between gap-3 rounded-lg border border-border/50 bg-background px-3 py-2">
-      <span className="font-mono text-xs font-semibold text-foreground">{keys}</span>
-      <span className="text-right text-xs text-muted-foreground">{desc}</span>
+    <div className="grid grid-cols-[132px_minmax(0,1fr)] items-center gap-3 rounded-lg border border-border/50 bg-background px-3 py-2">
+      <span className="font-mono text-xs font-semibold text-foreground whitespace-nowrap">{keys}</span>
+      <span className="text-xs text-muted-foreground break-keep">{desc}</span>
     </div>
   )
 }

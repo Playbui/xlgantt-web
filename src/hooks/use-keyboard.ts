@@ -246,27 +246,58 @@ export function useKeyboard() {
     recalcWBS()
   }, [getSelectedId, recalcWBS])
 
+  const findNearestAncestorGroup = useCallback((taskId: string) => {
+    const { tasks } = useTaskStore.getState()
+    let current = tasks.find((task) => task.id === taskId) || null
+
+    while (current?.parent_id) {
+      const parent = tasks.find((task) => task.id === current?.parent_id) || null
+      if (!parent) break
+      if (parent.is_group) return parent
+      current = parent
+    }
+
+    return null
+  }, [])
+
   /** +: 그룹 펼치기 */
   const handleExpand = useCallback(() => {
     const taskId = getSelectedId()
     if (!taskId) return
-    const { tasks, updateTask } = useTaskStore.getState()
+    const { tasks, updateTask, selectTask } = useTaskStore.getState()
     const task = tasks.find((t) => t.id === taskId)
+
     if (task?.is_group && task.is_collapsed) {
       updateTask(taskId, { is_collapsed: false })
+      return
     }
-  }, [getSelectedId])
+
+    const ancestorGroup = findNearestAncestorGroup(taskId)
+    if (ancestorGroup?.is_collapsed) {
+      updateTask(ancestorGroup.id, { is_collapsed: false })
+      selectTask(ancestorGroup.id)
+    }
+  }, [findNearestAncestorGroup, getSelectedId])
 
   /** -: 그룹 접기 */
   const handleCollapse = useCallback(() => {
     const taskId = getSelectedId()
     if (!taskId) return
-    const { tasks, updateTask } = useTaskStore.getState()
+    const { tasks, updateTask, selectTask } = useTaskStore.getState()
     const task = tasks.find((t) => t.id === taskId)
+
     if (task?.is_group && !task.is_collapsed) {
       updateTask(taskId, { is_collapsed: true })
+      selectTask(taskId)
+      return
     }
-  }, [getSelectedId])
+
+    const ancestorGroup = findNearestAncestorGroup(taskId)
+    if (ancestorGroup && !ancestorGroup.is_collapsed) {
+      updateTask(ancestorGroup.id, { is_collapsed: true })
+      selectTask(ancestorGroup.id)
+    }
+  }, [findNearestAncestorGroup, getSelectedId])
 
   /** Escape: 선택 해제 */
   const handleEscape = useCallback(() => {
