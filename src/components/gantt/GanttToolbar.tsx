@@ -1,4 +1,4 @@
-import { useRef, type ChangeEvent } from 'react'
+import { useRef, useState } from 'react'
 import {
   Plus,
   Trash2,
@@ -16,7 +16,6 @@ import {
   Archive,
   ListOrdered,
   Download,
-  Upload,
   FileSpreadsheet,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
@@ -30,7 +29,8 @@ import { useUIStore, type FilterStatus } from '@/stores/ui-store'
 import { useUndoRedo } from '@/hooks/use-undo-redo'
 import { ColumnSettingsDropdown } from './ColumnSettingsDropdown'
 import { findIndentParent, recalculateWBSCodes } from '@/lib/wbs'
-import { buildTasksFromExcelRows, downloadWbsExcelTemplate, parseWbsExcelFile } from '@/lib/wbs-excel'
+import { downloadWbsExcelTemplate } from '@/lib/wbs-excel'
+import { WbsExcelImportDialog } from './WbsExcelImportDialog'
 
 interface GanttToolbarProps {
   onOpenTaskDialog: (taskId: string) => void
@@ -38,13 +38,13 @@ interface GanttToolbarProps {
 }
 
 export function GanttToolbar({ onOpenTaskDialog, onScrollToToday }: GanttToolbarProps) {
-  const { tasks, selectedTaskIds, addTask, addTasksBulk, archiveTask, restoreTask, purgeTask, updateTask, setTasks } = useTaskStore()
+  const { tasks, selectedTaskIds, addTask, archiveTask, restoreTask, purgeTask, updateTask, setTasks } = useTaskStore()
   const project = useProjectStore((s) => s.currentProject)
   const { searchQuery, filterStatus, setSearchQuery, setFilterStatus, showProgressLine, toggleProgressLine, showArchived, toggleShowArchived } = useUIStore()
   const { taskDetails, assignments } = useResourceStore()
   const { canUndo, canRedo, undo, redo } = useUndoRedo()
   const searchInputRef = useRef<HTMLInputElement>(null)
-  const uploadInputRef = useRef<HTMLInputElement>(null)
+  const [excelDialogOpen, setExcelDialogOpen] = useState(false)
 
   const selectedId = selectedTaskIds.size === 1 ? Array.from(selectedTaskIds)[0] : null
   const selectedTask = selectedId ? tasks.find((t) => t.id === selectedId) : null
@@ -247,48 +247,6 @@ export function GanttToolbar({ onOpenTaskDialog, onScrollToToday }: GanttToolbar
     downloadWbsExcelTemplate()
   }
 
-  const handleUploadClick = () => {
-    uploadInputRef.current?.click()
-  }
-
-  const handleExcelUpload = async (e: ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0]
-    e.target.value = ''
-
-    if (!file || !project) return
-
-    try {
-      const { rows, errors } = await parseWbsExcelFile(file)
-      if (errors.length > 0) {
-        const preview = errors.slice(0, 10).join('\n')
-        alert(`엑셀 정합성 검사 실패\n\n${preview}${errors.length > 10 ? `\n외 ${errors.length - 10}건` : ''}`)
-        return
-      }
-
-      if (rows.length === 0) {
-        alert('업로드할 작업이 없습니다. 양식 내용을 확인해주세요.')
-        return
-      }
-
-      const maxSortOrder = tasks.length > 0 ? Math.max(...tasks.map((task) => task.sort_order)) : 0
-      const importedTasks = buildTasksFromExcelRows({
-        projectId: project.id,
-        startSortOrder: maxSortOrder + 1000,
-        rows,
-      })
-
-      const ok = confirm(`엑셀 검사가 완료되었습니다.\n\n총 ${rows.length}개 작업을 현재 프로젝트에 등록하시겠습니까?`)
-      if (!ok) return
-
-      addTasksBulk(importedTasks)
-      recalcWBS()
-      alert(`${rows.length}개 작업을 등록했습니다.`)
-    } catch (error) {
-      console.error('엑셀 업로드 실패:', error)
-      alert('엑셀 업로드 중 오류가 발생했습니다. 파일 형식과 내용을 확인해주세요.')
-    }
-  }
-
   const ToolbarButton = ({
     icon: Icon,
     label,
@@ -362,20 +320,12 @@ export function GanttToolbar({ onOpenTaskDialog, onScrollToToday }: GanttToolbar
             <Download className="h-3.5 w-3.5" />
             양식 다운로드
           </DropdownMenuItem>
-          <DropdownMenuItem className="cursor-pointer text-xs" onClick={handleUploadClick}>
-            <Upload className="h-3.5 w-3.5" />
-            엑셀 업로드
+          <DropdownMenuItem className="cursor-pointer text-xs" onClick={() => setExcelDialogOpen(true)}>
+            <FileSpreadsheet className="h-3.5 w-3.5" />
+            엑셀 등록
           </DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>
-
-      <input
-        ref={uploadInputRef}
-        type="file"
-        accept=".xlsx,.xls"
-        className="hidden"
-        onChange={handleExcelUpload}
-      />
 
       <Separator orientation="vertical" className="mx-1 h-5" />
 
@@ -462,6 +412,16 @@ export function GanttToolbar({ onOpenTaskDialog, onScrollToToday }: GanttToolbar
           </button>
         )}
       </div>
+
+      {project && (
+        <WbsExcelImportDialog
+          open={excelDialogOpen}
+          onOpenChange={setExcelDialogOpen}
+          projectId={project.id}
+          currentMaxSortOrder={tasks.length > 0 ? Math.max(...tasks.map((task) => task.sort_order)) : 0}
+          onImported={recalcWBS}
+        />
+      )}
     </div>
   )
 }
