@@ -281,7 +281,11 @@ export function AdminPage() {
                 <div className="space-y-2">
                   <Select value={newDepartmentCompanyId || undefined} onValueChange={(value) => value && setNewDepartmentCompanyId(value)}>
                     <SelectTrigger className="h-9 text-sm">
-                      <SelectValue placeholder="회사 선택" />
+                      <SelectValue placeholder="회사 선택">
+                        {newDepartmentCompanyId
+                          ? companies.find((company) => company.id === newDepartmentCompanyId)?.name
+                          : undefined}
+                      </SelectValue>
                     </SelectTrigger>
                     <SelectContent>
                       {companies.map((company) => (
@@ -304,7 +308,15 @@ export function AdminPage() {
                 <div className="space-y-2">
                   <Select value={newTeamDepartmentId || undefined} onValueChange={(value) => value && setNewTeamDepartmentId(value)}>
                     <SelectTrigger className="h-9 text-sm">
-                      <SelectValue placeholder="부서 선택" />
+                      <SelectValue placeholder="부서 선택">
+                        {newTeamDepartmentId
+                          ? (() => {
+                              const department = departments.find((item) => item.id === newTeamDepartmentId)
+                              const company = department ? companies.find((item) => item.id === department.company_id) : undefined
+                              return department ? `${company?.name || ''}${company ? ' / ' : ''}${department.name}` : undefined
+                            })()
+                          : undefined}
+                      </SelectValue>
                     </SelectTrigger>
                     <SelectContent>
                       {departments.map((department) => (

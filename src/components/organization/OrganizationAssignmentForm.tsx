@@ -42,7 +42,9 @@ export function OrganizationAssignmentForm({
           disabled={disabled}
         >
           <SelectTrigger className={triggerClass}>
-            <SelectValue placeholder="회사 선택" />
+            <SelectValue placeholder="회사 선택">
+              {value.companyId ? companies.find((company) => company.id === value.companyId)?.name : undefined}
+            </SelectValue>
           </SelectTrigger>
           <SelectContent>
             {companies.map((company) => (
@@ -62,7 +64,9 @@ export function OrganizationAssignmentForm({
           disabled={disabled || !value.companyId}
         >
           <SelectTrigger className={triggerClass}>
-            <SelectValue placeholder="부서 선택" />
+            <SelectValue placeholder="부서 선택">
+              {value.departmentId ? filteredDepartments.find((department) => department.id === value.departmentId)?.name : undefined}
+            </SelectValue>
           </SelectTrigger>
           <SelectContent>
             {filteredDepartments.map((department) => (
@@ -82,7 +86,11 @@ export function OrganizationAssignmentForm({
           disabled={disabled || !value.departmentId}
         >
           <SelectTrigger className={triggerClass}>
-            <SelectValue placeholder="팀 선택" />
+            <SelectValue placeholder="팀 선택">
+              {value.teamId
+                ? filteredTeams.find((team) => team.id === value.teamId)?.name
+                : '팀 미지정'}
+            </SelectValue>
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="__none__">팀 미지정</SelectItem>
