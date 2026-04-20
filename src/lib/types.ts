@@ -28,6 +28,7 @@ export interface Task {
   is_group: boolean       // Col B: "G" flag
   task_name: string       // Col E-N: task name
   remarks?: string        // Col O
+  task_body?: string      // 상세 본문 / 수행방안
 
   // Planned schedule
   planned_start?: string  // Col P: start date

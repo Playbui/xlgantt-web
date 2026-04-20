@@ -75,7 +75,7 @@ export function TaskEditDialog({ taskId, open, onClose }: TaskEditDialogProps) {
   const [totalWorkload, setTotalWorkload] = useState('')
   const [actualProgress, setActualProgress] = useState('')
   const [useActualOverride, setUseActualOverride] = useState(false)
-  const [remarks, setRemarks] = useState('')
+  const [taskBody, setTaskBody] = useState('')
   const [calendarType, setCalendarType] = useState('STD')
   const [isMilestone, setIsMilestone] = useState(false)
 
@@ -101,7 +101,7 @@ export function TaskEditDialog({ taskId, open, onClose }: TaskEditDialogProps) {
       setUseActualOverride(hasActualOverride)
       const progressValue = hasActualOverride ? (task.actual_progress_override ?? 0) : task.actual_progress
       setActualProgress((progressValue * 100).toString())
-      setRemarks(task.remarks || '')
+      setTaskBody(task.task_body || task.remarks || '')
       setCalendarType(task.calendar_type || 'STD')
       setIsMilestone(task.is_milestone || false)
     }
@@ -187,7 +187,7 @@ export function TaskEditDialog({ taskId, open, onClose }: TaskEditDialogProps) {
       planned_end: isMilestone && plannedStart ? plannedStart : (plannedEnd || undefined),
       actual_start: actualStart || undefined,
       actual_end: actualEnd || undefined,
-      remarks: remarks || undefined,
+      task_body: taskBody.trim() ? taskBody : undefined,
       calendar_type: calendarType as 'STD' | 'UD1' | 'UD2',
       is_milestone: isMilestone,
     }
@@ -628,8 +628,8 @@ export function TaskEditDialog({ taskId, open, onClose }: TaskEditDialogProps) {
                 세부항목이 없어도 작업 배경, 수행방안, 산출물 기준, 이슈 메모를 자유롭게 기록할 수 있습니다.
               </p>
               <textarea
-                value={remarks}
-                onChange={(e) => setRemarks(e.target.value)}
+                value={taskBody}
+                onChange={(e) => setTaskBody(e.target.value)}
                 placeholder={'예:\n1. 업무 종료 후 자동 적재 파이프라인 구축\n2. 업무단위 분류/시간정보 기준 정합 절차 수립\n3. 연간 누적 관리체계 마련'}
                 className="min-h-[140px] w-full rounded-md border border-border/60 bg-background px-3 py-2 text-sm leading-6 outline-none transition-colors focus:border-primary/50 focus:ring-1 focus:ring-primary/20"
               />

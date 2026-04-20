@@ -15,8 +15,8 @@ export function MobileTaskDetailSheet() {
   const [newDetailTitle, setNewDetailTitle] = useState('')
   const [expandedDetail, setExpandedDetail] = useState<string | null>(null)
   const [infoCollapsed, setInfoCollapsed] = useState(false)
-  const [editingRemarks, setEditingRemarks] = useState(false)
-  const [remarksValue, setRemarksValue] = useState('')
+  const [editingBody, setEditingBody] = useState(false)
+  const [taskBodyValue, setTaskBodyValue] = useState('')
   const inputRef = useRef<HTMLInputElement>(null)
 
   const task = useMemo(() => taskId ? tasks.find((t) => t.id === taskId) : null, [taskId, tasks])
@@ -63,14 +63,14 @@ export function MobileTaskDetailSheet() {
     if (expandedDetail === detailId) setExpandedDetail(null)
   }
 
-  const handleStartEditRemarks = () => {
-    setRemarksValue(task.remarks || '')
-    setEditingRemarks(true)
+  const handleStartEditBody = () => {
+    setTaskBodyValue(task.task_body || task.remarks || '')
+    setEditingBody(true)
   }
 
-  const handleSaveRemarks = () => {
-    updateTask(taskId!, { remarks: remarksValue || undefined })
-    setEditingRemarks(false)
+  const handleSaveBody = () => {
+    updateTask(taskId!, { task_body: taskBodyValue.trim() ? taskBodyValue : undefined })
+    setEditingBody(false)
   }
 
   const statusIcon = (status: string) => {
@@ -181,30 +181,30 @@ export function MobileTaskDetailSheet() {
                 </div>
               )}
 
-              {/* 비고 (수정 가능) */}
+              {/* 본문 / 수행방안 (수정 가능) */}
               <div className="rounded-lg bg-muted/20 p-3">
                 <div className="flex items-center justify-between mb-1">
-                  <span className="text-xs font-semibold text-muted-foreground">비고</span>
-                  {!editingRemarks && (
-                    <button onClick={handleStartEditRemarks} className="text-[10px] text-primary active:text-primary/70">수정</button>
+                  <span className="text-xs font-semibold text-muted-foreground">본문 / 수행방안</span>
+                  {!editingBody && (
+                    <button onClick={handleStartEditBody} className="text-[10px] text-primary active:text-primary/70">수정</button>
                   )}
                 </div>
-                {editingRemarks ? (
+                {editingBody ? (
                   <div className="space-y-2">
                     <textarea
-                      value={remarksValue}
-                      onChange={(e) => setRemarksValue(e.target.value)}
+                      value={taskBodyValue}
+                      onChange={(e) => setTaskBodyValue(e.target.value)}
                       className="w-full text-sm border border-border rounded-lg p-2 min-h-[60px] outline-none focus:ring-2 focus:ring-primary/30 bg-background resize-none"
-                      placeholder="비고 입력..."
+                      placeholder="수행방안 또는 본문 입력..."
                       autoFocus
                     />
                     <div className="flex gap-2 justify-end">
-                      <button onClick={() => setEditingRemarks(false)} className="px-3 py-1.5 text-xs rounded-lg border border-border active:bg-accent">취소</button>
-                      <button onClick={handleSaveRemarks} className="px-3 py-1.5 text-xs rounded-lg bg-primary text-primary-foreground active:bg-primary/80">저장</button>
+                      <button onClick={() => setEditingBody(false)} className="px-3 py-1.5 text-xs rounded-lg border border-border active:bg-accent">취소</button>
+                      <button onClick={handleSaveBody} className="px-3 py-1.5 text-xs rounded-lg bg-primary text-primary-foreground active:bg-primary/80">저장</button>
                     </div>
                   </div>
                 ) : (
-                  <p className="text-sm text-foreground/80">{task.remarks || '—'}</p>
+                  <p className="whitespace-pre-wrap text-sm text-foreground/80">{task.task_body || task.remarks || '—'}</p>
                 )}
               </div>
             </>
