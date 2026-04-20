@@ -184,6 +184,9 @@ export function GanttChart({
           <filter id="bar-shadow">
             <feDropShadow dx="0" dy="1" stdDeviation="1.5" floodOpacity="0.12" />
           </filter>
+          <filter id="selected-row-shadow" x="-2%" y="-40%" width="104%" height="180%">
+            <feDropShadow dx="0" dy="10" stdDeviation="10" floodColor="#ef4444" floodOpacity="0.16" />
+          </filter>
 
           {/* Non-working day bands */}
           {ganttOptions.showNonWorkingDays && nonWorkingBands.map((band, i) => (
@@ -202,7 +205,7 @@ export function GanttChart({
           {tasks.map((task, index) => {
             if (!selectedTaskIds.has(task.id)) return null
             return (
-              <g key={`sel-${task.id}`}>
+              <g key={`sel-${task.id}`} filter="url(#selected-row-shadow)">
                 <rect
                   x={0}
                   y={index * ROW_HEIGHT}
