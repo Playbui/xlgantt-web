@@ -5,10 +5,12 @@ import { useResourceStore } from '@/stores/resource-store'
 import { useTaskStore } from '@/stores/task-store'
 import { useProjectStore } from '@/stores/project-store'
 import { useAuthStore } from '@/stores/auth-store'
+import { useOrganizationStore } from '@/stores/organization-store'
 import { cn } from '@/lib/utils'
 import { format } from 'date-fns'
 import { TaskEditDialog } from '@/components/gantt/TaskEditDialog'
 import { CardDetailModal } from '@/components/mytasks/CardDetailModal'
+import { OrganizationPath } from '@/components/organization/OrganizationPath'
 import type { Task } from '@/lib/types'
 import type { TaskAssignment, TaskDetail } from '@/lib/resource-types'
 
@@ -73,6 +75,11 @@ export function MemberTasksView() {
   const project = useProjectStore((s) => s.currentProject)
   const { projectMembers } = useProjectStore()
   const allUsers = useAuthStore((s) => s.users)
+  const orgCompanies = useOrganizationStore((s) => s.companies)
+  const orgDepartments = useOrganizationStore((s) => s.departments)
+  const orgTeams = useOrganizationStore((s) => s.teams)
+  const orgAssignments = useOrganizationStore((s) => s.assignments)
+  const loadOrganization = useOrganizationStore((s) => s.loadOrganization)
 
   const [selectedMemberId, setSelectedMemberId] = useState<string | null>(null)
   const [searchQuery, setSearchQuery] = useState('')
@@ -94,6 +101,10 @@ export function MemberTasksView() {
     if (typeof window === 'undefined') return
     window.localStorage.setItem(MEMBER_TASKS_VIEW_MODE_KEY, detailViewMode)
   }, [detailViewMode])
+
+  useEffect(() => {
+    loadOrganization()
+  }, [loadOrganization])
 
   const handleOpenTask = useCallback((taskId: string) => {
     setEditTaskId(taskId)
@@ -180,18 +191,46 @@ export function MemberTasksView() {
   // Filter members by search query
   const filteredCompanies = useMemo(() => {
     const query = searchQuery.toLowerCase().trim()
-    return companies
-      .map((company) => {
-        const companyMembers = members.filter((m) => m.company_id === company.id)
-        if (!query) return { company, members: companyMembers }
-        const matchesCompany = company.name.toLowerCase().includes(query) || company.shortName.toLowerCase().includes(query)
-        const filtered = matchesCompany
-          ? companyMembers
-          : companyMembers.filter((m) => m.name.toLowerCase().includes(query))
-        return { company, members: filtered }
-      })
-      .filter((g) => g.members.length > 0)
-  }, [companies, members, searchQuery])
+    const orgAssignmentMap = new Map(orgAssignments.map((assignment) => [assignment.user_id, assignment]))
+    const grouped = new Map<string, {
+      company: { id: string, name: string, color: string }
+      members: typeof members
+    }>()
+
+    for (const member of members) {
+      const matchedUser = allUsers.find(
+        (u) => (member.email && u.email?.toLowerCase() === member.email.toLowerCase()) || u.name === member.name
+      )
+      const orgAssignment = matchedUser ? orgAssignmentMap.get(matchedUser.id) : undefined
+      const orgCompany = orgAssignment ? orgCompanies.find((item) => item.id === orgAssignment.company_id) : undefined
+      const projectCompany = companies.find((company) => company.id === member.company_id)
+      const companyId = orgCompany?.id || `project-${projectCompany?.id || 'ungrouped'}`
+      const companyName = orgCompany?.name || projectCompany?.name || '기타 담당자'
+      const companyColor = orgCompany?.color || projectCompany?.color || '#64748b'
+      const departmentName = orgAssignment ? orgDepartments.find((item) => item.id === orgAssignment.department_id)?.name : undefined
+      const teamName = orgAssignment?.team_id ? orgTeams.find((item) => item.id === orgAssignment.team_id)?.name : undefined
+
+      const searchable = [
+        companyName,
+        departmentName,
+        teamName,
+        member.name,
+        member.email,
+        member.role,
+      ].filter(Boolean).some((field) => field?.toLowerCase().includes(query))
+
+      if (query && !searchable) continue
+
+      const bucket = grouped.get(companyId) || {
+        company: { id: companyId, name: companyName, color: companyColor },
+        members: [],
+      }
+      bucket.members.push(member)
+      grouped.set(companyId, bucket)
+    }
+
+    return [...grouped.values()]
+  }, [companies, members, searchQuery, allUsers, orgAssignments, orgCompanies, orgDepartments, orgTeams])
 
   // Total counts
   const totalMembers = members.length
@@ -297,12 +336,12 @@ export function MemberTasksView() {
         {/* Search */}
         <div className="member-panel-search">
           <div className="relative">
-            <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground/50" />
-            <Input
-              placeholder="담당자/회사명 검색..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="h-8 pl-8 text-xs"
+              <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground/50" />
+              <Input
+                placeholder="회사/부서/팀/담당자 검색..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="h-8 pl-8 text-xs"
             />
           </div>
         </div>
@@ -362,6 +401,11 @@ export function MemberTasksView() {
                         </div>
                         {member.role && (
                           <span className="text-[10px] text-muted-foreground">{member.role}</span>
+                        )}
+                        {member.email && (
+                          <div className="mt-0.5">
+                            <OrganizationPath userId={allUsers.find((u) => u.email?.toLowerCase() === member.email?.toLowerCase() || u.name === member.name)?.id || ''} emptyLabel="" />
+                          </div>
                         )}
                       </div>
 
@@ -442,6 +486,12 @@ export function MemberTasksView() {
                     <>
                       <span className="text-border">|</span>
                       <span>{selectedMember.email}</span>
+                    </>
+                  )}
+                  {selectedMember.email && (
+                    <>
+                      <span className="text-border">|</span>
+                      <OrganizationPath userId={allUsers.find((u) => u.email?.toLowerCase() === selectedMember.email?.toLowerCase() || u.name === selectedMember.name)?.id || ''} emptyLabel="" />
                     </>
                   )}
                 </div>

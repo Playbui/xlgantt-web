@@ -1,4 +1,4 @@
-import { useState, useMemo, useCallback } from 'react'
+import { useState, useMemo, useCallback, useEffect } from 'react'
 import { Plus, Trash2, Building2, Users, ClipboardList, ChevronDown, ChevronRight, ExternalLink } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -13,9 +13,12 @@ import { useResourceStore } from '@/stores/resource-store'
 import { useTaskStore } from '@/stores/task-store'
 import { useProjectStore, type ProjectRole } from '@/stores/project-store'
 import { useAuthStore } from '@/stores/auth-store'
+import { useOrganizationStore } from '@/stores/organization-store'
 import { cn } from '@/lib/utils'
 import { format } from 'date-fns'
 import { TaskEditDialog } from '@/components/gantt/TaskEditDialog'
+import { OrganizationUserPicker } from '@/components/organization/OrganizationUserPicker'
+import { OrganizationPath } from '@/components/organization/OrganizationPath'
 import type { Task } from '@/lib/types'
 import type { TaskAssignment } from '@/lib/resource-types'
 
@@ -129,13 +132,22 @@ export function ResourceManager() {
   const allUsers = useAuthStore((s) => s.users).filter((u) => u.approved)
   const project = useProjectStore((s) => s.currentProject)
   const { addProjectMember, projectMembers, updateProjectMemberRole } = useProjectStore()
+  const loadOrganization = useOrganizationStore((s) => s.loadOrganization)
+  const getUserAssignment = useOrganizationStore((s) => s.getUserAssignment)
+  const orgCompanies = useOrganizationStore((s) => s.companies)
   const isAdmin = currentUser?.role === 'admin'
   const myProjectRole = project ? useProjectStore.getState().getMyProjectRole(project.id, currentUser?.id || '') : null
   const canManageMembers = isAdmin || myProjectRole === 'pm'
 
-  // 이미 인원으로 등록된 이메일 제외
-  const registeredEmails = new Set(members.map((m) => m.email).filter(Boolean))
-  const availableUsers = allUsers.filter((u) => !registeredEmails.has(u.email))
+  // 현재 프로젝트에 이미 참여 중인 회원만 제외
+  const currentProjectMemberUserIds = new Set(
+    project
+      ? projectMembers
+          .filter((member) => member.projectId === project.id)
+          .map((member) => member.userId)
+      : []
+  )
+  const availableUsers = allUsers.filter((user) => !currentProjectMemberUserIds.has(user.id))
   const [selectedUserId, setSelectedUserId] = useState('')
   const [selectedRole, setSelectedRole] = useState<ProjectRole>('editor')
   const [addMode, setAddMode] = useState<'user' | 'manual'>('user')
@@ -158,6 +170,36 @@ export function ResourceManager() {
   const [editTaskId, setEditTaskId] = useState<string | null>(null)
   const [dialogOpen, setDialogOpen] = useState(false)
 
+  const usersByEmail = useMemo(() => {
+    const map = new Map<string, (typeof allUsers)[number]>()
+    for (const user of allUsers) {
+      const normalizedEmail = user.email?.trim().toLowerCase()
+      if (!normalizedEmail) continue
+      map.set(normalizedEmail, user)
+    }
+    return map
+  }, [allUsers])
+
+  const getLinkedUser = useCallback((email?: string) => {
+    const normalizedEmail = email?.trim().toLowerCase()
+    if (!normalizedEmail) return undefined
+    return usersByEmail.get(normalizedEmail)
+  }, [usersByEmail])
+
+  const getProjectRoleLabel = useCallback((role?: ProjectRole) => {
+    switch (role) {
+      case 'pm':
+        return 'PM'
+      case 'viewer':
+        return '뷰어'
+      case 'owner':
+        return '소유자'
+      case 'editor':
+      default:
+        return '편집자'
+    }
+  }, [])
+
   const handleOpenTask = useCallback((taskId: string) => {
     setEditTaskId(taskId)
     setDialogOpen(true)
@@ -167,6 +209,26 @@ export function ResourceManager() {
     setDialogOpen(false)
     setEditTaskId(null)
   }, [])
+
+  useEffect(() => {
+    loadOrganization()
+  }, [loadOrganization])
+
+  useEffect(() => {
+    if (!selectedUserId) return
+    const assignment = getUserAssignment(selectedUserId)
+    const orgCompany = assignment ? orgCompanies.find((company) => company.id === assignment.company_id) : undefined
+    if (!orgCompany) return
+
+    const matchedProjectCompany = companies.find((company) =>
+      company.name.trim().toLowerCase() === orgCompany.name.trim().toLowerCase() ||
+      company.shortName.trim().toLowerCase() === (orgCompany.short_name || '').trim().toLowerCase()
+    )
+
+    if (matchedProjectCompany) {
+      setNewMemberCompany(matchedProjectCompany.id)
+    }
+  }, [selectedUserId, getUserAssignment, orgCompanies, companies])
 
   const toggleMemberExpand = useCallback((memberId: string) => {
     setExpandedMemberId((prev) => prev === memberId ? null : memberId)
@@ -346,19 +408,18 @@ export function ResourceManager() {
             <div className="space-y-2">
               <div>
                 <label className="text-xs text-muted-foreground">등록회원</label>
-                <Select value={selectedUserId} onValueChange={(v) => v && setSelectedUserId(v)}>
-                  <SelectTrigger className="h-9 text-sm w-full">
-                    <SelectValue placeholder="회원을 선택하세요...">
-                      {selectedUserId ? (() => { const u = availableUsers.find(u => u.id === selectedUserId); return u ? `${u.name} (${u.email})` : '선택' })() : undefined}
-                    </SelectValue>
-                  </SelectTrigger>
-                  <SelectContent>
-                    {availableUsers.map((u) => (
-                      <SelectItem key={u.id} value={u.id} className="text-sm">{u.name} ({u.email})</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                <OrganizationUserPicker
+                  users={availableUsers}
+                  value={selectedUserId || undefined}
+                  onChange={(userId) => setSelectedUserId(userId || '')}
+                />
               </div>
+              {selectedUserId && (
+                <div className="rounded-lg border border-border/60 bg-background px-3 py-2">
+                  <div className="text-[11px] text-muted-foreground mb-1">조직 경로</div>
+                  <OrganizationPath userId={selectedUserId} emptyLabel="조직 미지정" />
+                </div>
+              )}
               <div className="flex gap-2 items-end">
               <div className="w-48">
                 <label className="text-xs text-muted-foreground">소속 회사</label>
@@ -387,10 +448,35 @@ export function ResourceManager() {
               <Button size="sm" className="h-9" disabled={!selectedUserId || !newMemberCompany} onClick={() => {
                 const user = allUsers.find((u) => u.id === selectedUserId)
                 if (!user || !newMemberCompany) return
-                // 인원으로 등록 (직책에 프로젝트 역할 반영)
+                const normalizedEmail = user.email?.trim().toLowerCase()
                 const roleLabel = selectedRole === 'pm' ? 'PM' : selectedRole === 'editor' ? '편집자' : '뷰어'
-                addMember({ id: crypto.randomUUID(), company_id: newMemberCompany, name: user.name, email: user.email, role: roleLabel, created_at: new Date().toISOString() })
-                // 프로젝트 참여자로도 등록
+                const userOrgAssignment = getUserAssignment(user.id)
+                const mappedOrgCompany = userOrgAssignment
+                  ? orgCompanies.find((company) => company.id === userOrgAssignment.company_id)
+                  : undefined
+                const existingMember = members.find((member) => {
+                  const memberEmail = member.email?.trim().toLowerCase()
+                  return !!normalizedEmail && memberEmail === normalizedEmail
+                })
+
+                if (existingMember) {
+                  updateMember(existingMember.id, {
+                    company_id: newMemberCompany,
+                    name: user.name,
+                    email: user.email,
+                    role: mappedOrgCompany ? `${roleLabel} · ${mappedOrgCompany.name}` : roleLabel,
+                  })
+                } else {
+                  addMember({
+                    id: crypto.randomUUID(),
+                    company_id: newMemberCompany,
+                    name: user.name,
+                    email: user.email,
+                    role: mappedOrgCompany ? `${roleLabel} · ${mappedOrgCompany.name}` : roleLabel,
+                    created_at: new Date().toISOString(),
+                  })
+                }
+
                 if (project) addProjectMember({ projectId: project.id, userId: user.id, role: selectedRole })
                 setSelectedUserId('')
               }}>
@@ -449,6 +535,11 @@ export function ResourceManager() {
                 {companyMembers.map((member) => {
                   const isExpanded = expandedMemberId === member.id
                   const taskCount = memberTaskCounts[member.id] || 0
+                  const linkedUser = getLinkedUser(member.email)
+                  const isLinkedUser = !!linkedUser
+                  const currentProjectRole = (linkedUser && project)
+                    ? projectMembers.find((m) => m.projectId === project.id && m.userId === linkedUser.id)?.role
+                    : undefined
 
                   return (
                     <div key={member.id}>
@@ -467,68 +558,83 @@ export function ResourceManager() {
                             <ChevronRight className="h-3.5 w-3.5" />
                           )}
                         </span>
-                        {(() => {
-                          const linkedUser = member.email ? allUsers.find((u) => u.email === member.email) : undefined
-                          const isLinkedUser = !!linkedUser
-                          const currentProjectRole = (linkedUser && project)
-                            ? projectMembers.find((m) => m.projectId === project.id && m.userId === linkedUser.id)?.role
-                            : undefined
-                          return (
-                            <>
-                              <div className="w-8 h-8 rounded-full flex items-center justify-center text-white text-xs font-bold flex-shrink-0"
-                                style={{ backgroundColor: company.color }}>
-                                {member.name.charAt(0)}
-                              </div>
-                              {isLinkedUser ? (
-                                <>
-                                  <span className="font-medium w-20 truncate" title="등록회원">{member.name}</span>
-                                  <span className="text-xs text-muted-foreground/60 flex-1 truncate">{member.email}</span>
-                                  {linkedUser && project && (
-                                    <Select
-                                      value={currentProjectRole || 'editor'}
-                                      onValueChange={(v) => v && updateProjectMemberRole(project.id, linkedUser.id, v as ProjectRole)}
-                                    >
-                                      <SelectTrigger
-                                        className="h-7 w-[85px] text-xs flex-shrink-0"
-                                        onClick={(e) => e.stopPropagation()}
-                                      >
-                                        <SelectValue />
-                                      </SelectTrigger>
-                                      <SelectContent>
-                                        <SelectItem value="pm" className="text-xs">PM</SelectItem>
-                                        <SelectItem value="editor" className="text-xs">편집자</SelectItem>
-                                        <SelectItem value="viewer" className="text-xs">뷰어</SelectItem>
-                                      </SelectContent>
-                                    </Select>
-                                  )}
-                                </>
+                        <div className="w-8 h-8 rounded-full flex items-center justify-center text-white text-xs font-bold flex-shrink-0"
+                          style={{ backgroundColor: company.color }}>
+                          {member.name.charAt(0)}
+                        </div>
+                        {isLinkedUser ? (
+                          <>
+                            <span className="font-medium w-20 truncate" title="등록회원">{member.name}</span>
+                            <span className="text-[10px] text-primary bg-primary/10 border border-primary/20 px-1.5 py-0.5 rounded-md flex-shrink-0">
+                              회원
+                            </span>
+                            <span
+                              className="text-xs text-muted-foreground/70 flex-1 truncate"
+                              title="등록회원 이메일은 담당자 관리에서 수정할 수 없습니다"
+                            >
+                              {member.email}
+                            </span>
+                            {project && linkedUser && (
+                              canManageMembers ? (
+                                <Select
+                                  value={currentProjectRole || 'viewer'}
+                                  onValueChange={(v) => {
+                                    if (!v) return
+                                    const nextRole = v as ProjectRole
+                                    const hasProjectMember = projectMembers.some((m) => m.projectId === project.id && m.userId === linkedUser.id)
+                                    if (hasProjectMember) {
+                                      updateProjectMemberRole(project.id, linkedUser.id, nextRole)
+                                    } else {
+                                      addProjectMember({ projectId: project.id, userId: linkedUser.id, role: nextRole })
+                                    }
+                                    updateMember(member.id, {
+                                      role: getProjectRoleLabel(nextRole),
+                                    })
+                                  }}
+                                >
+                                  <SelectTrigger
+                                    className="h-7 w-[96px] text-xs flex-shrink-0"
+                                    onClick={(e) => e.stopPropagation()}
+                                  >
+                                    <SelectValue />
+                                  </SelectTrigger>
+                                  <SelectContent>
+                                    <SelectItem value="pm" className="text-xs">PM</SelectItem>
+                                    <SelectItem value="editor" className="text-xs">편집자</SelectItem>
+                                    <SelectItem value="viewer" className="text-xs">뷰어</SelectItem>
+                                  </SelectContent>
+                                </Select>
                               ) : (
-                                <>
-                                  <input
-                                    className="font-medium bg-transparent border-b border-transparent hover:border-border focus:border-primary outline-none w-20"
-                                    defaultValue={member.name}
-                                    onClick={(e) => e.stopPropagation()}
-                                    onBlur={(e) => updateMember(member.id, { name: e.target.value })}
-                                  />
-                                  <input
-                                    className="text-xs text-muted-foreground bg-transparent border-b border-transparent hover:border-border focus:border-primary outline-none w-16"
-                                    defaultValue={member.role || ''}
-                                    placeholder="직책"
-                                    onClick={(e) => e.stopPropagation()}
-                                    onBlur={(e) => updateMember(member.id, { role: e.target.value || undefined })}
-                                  />
-                                  <input
-                                    className="text-xs text-muted-foreground bg-transparent border-b border-transparent hover:border-border focus:border-primary outline-none flex-1"
-                                    defaultValue={member.email || ''}
-                                    placeholder="이메일"
-                                    onClick={(e) => e.stopPropagation()}
-                                    onBlur={(e) => updateMember(member.id, { email: e.target.value || undefined })}
-                                  />
-                                </>
-                              )}
-                            </>
-                          )
-                        })()}
+                                <span className="text-xs text-muted-foreground bg-muted/70 px-2 py-1 rounded-md flex-shrink-0 min-w-[72px] text-center">
+                                  {getProjectRoleLabel(currentProjectRole)}
+                                </span>
+                              )
+                            )}
+                          </>
+                        ) : (
+                          <>
+                            <input
+                              className="font-medium bg-transparent border-b border-transparent hover:border-border focus:border-primary outline-none w-20"
+                              defaultValue={member.name}
+                              onClick={(e) => e.stopPropagation()}
+                              onBlur={(e) => updateMember(member.id, { name: e.target.value })}
+                            />
+                            <input
+                              className="text-xs text-muted-foreground bg-transparent border-b border-transparent hover:border-border focus:border-primary outline-none w-16"
+                              defaultValue={member.role || ''}
+                              placeholder="직책"
+                              onClick={(e) => e.stopPropagation()}
+                              onBlur={(e) => updateMember(member.id, { role: e.target.value || undefined })}
+                            />
+                            <input
+                              className="text-xs text-muted-foreground bg-transparent border-b border-transparent hover:border-border focus:border-primary outline-none flex-1"
+                              defaultValue={member.email || ''}
+                              placeholder="이메일"
+                              onClick={(e) => e.stopPropagation()}
+                              onBlur={(e) => updateMember(member.id, { email: e.target.value || undefined })}
+                            />
+                          </>
+                        )}
                         {/* Task count badge */}
                         {taskCount > 0 && (
                           <span className="flex items-center gap-0.5 text-[10px] text-muted-foreground bg-muted/60 px-1.5 py-0.5 rounded-md">
