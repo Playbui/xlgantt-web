@@ -132,7 +132,8 @@ export function ResourceManager() {
   const tasks = useTaskStore((s) => s.tasks)
   const currentUser = useAuthStore((s) => s.currentUser)
   const authMode = useAuthStore((s) => s.authMode)
-  const allUsers = useAuthStore((s) => s.users).filter((u) => u.approved)
+  const authUsers = useAuthStore((s) => s.users)
+  const allUsers = useMemo(() => authUsers.filter((u) => u.approved), [authUsers])
   const fetchAllUsers = useAuthStore((s) => s.fetchAllUsers)
   const project = useProjectStore((s) => s.currentProject)
   const { addProjectMember, projectMembers, updateProjectMemberRole } = useProjectStore()
@@ -293,7 +294,7 @@ export function ResourceManager() {
     return () => {
       cancelled = true
     }
-  }, [authMode, project?.id, canManageMembers, allUsers])
+  }, [authMode, project?.id, canManageMembers])
 
   useEffect(() => {
     if (!canManageMembers) return

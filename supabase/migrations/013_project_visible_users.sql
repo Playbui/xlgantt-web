@@ -42,7 +42,6 @@ AS $$
         FROM public.project_members pm
         WHERE pm.project_id = p_project_id
           AND pm.user_id = auth.uid()
-          AND pm.role IN ('owner', 'pm')
       )
     )
   ORDER BY lower(COALESCE(p.name, '')), lower(COALESCE(au.email, p.email, ''));
