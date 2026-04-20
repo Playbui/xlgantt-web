@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useEffect } from 'react'
 import { ChevronRight, ChevronDown, Building2, Check, Search, FolderTree, Layers3 } from 'lucide-react'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import { Button } from '@/components/ui/button'
@@ -16,6 +16,8 @@ interface MemberPickerProps {
   placeholder?: string
   size?: 'sm' | 'default'
   disabled?: boolean
+  className?: string
+  popoverClassName?: string
 }
 
 interface MemberNode {
@@ -55,18 +57,32 @@ export function MemberPicker({
   placeholder = '담당자 선택...',
   size = 'default',
   disabled = false,
+  className,
+  popoverClassName,
 }: MemberPickerProps) {
   const { companies, members } = useResourceStore()
+  const authMode = useAuthStore((s) => s.authMode)
   const allUsers = useAuthStore((s) => s.users)
+  const fetchAllUsers = useAuthStore((s) => s.fetchAllUsers)
   const orgCompanies = useOrganizationStore((s) => s.companies)
   const orgDepartments = useOrganizationStore((s) => s.departments)
   const orgTeams = useOrganizationStore((s) => s.teams)
   const orgAssignments = useOrganizationStore((s) => s.assignments)
+  const loadOrganization = useOrganizationStore((s) => s.loadOrganization)
 
   const [open, setOpen] = useState(false)
   const [search, setSearch] = useState('')
   const [expandedCompanies, setExpandedCompanies] = useState<Set<string>>(new Set())
   const [expandedDepartments, setExpandedDepartments] = useState<Set<string>>(new Set())
+
+  useEffect(() => {
+    loadOrganization()
+  }, [loadOrganization])
+
+  useEffect(() => {
+    if (authMode !== 'supabase') return
+    fetchAllUsers()
+  }, [authMode, fetchAllUsers])
 
   const selectedIds = useMemo(() => {
     if (Array.isArray(value)) return new Set(value)
@@ -239,7 +255,8 @@ export function MemberPicker({
           className={cn(
             'justify-between font-normal',
             size === 'sm' ? 'h-8 text-xs px-2' : 'h-9 text-sm px-3',
-            selectedIds.size === 0 && 'text-muted-foreground'
+            selectedIds.size === 0 && 'text-muted-foreground',
+            className
           )}
         >
           <span className="truncate">{displayText}</span>
@@ -248,7 +265,7 @@ export function MemberPicker({
           )}
         </Button>
       </PopoverTrigger>
-      <PopoverContent className="w-80 p-0" align="start">
+      <PopoverContent className={cn('w-[min(92vw,640px)] max-w-[640px] p-0', popoverClassName)} align="start">
         <div className="p-2 border-b">
           <div className="relative">
             <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
@@ -261,7 +278,7 @@ export function MemberPicker({
           </div>
         </div>
 
-        <div className="max-h-[320px] overflow-y-auto p-1">
+        <div className="max-h-[420px] overflow-y-auto p-1">
           {groupedTree.length === 0 && (
             <div className="text-center py-4 text-sm text-muted-foreground">검색 결과 없음</div>
           )}

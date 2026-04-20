@@ -414,7 +414,14 @@ export function TaskEditDialog({ taskId, open, onClose }: TaskEditDialogProps) {
                   ))}
                   <div className="flex gap-1.5 pt-1.5">
                     <div className="flex-1">
-                      <MemberPicker value={newAssignMemberIds} onChange={setNewAssignMemberIds} placeholder="담당자 선택..." size="sm" />
+                      <MemberPicker
+                        value={newAssignMemberIds}
+                        onChange={setNewAssignMemberIds}
+                        placeholder="담당자 선택..."
+                        size="sm"
+                        className="w-full justify-between"
+                        popoverClassName="w-[min(92vw,720px)] max-w-[720px]"
+                      />
                     </div>
                     <Input type="number" min="1" max="100" value={newAssignPercent} onChange={(e) => setNewAssignPercent(e.target.value)} className="w-18 h-7 text-xs px-1.5 text-right" placeholder="투입%" />
                     <Button size="sm" variant="outline" className="h-7 px-2" onClick={handleAddAssignment} disabled={newAssignMemberIds.length === 0}>
@@ -700,6 +707,8 @@ export function TaskEditDialog({ taskId, open, onClose }: TaskEditDialogProps) {
                         onChange={(ids) => updateTaskDetail(detail.id, { assignee_ids: ids, assignee_id: ids[0] || undefined })}
                         placeholder="담당자"
                         size="sm"
+                        className="min-w-[220px] justify-between"
+                        popoverClassName="w-[min(92vw,720px)] max-w-[720px]"
                       />
                       <DatePicker
                         value={detail.due_date || ''}
