@@ -21,7 +21,7 @@ import {
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Separator } from '@/components/ui/separator'
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
+import { DropdownMenu, DropdownMenuContent, DropdownMenuGroup, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
 import { useTaskStore } from '@/stores/task-store'
 import { useProjectStore } from '@/stores/project-store'
 import { useResourceStore } from '@/stores/resource-store'
@@ -314,16 +314,18 @@ export function GanttToolbar({ onOpenTaskDialog, onScrollToToday }: GanttToolbar
           </Button>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="start" className="w-48">
-          <DropdownMenuLabel>WBS 일괄등록</DropdownMenuLabel>
-          <DropdownMenuSeparator />
-          <DropdownMenuItem className="cursor-pointer text-xs" onClick={handleDownloadTemplate}>
-            <Download className="h-3.5 w-3.5" />
-            양식 다운로드
-          </DropdownMenuItem>
-          <DropdownMenuItem className="cursor-pointer text-xs" onClick={() => setExcelDialogOpen(true)}>
-            <FileSpreadsheet className="h-3.5 w-3.5" />
-            엑셀 등록
-          </DropdownMenuItem>
+          <DropdownMenuGroup>
+            <DropdownMenuLabel>WBS 일괄등록</DropdownMenuLabel>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem className="cursor-pointer text-xs" onClick={handleDownloadTemplate}>
+              <Download className="h-3.5 w-3.5" />
+              양식 다운로드
+            </DropdownMenuItem>
+            <DropdownMenuItem className="cursor-pointer text-xs" onClick={() => setExcelDialogOpen(true)}>
+              <FileSpreadsheet className="h-3.5 w-3.5" />
+              엑셀 등록
+            </DropdownMenuItem>
+          </DropdownMenuGroup>
         </DropdownMenuContent>
       </DropdownMenu>
 
