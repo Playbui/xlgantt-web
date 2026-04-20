@@ -15,6 +15,7 @@ import { useProjectStore, type ProjectRole } from '@/stores/project-store'
 import { useAuthStore } from '@/stores/auth-store'
 import { useOrganizationStore } from '@/stores/organization-store'
 import { cn } from '@/lib/utils'
+import { supabase } from '@/lib/supabase'
 import { format } from 'date-fns'
 import { TaskEditDialog } from '@/components/gantt/TaskEditDialog'
 import { OrganizationUserPicker } from '@/components/organization/OrganizationUserPicker'
@@ -147,6 +148,7 @@ export function ResourceManager() {
   const [selectedUserId, setSelectedUserId] = useState('')
   const [selectedRole, setSelectedRole] = useState<ProjectRole>('editor')
   const [addMode, setAddMode] = useState<'user' | 'manual'>('user')
+  const [visibleUsers, setVisibleUsers] = useState(allUsers)
 
   // Company form
   const [newCompanyName, setNewCompanyName] = useState('')
@@ -166,23 +168,27 @@ export function ResourceManager() {
   const [editTaskId, setEditTaskId] = useState<string | null>(null)
   const [dialogOpen, setDialogOpen] = useState(false)
 
+  useEffect(() => {
+    setVisibleUsers(allUsers)
+  }, [allUsers])
+
   const usersByEmail = useMemo(() => {
     const map = new Map<string, (typeof allUsers)[number]>()
-    for (const user of allUsers) {
+    for (const user of visibleUsers) {
       const normalizedEmail = user.email?.trim().toLowerCase()
       if (!normalizedEmail) continue
       map.set(normalizedEmail, user)
     }
     return map
-  }, [allUsers])
+  }, [visibleUsers])
 
   const usersById = useMemo(() => {
     const map = new Map<string, (typeof allUsers)[number]>()
-    for (const user of allUsers) {
+    for (const user of visibleUsers) {
       map.set(user.id, user)
     }
     return map
-  }, [allUsers])
+  }, [visibleUsers])
 
   const getLinkedUser = useCallback((email?: string) => {
     const normalizedEmail = email?.trim().toLowerCase()
@@ -194,10 +200,10 @@ export function ResourceManager() {
     if (member.linked_user_id) {
       const linkedById = usersById.get(member.linked_user_id)
       if (linkedById) return linkedById
-      return { id: member.linked_user_id } as (typeof allUsers)[number]
+      return { id: member.linked_user_id } as (typeof visibleUsers)[number]
     }
     return getLinkedUser(member.email)
-  }, [getLinkedUser, members, usersById])
+  }, [getLinkedUser, usersById])
 
   const resolveLinkedUserId = useCallback((member: (typeof members)[number]) => {
     return member.linked_user_id || getLinkedUser(member.email)?.id
@@ -213,8 +219,8 @@ export function ResourceManager() {
   }, [members, resolveLinkedUserId])
 
   const availableUsers = useMemo(() => (
-    allUsers.filter((user) => user.role !== 'admin' && !existingMemberUserIds.has(user.id))
-  ), [allUsers, existingMemberUserIds])
+    visibleUsers.filter((user) => user.role !== 'admin' && !existingMemberUserIds.has(user.id))
+  ), [visibleUsers, existingMemberUserIds])
 
   const getProjectRoleLabel = useCallback((role?: ProjectRole) => {
     switch (role) {
@@ -251,6 +257,45 @@ export function ResourceManager() {
   }, [authMode, canManageMembers, fetchAllUsers])
 
   useEffect(() => {
+    if (authMode !== 'supabase') return
+    if (!project?.id) return
+    if (!canManageMembers) return
+
+    let cancelled = false
+
+    const loadVisibleUsers = async () => {
+      const { data, error } = await supabase.rpc('project_visible_users', { p_project_id: project.id })
+
+      if (cancelled) return
+
+      if (error) {
+        console.warn('프로젝트 표시 가능 사용자 로드 실패:', error.message)
+        setVisibleUsers(allUsers)
+        return
+      }
+
+      const nextUsers = ((data || []) as Array<Record<string, unknown>>).map((row) => ({
+        id: row.id as string,
+        email: (row.email as string) || '',
+        name: (row.name as string) || '',
+        role: (row.role as 'admin' | 'pm' | 'member' | 'guest') || 'member',
+        approved: (row.approved as boolean) ?? false,
+        avatar_url: (row.avatar_url as string) || undefined,
+        force_password_change: (row.force_password_change as boolean) ?? false,
+        created_at: (row.created_at as string) || new Date().toISOString(),
+      }))
+
+      setVisibleUsers(nextUsers)
+    }
+
+    void loadVisibleUsers()
+
+    return () => {
+      cancelled = true
+    }
+  }, [authMode, project?.id, canManageMembers, allUsers])
+
+  useEffect(() => {
     if (!canManageMembers) return
     if (allUsers.length === 0) return
 
@@ -260,7 +305,7 @@ export function ResourceManager() {
       if (!linkedUser) return
       updateMember(member.id, { linked_user_id: linkedUser.id })
     })
-  }, [allUsers, canManageMembers, getLinkedUser, members, updateMember])
+  }, [visibleUsers, canManageMembers, getLinkedUser, members, updateMember])
 
   useEffect(() => {
     if (!selectedUserId) return
@@ -858,7 +903,7 @@ export function ResourceManager() {
                 </Select>
               </div>
               <Button size="sm" className="h-9" disabled={!selectedUserId || !newMemberCompany} onClick={() => {
-                const user = allUsers.find((u) => u.id === selectedUserId)
+                const user = visibleUsers.find((u) => u.id === selectedUserId) || allUsers.find((u) => u.id === selectedUserId)
                 if (!user || !newMemberCompany) return
                 const normalizedEmail = user.email?.trim().toLowerCase()
                 const roleLabel = selectedRole === 'pm' ? 'PM' : selectedRole === 'editor' ? '편집자' : '뷰어'

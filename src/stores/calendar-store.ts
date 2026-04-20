@@ -42,6 +42,14 @@ interface CalendarState {
 const CALENDAR_TYPES: CalendarType[] = ['STD', 'UD1', 'UD2']
 const DEFAULT_WORK_DAYS = [1, 2, 3, 4, 5]
 
+function buildDefaultStdHolidayRows(): Holiday[] {
+  return DEFAULT_KOREAN_HOLIDAYS.map((holiday) => ({
+    id: crypto.randomUUID(),
+    date: holiday.date,
+    name: holiday.name,
+  }))
+}
+
 function getDefaultMeta(): CalendarMetaMap {
   return {
     STD: { name: '표준' },
@@ -52,11 +60,7 @@ function getDefaultMeta(): CalendarMetaMap {
 
 function getDefaultHolidays(): CalendarHolidays {
   return {
-    STD: DEFAULT_KOREAN_HOLIDAYS.map((holiday) => ({
-      id: crypto.randomUUID(),
-      date: holiday.date,
-      name: holiday.name,
-    })),
+    STD: buildDefaultStdHolidayRows(),
     UD1: [],
     UD2: [],
   }
@@ -87,6 +91,20 @@ type HolidayRow = {
 
 function sortHolidayRows(rows: Holiday[]): Holiday[] {
   return [...rows].sort((a, b) => a.date.localeCompare(b.date) || a.name.localeCompare(b.name))
+}
+
+function mergeHolidayRows(primary: Holiday[], fallback: Holiday[]): Holiday[] {
+  const merged = new Map<string, Holiday>()
+
+  for (const holiday of fallback) {
+    merged.set(holiday.date, holiday)
+  }
+
+  for (const holiday of primary) {
+    merged.set(holiday.date, holiday)
+  }
+
+  return sortHolidayRows([...merged.values()])
 }
 
 export const useCalendarStore = create<CalendarState>((set, get) => ({
@@ -182,6 +200,41 @@ export const useCalendarStore = create<CalendarState>((set, get) => ({
       }
     }
 
+    const stdCalendarId = calendarMap.get('STD')?.id
+    if (stdCalendarId) {
+      const existingStdDates = new Set(
+        holidayRows
+          .filter((row) => row.calendar_id === stdCalendarId && !row.is_working)
+          .map((row) => row.holiday_date)
+      )
+
+      const missingStdDefaults = DEFAULT_KOREAN_HOLIDAYS.filter((holiday) => !existingStdDates.has(holiday.date))
+
+      if (missingStdDefaults.length > 0) {
+        const { data: seededRows, error: seedError } = await supabase
+          .from('holidays')
+          .upsert(
+            missingStdDefaults.map((holiday) => ({
+              calendar_id: stdCalendarId,
+              holiday_date: holiday.date,
+              name: holiday.name,
+              is_working: false,
+            })),
+            { onConflict: 'calendar_id,holiday_date' }
+          )
+          .select('id, calendar_id, holiday_date, name, is_working')
+
+        if (seedError) {
+          console.error('기본 공휴일 시드 실패:', seedError.message)
+        } else {
+          holidayRows = [
+            ...holidayRows,
+            ...((seededRows || []) as HolidayRow[]),
+          ]
+        }
+      }
+    }
+
     const defaultMeta = getDefaultMeta()
     const nextMeta = getDefaultMeta()
     const nextWorkingDays = getDefaultWorkingDays()
@@ -211,9 +264,7 @@ export const useCalendarStore = create<CalendarState>((set, get) => ({
       })
     }
 
-    if (nextHolidays.STD.length === 0) {
-      nextHolidays.STD = getDefaultHolidays().STD
-    }
+    nextHolidays.STD = mergeHolidayRows(nextHolidays.STD, buildDefaultStdHolidayRows())
 
     set({
       holidays: {
