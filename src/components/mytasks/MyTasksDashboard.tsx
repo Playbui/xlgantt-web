@@ -13,6 +13,7 @@ import {
   ExternalLink,
   Plus,
   Trash2,
+  NotebookText,
 } from 'lucide-react'
 import { format } from 'date-fns'
 import { Input } from '@/components/ui/input'
@@ -29,6 +30,7 @@ import { useAuthStore } from '@/stores/auth-store'
 import { useResourceStore } from '@/stores/resource-store'
 import { useTaskStore } from '@/stores/task-store'
 import { useProjectStore } from '@/stores/project-store'
+import { useWorkspaceStore } from '@/stores/workspace-store'
 import type { CustomStatus } from '@/stores/project-store'
 import { TaskEditDialog } from '@/components/gantt/TaskEditDialog'
 import { CardDetailModal } from '@/components/mytasks/CardDetailModal'
@@ -132,6 +134,7 @@ export function MyTasksDashboard() {
   const statusDate = useProjectStore((s) => s.currentProject?.status_date)
   const currentProject = useProjectStore((s) => s.currentProject)
   const customStatuses = useProjectStore((s) => s.customStatuses)
+  const workspaceItems = useWorkspaceStore((s) => s.items)
   const addCustomStatus = useProjectStore((s) => s.addCustomStatus)
   const removeCustomStatus = useProjectStore((s) => s.removeCustomStatus)
   const projectMembers = useProjectStore((s) => s.projectMembers)
@@ -455,6 +458,7 @@ export function MyTasksDashboard() {
       .map((id) => members.find((m) => m.id === id)?.name)
       .filter(Boolean)
     const isDragging = dragCardId === detail.id
+    const workspaceCount = workspaceItems.filter((item) => item.linkedTaskIds.includes(task.id)).length
 
     return (
       <div
@@ -475,6 +479,12 @@ export function MyTasksDashboard() {
           <span className="text-[11px] text-muted-foreground font-medium truncate flex-1">
             {task.wbs_code} {task.task_name}
           </span>
+          {workspaceCount > 0 && (
+            <span className="inline-flex items-center gap-1 rounded bg-slate-100 px-1.5 py-0.5 text-[10px] font-medium text-slate-700">
+              <NotebookText className="h-3 w-3" />
+              {workspaceCount}
+            </span>
+          )}
           <button
             className="flex-shrink-0 text-muted-foreground/40 hover:text-primary transition-colors"
             onClick={(e) => { e.stopPropagation(); setEditTaskId(task.id) }}
@@ -606,6 +616,7 @@ export function MyTasksDashboard() {
     const progress = Math.round(task.actual_progress * 100)
     const status = progress >= 100 ? 'done' : progress > 0 ? 'in_progress' : 'todo'
     const colors = getStatusColors(status, projectCustomStatuses)
+    const workspaceCount = workspaceItems.filter((item) => item.linkedTaskIds.includes(task.id)).length
 
     return (
       <div
@@ -619,6 +630,12 @@ export function MyTasksDashboard() {
       >
         <div className="px-3 pt-2 pb-0.5 flex items-center gap-1">
           <span className="text-[11px] text-muted-foreground font-medium flex-1">{task.wbs_code}</span>
+          {workspaceCount > 0 && (
+            <span className="inline-flex items-center gap-1 rounded bg-slate-100 px-1.5 py-0.5 text-[10px] font-medium text-slate-700">
+              <NotebookText className="h-3 w-3" />
+              {workspaceCount}
+            </span>
+          )}
           <button
             className="flex-shrink-0 text-muted-foreground/40 hover:text-primary transition-colors"
             onClick={(e) => { e.stopPropagation(); setEditTaskId(task.id) }}

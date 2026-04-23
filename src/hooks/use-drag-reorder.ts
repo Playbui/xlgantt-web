@@ -1,6 +1,5 @@
 import { useState, useCallback, useRef, useEffect } from 'react'
 import type { Task } from '@/lib/types'
-import { ROW_HEIGHT } from '@/lib/types'
 import { useTaskStore } from '@/stores/task-store'
 
 export interface DragState {
@@ -13,7 +12,7 @@ export interface DragState {
 const SCROLL_ZONE = 60 // pixels from edge to trigger auto-scroll
 const SCROLL_SPEED = 8
 
-export function useDragReorder(visibleTasks: Task[]) {
+export function useDragReorder(visibleTasks: Task[], rowHeight: number) {
   const [dragState, setDragState] = useState<DragState>({
     dragTaskId: null,
     dropIndex: null,
@@ -92,14 +91,14 @@ export function useDragReorder(visibleTasks: Task[]) {
     const containerRect = container.getBoundingClientRect()
     const scrollTop = container.scrollTop
     const relativeY = e.clientY - containerRect.top + scrollTop
-    let index = Math.round(relativeY / ROW_HEIGHT)
+    let index = Math.round(relativeY / rowHeight)
     index = Math.max(0, Math.min(index, visibleTasks.length))
 
     setDragState((prev) => ({
       ...prev,
       dropIndex: index,
     }))
-  }, [visibleTasks.length, startAutoScroll])
+  }, [visibleTasks.length, startAutoScroll, rowHeight])
 
   const handleDragEnd = useCallback(() => {
     stopAutoScroll()

@@ -11,6 +11,7 @@ import { ResourceManager } from '@/components/settings/ResourceManager'
 import { ActivityTimeline } from '@/components/activity/ActivityTimeline'
 import { MyTasksDashboard } from '@/components/mytasks/MyTasksDashboard'
 import { MemberTasksView } from '@/components/member-tasks/MemberTasksView'
+import { WorkspaceView } from '@/components/workspace/WorkspaceView'
 import { useProjectStore } from '@/stores/project-store'
 import { useTaskStore } from '@/stores/task-store'
 import { useResourceStore } from '@/stores/resource-store'
@@ -18,12 +19,11 @@ import { useUIStore } from '@/stores/ui-store'
 import { useUndoStore } from '@/stores/undo-store'
 import { useAuthStore } from '@/stores/auth-store'
 import { useActivityStore } from '@/stores/activity-store'
+import { useWorkspaceStore } from '@/stores/workspace-store'
 import { SAMPLE_PROJECT, SAMPLE_TASKS, SAMPLE_DEPENDENCIES } from '@/lib/sample-data'
 import { useIsMobile } from '@/hooks/use-is-mobile'
 import { MobileShell } from '@/components/mobile/MobileShell'
 import { MobileContent } from '@/components/mobile/MobileContent'
-
-const THEME_ATTR_MAP = ['classic', 'ocean', 'forest', 'sunset', 'midnight'] as const
 
 function MainContent() {
   const activeView = useUIStore((s) => s.activeView)
@@ -49,6 +49,8 @@ function MainContent() {
       return <MyTasksDashboard />
     case 'memberTasks':
       return <MemberTasksView />
+    case 'workspace':
+      return <WorkspaceView />
     default:
       return <GanttView />
   }
@@ -59,6 +61,7 @@ export function ProjectWorkspace() {
   const { switchProject, currentProject, setProject, loadProjectMembers } = useProjectStore()
   const { setTasks, setDependencies, loadTasks, loadDependencies } = useTaskStore()
   const { loadResources } = useResourceStore()
+  const loadWorkspaceItems = useWorkspaceStore((s) => s.loadItems)
   const fetchAllUsers = useAuthStore((s) => s.fetchAllUsers)
   const loadActivityLogs = useActivityStore((s) => (s as { loadLogs?: (projectId: string, options?: { userId?: string; offset?: number; limit?: number }) => Promise<void> }).loadLogs)
   const currentUserId = useAuthStore((s) => s.currentUser?.id)
@@ -79,6 +82,7 @@ export function ProjectWorkspace() {
           loadDependencies(projectId),
           loadResources(projectId),
           loadProjectMembers(projectId),
+          loadWorkspaceItems(projectId),
           fetchAllUsers(),
           // 활동로그도 DB에서 로드 (현재 사용자 기준, 첫 페이지)
           loadActivityLogs?.(projectId, { userId: currentUserId, offset: 0, limit: 50 }),
@@ -110,15 +114,6 @@ export function ProjectWorkspace() {
     loadFromServer()
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [projectId])
-
-  useEffect(() => {
-    const themeName = THEME_ATTR_MAP[currentProject?.theme_id ?? 0] || 'classic'
-    document.documentElement.setAttribute('data-theme', themeName)
-
-    return () => {
-      document.documentElement.setAttribute('data-theme', 'classic')
-    }
-  }, [currentProject?.theme_id])
 
   const isMobile = useIsMobile()
 

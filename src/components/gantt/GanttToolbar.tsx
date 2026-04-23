@@ -14,6 +14,7 @@ import {
   TrendingUp,
   CalendarCheck,
   Archive,
+  ListOrdered,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -34,7 +35,18 @@ interface GanttToolbarProps {
 export function GanttToolbar({ onOpenTaskDialog, onScrollToToday }: GanttToolbarProps) {
   const { tasks, selectedTaskIds, addTask, archiveTask, restoreTask, purgeTask, updateTask, setTasks } = useTaskStore()
   const project = useProjectStore((s) => s.currentProject)
-  const { searchQuery, filterStatus, setSearchQuery, setFilterStatus, showProgressLine, toggleProgressLine, showArchived, toggleShowArchived } = useUIStore()
+  const {
+    searchQuery,
+    filterStatus,
+    setSearchQuery,
+    setFilterStatus,
+    showProgressLine,
+    toggleProgressLine,
+    showArchived,
+    toggleShowArchived,
+    rowHeight,
+    setRowHeight,
+  } = useUIStore()
   const { taskDetails, assignments } = useResourceStore()
   const { canUndo, canRedo, undo, redo } = useUndoRedo()
   const searchInputRef = useRef<HTMLInputElement>(null)
@@ -239,6 +251,30 @@ export function GanttToolbar({ onOpenTaskDialog, onScrollToToday }: GanttToolbar
     }, 0)
   }
 
+  const handleExpandToLevel = async (level: number) => {
+    const updated = tasks.map((task) => {
+      if (!task.is_group) return task
+      return {
+        ...task,
+        is_collapsed: task.wbs_level >= level,
+      }
+    })
+    setTasks(updated)
+
+    const { supabase } = await import('@/lib/supabase')
+    for (const task of updated) {
+      const original = tasks.find((item) => item.id === task.id)
+      if (!original || original.is_collapsed === task.is_collapsed) continue
+      supabase
+        .from('tasks')
+        .update({ is_collapsed: task.is_collapsed })
+        .eq('id', task.id)
+        .then(({ error }) => {
+          if (error) console.error('WBS 레벨 펼치기 저장 실패:', error.message)
+        })
+    }
+  }
+
   const ToolbarButton = ({
     icon: Icon,
     label,
@@ -263,7 +299,7 @@ export function GanttToolbar({ onOpenTaskDialog, onScrollToToday }: GanttToolbar
   )
 
   return (
-    <div className="flex items-center h-10 px-4 border-b border-border/40 bg-gradient-to-b from-muted/10 to-muted/30 gap-1">
+    <div className="flex items-center h-10 px-4 border-b border-slate-200 dark:border-slate-800 bg-background gap-1">
       <ToolbarButton icon={Undo2} label="실행 취소 (Ctrl+Z)" onClick={undo} disabled={!canUndo} />
       <ToolbarButton icon={Redo2} label="다시 실행 (Ctrl+Y)" onClick={redo} disabled={!canRedo} />
 
@@ -285,6 +321,52 @@ export function GanttToolbar({ onOpenTaskDialog, onScrollToToday }: GanttToolbar
       <Separator orientation="vertical" className="mx-1 h-5" />
 
       <ToolbarButton icon={FileEdit} label="작업 상세 편집" onClick={handleEditTask} disabled={!selectedId} />
+
+      <Separator orientation="vertical" className="mx-1 h-5" />
+
+      <div className="flex items-center gap-1.5 px-1">
+        <span className="text-[11px] font-medium text-muted-foreground">레벨 펼치기</span>
+        {[1, 2, 3, 4, 5].map((level) => (
+          <Button
+            key={level}
+            variant="outline"
+            size="sm"
+            className="h-7 w-8 px-0 text-xs"
+            onClick={() => void handleExpandToLevel(level)}
+            title={`${level}레벨까지 펼치기`}
+          >
+            {level}
+          </Button>
+        ))}
+      </div>
+
+      <Separator orientation="vertical" className="mx-1 h-5" />
+
+      <div className="flex items-center gap-2 px-1">
+        <span className="text-[11px] font-medium text-muted-foreground">줄간격</span>
+        <input
+          type="range"
+          min={20}
+          max={60}
+          step={2}
+          value={rowHeight}
+          onChange={(e) => setRowHeight(Number(e.target.value))}
+          className="h-1.5 w-24 accent-primary"
+          title="줄간격 조절"
+        />
+        <span className="w-5 text-right text-[11px] font-semibold tabular-nums text-primary">{rowHeight}</span>
+      </div>
+
+      <Separator orientation="vertical" className="mx-1 h-5" />
+
+      <ToolbarButton
+        icon={ListOrdered}
+        label="WBS 순번 재정렬 (전체 재계산)"
+        onClick={() => {
+          if (!confirm('전체 작업의 WBS 코드와 순번을 트리 구조 기준으로 재계산하시겠습니까?')) return
+          recalcWBS()
+        }}
+      />
 
       <Separator orientation="vertical" className="mx-1 h-5" />
 

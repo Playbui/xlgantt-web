@@ -14,6 +14,7 @@ interface GanttBarProps {
   rowIndex: number
   scale: GanttScale
   theme: ColorTheme
+  rowHeight: number
   onDoubleClick?: (taskId: string) => void
   onContextMenu?: (taskId: string, x: number, y: number) => void
 }
@@ -26,7 +27,7 @@ interface DragPreview {
   width: number
 }
 
-export function GanttBar({ task, rowIndex, scale, theme, onDoubleClick, onContextMenu }: GanttBarProps) {
+export function GanttBar({ task, rowIndex, scale, theme, rowHeight, onDoubleClick, onContextMenu }: GanttBarProps) {
   const { selectTask, selectedTaskIds, updateTask, addDependency, dependencies } = useTaskStore()
   const { linkMode, linkSourceTaskId, setLinkSource, ganttOptions } = useUIStore()
   const taskDetails = useResourceStore((s) => s.taskDetails)
@@ -48,7 +49,7 @@ export function GanttBar({ task, rowIndex, scale, theme, onDoubleClick, onContex
   } | null>(null)
   const rafRef = useRef<number | null>(null)
 
-  const rect = taskToBarRect(task, scale, rowIndex)
+  const rect = taskToBarRect(task, scale, rowIndex, rowHeight)
 
   const isSelected = selectedTaskIds.has(task.id)
   const isLinkSource = linkMode && linkSourceTaskId === task.id
@@ -478,7 +479,7 @@ export function GanttBar({ task, rowIndex, scale, theme, onDoubleClick, onContex
   }
 
   // Regular (leaf) task bar - barHeight option controls visual bar height within row
-  const barH = ganttOptions.barHeight
+  const barH = Math.min(ganttOptions.barHeight, Math.max(8, rowHeight - 8))
   const barY = rect.y + (rect.height - barH) / 2
 
   // Use drag preview position/width during drag, otherwise use original rect

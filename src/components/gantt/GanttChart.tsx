@@ -1,6 +1,5 @@
 import { type RefObject, useMemo, useEffect, useState, useCallback } from 'react'
 import type { Task, Dependency, GanttScale, ColorTheme } from '@/lib/types'
-import { ROW_HEIGHT } from '@/lib/types'
 import { generateTimescale, getTodayX, generateNonWorkingBands, taskToBarRect, calcProgressLinePoints, getStatusDateX } from '@/lib/gantt-math'
 import { calculateDependencyPath, ARROW_MARKER_ID } from '@/lib/dependency-routing'
 import { useUIStore } from '@/stores/ui-store'
@@ -38,7 +37,9 @@ export function GanttChart({
   const cancelLinkMode = useUIStore((s) => s.cancelLinkMode)
   const showProgressLine = useUIStore((s) => s.showProgressLine)
   const ganttOptions = useUIStore((s) => s.ganttOptions)
+  const rowHeight = useUIStore((s) => s.rowHeight)
   const project = useProjectStore((s) => s.currentProject)
+  const selectedTaskIds = useTaskStore((s) => s.selectedTaskIds)
 
   // ESC key to cancel link mode
   useEffect(() => {
@@ -82,14 +83,14 @@ export function GanttChart({
     [scale, stdHolidaySet]
   )
 
-  const totalHeight = tasks.length * ROW_HEIGHT
+  const totalHeight = tasks.length * rowHeight
   const { totalWidth } = scale
 
   // Pre-compute bar rects for dependency arrow routing
   const barRects = useMemo(() => {
     const map = new Map<string, ReturnType<typeof taskToBarRect>>()
     tasks.forEach((task, index) => {
-      const rect = taskToBarRect(task, scale, index, ROW_HEIGHT)
+      const rect = taskToBarRect(task, scale, index, rowHeight)
       if (rect) map.set(task.id, rect)
     })
     return map
@@ -104,8 +105,8 @@ export function GanttChart({
   const progressLinePoints = useMemo(() => {
     if (!showProgressLine) return []
     const statusDate = project?.status_date ? new Date(project.status_date) : new Date()
-    return calcProgressLinePoints(tasks, scale, statusDate, ROW_HEIGHT)
-  }, [showProgressLine, tasks, scale, project?.status_date])
+    return calcProgressLinePoints(tasks, scale, statusDate, rowHeight)
+  }, [showProgressLine, tasks, scale, project?.status_date, rowHeight])
 
   const progressLineColor = theme.colors[13] || '#ff6b35'
 
@@ -197,16 +198,41 @@ export function GanttChart({
             />
           ))}
 
-          {/* Row grid lines */}
+          {/* Selected row highlights — TaskRow의 선택 색과 동기화 */}
+          {tasks.map((task, index) => {
+            if (!selectedTaskIds.has(task.id)) return null
+            return (
+              <g key={`sel-${task.id}`}>
+                {/* 연한 primary 배경 (TaskRow의 bg-primary/8과 동일 톤) */}
+                <rect
+                  x={0}
+                  y={index * rowHeight}
+                  width={totalWidth}
+                  height={rowHeight}
+                  fill="rgba(59, 130, 246, 0.1)"
+                />
+                {/* 좌측 primary accent bar (TaskRow의 border-l-2와 동일) */}
+                <rect
+                  x={0}
+                  y={index * rowHeight}
+                  width={2}
+                  height={rowHeight}
+                  fill="#3b82f6"
+                />
+              </g>
+            )
+          })}
+
+          {/* Row grid lines — TaskRow의 border-b와 정렬 (row 하단에 그림) */}
           {tasks.map((_, index) => (
             <line
               key={`grid-${index}`}
               x1={0}
-              y1={index * ROW_HEIGHT}
+              y1={(index + 1) * rowHeight - 0.5}
               x2={totalWidth}
-              y2={index * ROW_HEIGHT}
-              stroke="oklch(0.93 0.005 250)"
-              strokeWidth={0.3}
+              y2={(index + 1) * rowHeight - 0.5}
+              stroke="#cbd5e1"
+              strokeWidth={1}
             />
           ))}
 
@@ -288,6 +314,7 @@ export function GanttChart({
               rowIndex={index}
               scale={scale}
               theme={theme}
+              rowHeight={rowHeight}
               onDoubleClick={onDoubleClickTask}
               onContextMenu={handleBarContextMenu}
             />

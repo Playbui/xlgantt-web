@@ -1,4 +1,5 @@
 import { useRef, useCallback, useMemo, useEffect, useState } from 'react'
+import { BarChart3, BriefcaseBusiness, CalendarDays, Sigma } from 'lucide-react'
 import { TaskTable } from './TaskTable'
 import { GanttChart } from './GanttChart'
 import { GanttToolbar } from './GanttToolbar'
@@ -17,7 +18,7 @@ export function GanttView() {
   const dependencies = useTaskStore((s) => s.dependencies)
   const project = useProjectStore((s) => s.currentProject)
   const theme = useProjectStore((s) => s.theme)
-  const { zoomLevel, tableWidth, setTableWidth, tableCollapsed, setTableCollapsed, searchQuery, filterStatus, showArchived } = useUIStore()
+  const { zoomLevel, tableWidth, setTableWidth, tableCollapsed, setTableCollapsed, searchQuery, filterStatus, showArchived, customDateRange } = useUIStore()
 
   const containerRef = useRef<HTMLDivElement>(null)
   const tableScrollRef = useRef<HTMLDivElement>(null)
@@ -32,7 +33,39 @@ export function GanttView() {
   const visibleTasks = useMemo(() => {
     // 아카이브 필터: 기본은 제외, showArchived 시 포함
     const filteredByArchive = showArchived ? tasks : tasks.filter((t) => !t.archived_at)
-    const collapsed = getVisibleTasks(filteredByArchive)
+    let collapsed = getVisibleTasks(filteredByArchive)
+
+    // 기간 필터: customDateRange와 겹치지 않는 작업 제외
+    if (customDateRange) {
+      const rangeStart = customDateRange.start
+      const rangeEnd = customDateRange.end
+      const idsInRange = new Set<string>()
+      for (const task of collapsed) {
+        const taskStart = task.planned_start
+        const taskEnd = task.planned_end
+        // 날짜가 없는 작업(그룹 등)은 자식 기준으로 판단해야 하므로 일단 포함
+        if (!taskStart && !taskEnd) {
+          idsInRange.add(task.id)
+          continue
+        }
+        // overlap 조건: task.end >= rangeStart && task.start <= rangeEnd
+        const effectiveStart = taskStart || taskEnd || ''
+        const effectiveEnd = taskEnd || taskStart || ''
+        if (effectiveEnd >= rangeStart && effectiveStart <= rangeEnd) {
+          idsInRange.add(task.id)
+        }
+      }
+      // 조상 노드 포함 (트리 구조 유지)
+      const withAncestors = new Set<string>(idsInRange)
+      for (const id of idsInRange) {
+        let current = collapsed.find((t) => t.id === id)
+        while (current?.parent_id) {
+          withAncestors.add(current.parent_id)
+          current = collapsed.find((t) => t.id === current!.parent_id)
+        }
+      }
+      collapsed = collapsed.filter((t) => withAncestors.has(t.id))
+    }
 
     // No filter active — return as-is
     if (!searchQuery && filterStatus === 'all') return collapsed
@@ -86,16 +119,44 @@ export function GanttView() {
     }
 
     return collapsed.filter((t) => visibleIds.has(t.id))
-  }, [tasks, searchQuery, filterStatus, showArchived, project?.status_date])
+  }, [tasks, searchQuery, filterStatus, showArchived, project?.status_date, customDateRange])
 
   const scale = useMemo(() => {
     if (!project) return null
+    // customDateRange가 있으면 그 기간으로 (패딩 0), 없으면 프로젝트 전체 기간
+    const start = customDateRange?.start || project.start_date
+    const end = customDateRange?.end || project.end_date
     return createGanttScale(
-      new Date(project.start_date),
-      new Date(project.end_date),
-      zoomLevel
+      new Date(start),
+      new Date(end),
+      zoomLevel,
+      customDateRange ? 0 : undefined
     )
-  }, [project, zoomLevel])
+  }, [project, zoomLevel, customDateRange])
+
+  const ganttSummary = useMemo(() => {
+    const activeTasks = tasks.filter((task) => !task.archived_at)
+    const leafTasks = activeTasks.filter((task) => !task.is_group)
+    const totalWorkload = leafTasks.reduce((sum, task) => sum + (task.total_workload || 0), 0)
+    const weightedProgress =
+      totalWorkload > 0
+        ? leafTasks.reduce((sum, task) => sum + (task.actual_progress || 0) * (task.total_workload || 0), 0) / totalWorkload
+        : leafTasks.length > 0
+          ? leafTasks.reduce((sum, task) => sum + (task.actual_progress || 0), 0) / leafTasks.length
+          : 0
+
+    const starts = activeTasks.map((task) => task.planned_start).filter(Boolean).sort() as string[]
+    const ends = activeTasks.map((task) => task.planned_end).filter(Boolean).sort() as string[]
+
+    return {
+      totalTasks: activeTasks.length,
+      leafTasks: leafTasks.length,
+      totalWorkload,
+      progressPercent: Math.round(weightedProgress * 100),
+      start: starts[0] || project?.start_date || '',
+      end: ends[ends.length - 1] || project?.end_date || '',
+    }
+  }, [tasks, project?.start_date, project?.end_date])
 
   // Auto-scroll to project start date on mount
   useEffect(() => {
@@ -189,6 +250,35 @@ export function GanttView() {
         }
       }} />
 
+      <div className="flex h-10 flex-shrink-0 items-center gap-5 border-b border-slate-200 bg-slate-50/70 px-5 text-sm">
+        <div className="flex items-center gap-2">
+          <BriefcaseBusiness className="h-4 w-4 text-slate-500" />
+          <span className="text-xs text-muted-foreground">작업</span>
+          <span className="font-bold text-foreground">{ganttSummary.totalTasks.toLocaleString()}개</span>
+          <span className="text-xs font-medium text-muted-foreground">(단위 {ganttSummary.leafTasks.toLocaleString()}개)</span>
+        </div>
+        <div className="h-4 w-px bg-border" />
+        <div className="flex items-center gap-2">
+          <Sigma className="h-4 w-4 text-slate-500" />
+          <span className="text-xs text-muted-foreground">총 공수</span>
+          <span className="font-bold text-foreground">{ganttSummary.totalWorkload.toLocaleString(undefined, { maximumFractionDigits: 1 })}일</span>
+        </div>
+        <div className="h-4 w-px bg-border" />
+        <div className="flex items-center gap-2">
+          <BarChart3 className="h-4 w-4 text-slate-500" />
+          <span className="text-xs text-muted-foreground">전체 진척률</span>
+          <span className="font-bold text-foreground">{ganttSummary.progressPercent}%</span>
+        </div>
+        <div className="h-4 w-px bg-border" />
+        <div className="flex items-center gap-2">
+          <CalendarDays className="h-4 w-4 text-slate-500" />
+          <span className="text-xs text-muted-foreground">기간</span>
+          <span className="font-bold text-foreground">
+            {ganttSummary.start || '-'} ~ {ganttSummary.end || '-'}
+          </span>
+        </div>
+      </div>
+
       {/* Main split pane */}
       <div ref={containerRef} className="flex flex-1 overflow-hidden">
         {/* Task Table (Left Pane) */}
@@ -208,10 +298,12 @@ export function GanttView() {
 
         {/* Resize Handle with Toggle Button */}
         <div
-          className="relative w-[6px] bg-transparent hover:bg-primary/20 cursor-col-resize flex-shrink-0 transition-all duration-150 group"
+          className="relative w-[6px] bg-transparent hover:bg-primary/10 cursor-col-resize flex-shrink-0 transition-all duration-150 group"
           onPointerDown={!tableCollapsed ? handleResizeStart : undefined}
           style={{ cursor: tableCollapsed ? 'default' : 'col-resize' }}
         >
+          {/* Visible divider line (2px, slate-400 → hover primary) */}
+          <div className="absolute top-0 bottom-0 left-1/2 -translate-x-1/2 w-[2px] bg-slate-400 dark:bg-slate-600 group-hover:bg-primary transition-colors pointer-events-none" />
           {/* Toggle Button */}
           <button
             onClick={(e) => {
