@@ -106,6 +106,7 @@ serve(async (req) => {
         'total_workload', 'planned_workload', 'actual_workload',
         'total_duration', 'planned_duration', 'actual_duration',
         'calendar_type', 'resource_count', 'deliverables',
+        'task_summary', 'task_body', 'task_attachments', 'task_comments', 'task_links', 'updated_by',
         'planned_progress', 'actual_progress', 'is_milestone',
         'parent_id', 'is_collapsed',
       ]
@@ -188,6 +189,7 @@ serve(async (req) => {
         'total_workload', 'planned_workload', 'actual_workload',
         'total_duration', 'planned_duration', 'actual_duration',
         'calendar_type', 'resource_count', 'deliverables',
+        'task_summary', 'task_body', 'task_attachments', 'task_comments', 'task_links', 'updated_by',
         'planned_progress', 'actual_progress', 'is_milestone',
         'parent_id', 'is_collapsed',
       ]

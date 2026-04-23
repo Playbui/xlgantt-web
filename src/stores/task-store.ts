@@ -1,5 +1,5 @@
 import { create } from 'zustand'
-import type { Task, Dependency, CalendarType, DependencyType } from '@/lib/types'
+import type { Task, Dependency, CalendarType, DependencyType, TaskWorkspaceAttachment, TaskWorkspaceComment, TaskWorkspaceLink } from '@/lib/types'
 import { countWorkingDays } from '@/lib/calendar-calc'
 import { parseISO } from 'date-fns'
 import { useUndoStore } from '@/stores/undo-store'
@@ -100,6 +100,19 @@ function rollupGroupDates(tasks: Task[], changedTaskId: string): Task[] {
 
 /** DB row → 로컬 Task 변환 */
 function dbToTask(row: Record<string, unknown>): Task {
+  const parseJson = <T>(value: unknown): T[] => {
+    if (!value) return []
+    if (Array.isArray(value)) return value as T[]
+    if (typeof value === 'string') {
+      try {
+        return JSON.parse(value) as T[]
+      } catch {
+        return []
+      }
+    }
+    return []
+  }
+
   return {
     id: row.id as string,
     project_id: row.project_id as string,
@@ -122,6 +135,12 @@ function dbToTask(row: Record<string, unknown>): Task {
     calendar_type: (row.calendar_type as CalendarType) || 'STD',
     resource_count: row.resource_count != null ? Number(row.resource_count) : undefined,
     deliverables: (row.deliverables as string) || undefined,
+    task_summary: (row.task_summary as string) || undefined,
+    task_body: (row.task_body as string) || undefined,
+    task_attachments: parseJson<TaskWorkspaceAttachment>(row.task_attachments),
+    task_comments: parseJson<TaskWorkspaceComment>(row.task_comments),
+    task_links: parseJson<TaskWorkspaceLink>(row.task_links),
+    updated_by: (row.updated_by as string) || undefined,
     planned_progress: Number(row.planned_progress ?? 0),
     actual_progress: Number(row.actual_progress ?? 0),
     is_milestone: (row.is_milestone as boolean) ?? false,
@@ -158,6 +177,12 @@ function taskToDb(t: Task): Record<string, unknown> {
     calendar_type: t.calendar_type,
     resource_count: t.resource_count ?? null,
     deliverables: t.deliverables || null,
+    task_summary: t.task_summary || null,
+    task_body: t.task_body || null,
+    task_attachments: JSON.stringify(t.task_attachments || []),
+    task_comments: JSON.stringify(t.task_comments || []),
+    task_links: JSON.stringify(t.task_links || []),
+    updated_by: t.updated_by || null,
     planned_progress: t.planned_progress,
     actual_progress: t.actual_progress,
     is_milestone: t.is_milestone,
@@ -262,9 +287,51 @@ export const useTaskStore = create<TaskState>((set, get) => ({
     if (error) {
       console.error('작업 로드 실패:', error.message)
     } else if (data) {
-      const tasks = data.map(dbToTask)
-      // setTasks를 통해 duration 계산 및 롤업 수행
-      get().setTasks(tasks)
+      const rawTasks = data.map(dbToTask)
+
+      // 아카이브된 작업은 재계산에서 제외 (원래 자리 유지)
+      const activeTasks = rawTasks.filter((t) => !t.archived_at)
+      const archivedTasks = rawTasks.filter((t) => t.archived_at)
+
+      // WBS 자동 정합화: DFS 트리 재계산 + 빈 그룹 해제
+      let recalculated = recalculateWBSCodes(activeTasks)
+      recalculated = recalculated.map((task) => {
+        if (task.is_group) {
+          const hasChildren = recalculated.some((t) => t.parent_id === task.id)
+          if (!hasChildren) return { ...task, is_group: false }
+        }
+        return task
+      })
+
+      // 변경된 rows만 추출
+      const changedRows = recalculated.filter((task) => {
+        const original = activeTasks.find((t) => t.id === task.id)
+        if (!original) return false
+        return (
+          original.wbs_code !== task.wbs_code ||
+          original.wbs_level !== task.wbs_level ||
+          original.is_group !== task.is_group ||
+          original.sort_order !== task.sort_order
+        )
+      })
+
+      // 스토어에 반영 (아카이브 포함)
+      get().setTasks([...recalculated, ...archivedTasks])
+
+      // stale한 rows만 DB에 비동기 동기화
+      if (changedRows.length > 0) {
+        console.log(`[WBS auto-cleanup] ${changedRows.length}개 작업 정리`)
+        for (const task of changedRows) {
+          supabase.from('tasks').update({
+            wbs_code: task.wbs_code,
+            wbs_level: task.wbs_level,
+            is_group: task.is_group,
+            sort_order: task.sort_order,
+          }).eq('id', task.id).then(({ error }) => {
+            if (error) console.error('WBS 자동 정리 실패:', error.message)
+          })
+        }
+      }
     }
     set({ isLoading: false })
   },

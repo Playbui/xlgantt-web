@@ -7,6 +7,7 @@ export interface Project {
   id: string
   name: string
   description?: string
+  category?: string
   start_date: string // ISO date
   end_date: string
   owner_id: string
@@ -54,6 +55,14 @@ export interface Task {
 
   // Deliverables
   deliverables?: string   // Col AC
+
+  // Workspace
+  task_summary?: string
+  task_body?: string
+  task_attachments?: TaskWorkspaceAttachment[]
+  task_comments?: TaskWorkspaceComment[]
+  task_links?: TaskWorkspaceLink[]
+  updated_by?: string
 
   // Progress (0-1)
   planned_progress: number // Col AD
@@ -130,6 +139,36 @@ export interface ProjectMember {
   joined_at: string
 }
 
+export interface TaskWorkspaceAttachment {
+  id: string
+  filename: string
+  size: number
+  type: string
+  storage_path: string
+  url: string
+  uploaded_by: string
+  uploaded_name?: string
+  uploaded_at: string
+}
+
+export interface TaskWorkspaceComment {
+  id: string
+  user_id: string
+  user_name: string
+  content: string
+  resolved?: boolean
+  created_at: string
+}
+
+export interface TaskWorkspaceLink {
+  id: string
+  title: string
+  url: string
+  description?: string
+  created_by: string
+  created_at: string
+}
+
 // ============================================================
 // Enums & Constants
 // ============================================================
@@ -141,10 +180,10 @@ export type DependencyType = 1 | 2 | 3 | 4
 // 4 = SF (Start-to-Finish)
 
 export const DEP_TYPE_LABELS: Record<DependencyType, string> = {
-  1: 'FS',
-  2: 'SS',
-  3: 'FF',
-  4: 'SF',
+  1: '종료→시작',
+  2: '시작→시작',
+  3: '종료→종료',
+  4: '시작→종료',
 }
 
 export type CalendarType = 'STD' | 'UD1' | 'UD2'

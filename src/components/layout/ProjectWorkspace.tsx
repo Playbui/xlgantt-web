@@ -17,10 +17,13 @@ import { useResourceStore } from '@/stores/resource-store'
 import { useUIStore } from '@/stores/ui-store'
 import { useUndoStore } from '@/stores/undo-store'
 import { useAuthStore } from '@/stores/auth-store'
+import { useActivityStore } from '@/stores/activity-store'
 import { SAMPLE_PROJECT, SAMPLE_TASKS, SAMPLE_DEPENDENCIES } from '@/lib/sample-data'
 import { useIsMobile } from '@/hooks/use-is-mobile'
 import { MobileShell } from '@/components/mobile/MobileShell'
 import { MobileContent } from '@/components/mobile/MobileContent'
+
+const THEME_ATTR_MAP = ['classic', 'ocean', 'forest', 'sunset', 'midnight'] as const
 
 function MainContent() {
   const activeView = useUIStore((s) => s.activeView)
@@ -57,6 +60,8 @@ export function ProjectWorkspace() {
   const { setTasks, setDependencies, loadTasks, loadDependencies } = useTaskStore()
   const { loadResources } = useResourceStore()
   const fetchAllUsers = useAuthStore((s) => s.fetchAllUsers)
+  const loadActivityLogs = useActivityStore((s) => s.loadLogs)
+  const currentUserId = useAuthStore((s) => s.currentUser?.id)
   const clearUndo = useUndoStore((s) => s.clear)
 
   useEffect(() => {
@@ -75,6 +80,8 @@ export function ProjectWorkspace() {
           loadResources(projectId),
           loadProjectMembers(projectId),
           fetchAllUsers(),
+          // 활동로그도 DB에서 로드 (현재 사용자 기준, 첫 페이지)
+          loadActivityLogs(projectId, { userId: currentUserId, offset: 0, limit: 50 }),
         ])
         // 서버에서 작업 데이터가 비어있고, 샘플 프로젝트인 경우 폴백
         const { tasks } = useTaskStore.getState()
@@ -103,6 +110,15 @@ export function ProjectWorkspace() {
     loadFromServer()
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [projectId])
+
+  useEffect(() => {
+    const themeName = THEME_ATTR_MAP[currentProject?.theme_id ?? 0] || 'classic'
+    document.documentElement.setAttribute('data-theme', themeName)
+
+    return () => {
+      document.documentElement.setAttribute('data-theme', 'classic')
+    }
+  }, [currentProject?.theme_id])
 
   const isMobile = useIsMobile()
 
