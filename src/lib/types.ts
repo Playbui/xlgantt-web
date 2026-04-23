@@ -143,6 +143,8 @@ export interface WorkspaceLink {
 export interface WorkspaceItem {
   id: string
   project_id: string
+  parent_id?: string
+  sort_order: number
   title: string
   summary?: string
   body?: string
@@ -153,6 +155,33 @@ export interface WorkspaceItem {
   updated_by?: string
   created_at: string
   updated_at: string
+}
+
+export interface WorkspaceRevision {
+  id: string
+  workspace_item_id: string
+  project_id: string
+  changed_by?: string
+  changed_by_name?: string
+  change_type: 'created' | 'title' | 'summary' | 'body' | 'status' | 'wbs' | 'attachment' | 'structure'
+  snapshot_title?: string
+  snapshot_summary?: string
+  snapshot_body?: string
+  created_at: string
+}
+
+export interface WorkspaceAttachment {
+  id: string
+  workspace_item_id: string
+  project_id: string
+  filename: string
+  size: number
+  mime_type?: string
+  storage_path: string
+  public_url?: string
+  uploaded_by?: string
+  uploaded_by_name?: string
+  created_at: string
 }
 
 // ============================================================
