@@ -9,6 +9,7 @@ interface RichContentEditorProps {
   placeholder?: string
   className?: string
   minHeight?: number
+  fontSize?: number
   onUploadImages?: (files: File[]) => Promise<string[]>
 }
 
@@ -36,6 +37,7 @@ export function RichContentEditor({
   placeholder = '내용을 입력하세요',
   className,
   minHeight = 360,
+  fontSize = 15,
   onUploadImages,
 }: RichContentEditorProps) {
   const editorRef = useRef<HTMLDivElement | null>(null)
@@ -211,7 +213,7 @@ export function RichContentEditor({
           contentEditable
           suppressContentEditableWarning
           className="prose prose-sm max-w-none px-4 py-3 outline-none"
-          style={{ minHeight }}
+          style={{ minHeight, fontSize }}
           onInput={emitChange}
           onPaste={async (e) => {
             const items = Array.from(e.clipboardData.items || [])

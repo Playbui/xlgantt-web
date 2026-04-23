@@ -40,6 +40,10 @@ function dbRowToWorkspaceItem(row: Record<string, unknown>, linkedTaskIds: strin
     summary: (row.summary as string) || '',
     body: (row.body as string) || '',
     status: ((row.status as WorkspaceItem['status']) || 'draft'),
+    access_mode: ((row.access_mode as WorkspaceItem['access_mode']) || 'project'),
+    shared_user_ids: Array.isArray(row.shared_user_ids) ? row.shared_user_ids as string[] : [],
+    password_hash: (row.password_hash as string) || undefined,
+    editor_font_size: Number(row.editor_font_size ?? 15),
     linkedTaskIds,
     links: parseLinks(row.links),
     created_by: (row.created_by as string) || undefined,
@@ -97,7 +101,15 @@ async function writeRevision(item: WorkspaceItem, changeType: WorkspaceRevision[
 }
 
 function isMissingColumnError(message?: string) {
-  return Boolean(message && (message.includes('parent_id') || message.includes('sort_order') || message.includes('schema cache')))
+  return Boolean(message && (
+    message.includes('parent_id') ||
+    message.includes('sort_order') ||
+    message.includes('access_mode') ||
+    message.includes('shared_user_ids') ||
+    message.includes('password_hash') ||
+    message.includes('editor_font_size') ||
+    message.includes('schema cache')
+  ))
 }
 
 export const useWorkspaceStore = create<WorkspaceState>((set, get) => ({
@@ -174,6 +186,10 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => ({
       summary: '',
       body: '',
       status: 'draft',
+      access_mode: 'project',
+      shared_user_ids: [],
+      password_hash: null,
+      editor_font_size: 15,
       links: [],
       created_by: currentUserId || null,
       updated_by: currentUserId || null,
@@ -188,10 +204,10 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => ({
     if (error && isMissingColumnError(error.message)) {
       const legacyPayload = {
         project_id: projectId,
-        title: payload.title,
-        summary: payload.summary,
-        body: payload.body,
-        status: payload.status,
+          title: payload.title,
+          summary: payload.summary,
+          body: payload.body,
+          status: payload.status,
         links: payload.links,
         created_by: payload.created_by,
         updated_by: payload.updated_by,
@@ -248,6 +264,10 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => ({
         summary: optimistic.summary || null,
         body: optimistic.body || null,
         status: optimistic.status,
+        access_mode: optimistic.access_mode,
+        shared_user_ids: optimistic.shared_user_ids || [],
+        password_hash: optimistic.password_hash || null,
+        editor_font_size: optimistic.editor_font_size || 15,
         links: optimistic.links || [],
         updated_by: currentUserId || null,
       })

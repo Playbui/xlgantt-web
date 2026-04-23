@@ -149,6 +149,10 @@ export interface WorkspaceItem {
   summary?: string
   body?: string
   status: 'draft' | 'active' | 'done' | 'archived'
+  access_mode: 'project' | 'restricted' | 'password'
+  shared_user_ids: string[]
+  password_hash?: string
+  editor_font_size: number
   linkedTaskIds: string[]
   links: WorkspaceLink[]
   created_by?: string
