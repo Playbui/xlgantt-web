@@ -157,8 +157,8 @@ export function RichContentEditor({
   }
 
   return (
-    <div className={cn('rounded-lg border border-border/60 bg-background', className)}>
-      <div className="flex flex-wrap items-center gap-1 border-b border-border/50 bg-muted/20 px-2 py-2">
+    <div className={cn('rounded-lg border border-slate-300 bg-background', className)}>
+      <div className="flex flex-wrap items-center gap-1 border-b border-slate-300 bg-slate-50 px-2 py-2">
         <Button type="button" variant="ghost" size="icon" className="h-8 w-8" onClick={() => exec('bold')} title="굵게">
           <Bold className="h-4 w-4" />
         </Button>

@@ -244,8 +244,8 @@ export function WorkspaceView() {
 
   return (
     <div className="grid h-full min-h-0 grid-cols-[300px_minmax(0,1fr)_300px] bg-background">
-      <aside className="flex min-h-0 flex-col border-r border-border/60 bg-slate-50/70">
-        <div className="border-b border-border/60 px-4 py-3">
+      <aside className="flex min-h-0 flex-col border-r border-slate-300 bg-slate-50/80">
+        <div className="border-b border-slate-300 px-4 py-3">
           <div className="flex items-center justify-between gap-2">
             <div>
               <div className="text-sm font-semibold text-foreground">업무노트</div>
@@ -265,7 +265,7 @@ export function WorkspaceView() {
         <div className="min-h-0 flex-1 overflow-y-auto p-2">
           {renderTree()}
           {filteredItems.length === 0 && (
-            <div className="rounded-xl border border-dashed border-border/60 bg-background px-4 py-10 text-center text-sm text-muted-foreground">
+            <div className="rounded-xl border border-dashed border-slate-300 bg-background px-4 py-10 text-center text-sm text-muted-foreground">
               검색 결과가 없습니다.
             </div>
           )}
@@ -277,7 +277,7 @@ export function WorkspaceView() {
           <div className="flex h-full items-center justify-center px-6 text-sm text-muted-foreground">업무노트를 불러오는 중입니다...</div>
         ) : selectedItem && draft ? (
           <div className="mx-auto max-w-5xl px-8 py-6">
-            <div className="border-b border-border/60 pb-4">
+            <div className="border-b border-slate-300 pb-4">
               <div className="flex items-center justify-between gap-3">
                 <div className="flex min-w-0 items-center gap-2">
                   <WorkspaceStatusBadge status={draft.status} />
@@ -329,7 +329,7 @@ export function WorkspaceView() {
                 onChange={(e) => updateDraft({ summary: e.target.value })}
                 rows={2}
                 placeholder="문서 목적, 현재 결론, 남은 쟁점을 짧게 적어주세요."
-                className="w-full resize-none rounded-xl border border-border/60 bg-background px-4 py-3 text-sm outline-none placeholder:text-muted-foreground/50 focus-visible:ring-2 focus-visible:ring-ring/20"
+                className="w-full resize-none rounded-xl border border-slate-300 bg-background px-4 py-3 text-sm outline-none placeholder:text-muted-foreground/50 focus-visible:ring-2 focus-visible:ring-ring/20"
               />
 
               <RichContentEditor
@@ -342,7 +342,7 @@ export function WorkspaceView() {
           </div>
         ) : (
           <div className="flex h-full items-center justify-center px-6">
-            <div className="rounded-2xl border border-dashed border-border/60 bg-card px-8 py-12 text-center">
+            <div className="rounded-2xl border border-dashed border-slate-300 bg-card px-8 py-12 text-center">
               <div className="text-lg font-semibold">문서를 만들어보세요</div>
               <p className="mt-2 text-sm text-muted-foreground">트리로 문서를 정리하고 WBS와 연결할 수 있습니다.</p>
               <Button className="mt-5 gap-1.5" onClick={() => void handleCreate(null)} disabled={!currentProject}>
@@ -354,16 +354,16 @@ export function WorkspaceView() {
         )}
       </section>
 
-      <aside className="min-h-0 overflow-y-auto border-l border-border/60 bg-slate-50/50 px-4 py-5">
+      <aside className="min-h-0 overflow-y-auto border-l border-slate-300 bg-slate-50/70 px-4 py-5">
         <div className="space-y-5">
-          <section className="rounded-xl border border-border/60 bg-card">
-            <div className="flex items-center gap-2 border-b border-border/60 px-4 py-3 text-xs font-semibold uppercase tracking-[0.08em] text-muted-foreground">
+          <section className="rounded-xl border border-slate-300 bg-card">
+            <div className="flex items-center gap-2 border-b border-slate-300 px-4 py-3 text-xs font-semibold uppercase tracking-[0.08em] text-muted-foreground">
               <History className="h-4 w-4" />
               수정 이력
             </div>
             <div className="space-y-3 px-4 py-4">
               {itemRevisions.length > 0 ? itemRevisions.map((revision) => (
-                <div key={revision.id} className="rounded-lg border border-border/50 bg-background px-3 py-2">
+                <div key={revision.id} className="rounded-lg border border-slate-300 bg-background px-3 py-2">
                   <div className="flex items-center justify-between gap-2">
                     <span className="text-xs font-medium">{revision.changed_by_name || '사용자'}</span>
                     <span className="text-[10px] text-muted-foreground">{new Date(revision.created_at).toLocaleString('ko-KR')}</span>
@@ -376,8 +376,8 @@ export function WorkspaceView() {
             </div>
           </section>
 
-          <section className="rounded-xl border border-border/60 bg-card">
-            <div className="flex items-center justify-between border-b border-border/60 px-4 py-3">
+          <section className="rounded-xl border border-slate-300 bg-card">
+            <div className="flex items-center justify-between border-b border-slate-300 px-4 py-3">
               <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.08em] text-muted-foreground">
                 <Paperclip className="h-4 w-4" />
                 첨부
@@ -405,7 +405,7 @@ export function WorkspaceView() {
                   href={file.public_url || '#'}
                   target="_blank"
                   rel="noreferrer"
-                  className="block rounded-lg border border-border/50 bg-background px-3 py-2 hover:bg-accent/40"
+                  className="block rounded-lg border border-slate-300 bg-background px-3 py-2 hover:bg-accent/40"
                 >
                   <div className="truncate text-xs font-medium">{file.filename}</div>
                   <div className="mt-1 text-[10px] text-muted-foreground">{formatBytes(file.size)} · {file.uploaded_by_name || '사용자'}</div>
@@ -436,7 +436,7 @@ export function WorkspaceView() {
           </DialogHeader>
           <div className="space-y-3">
             <Input value={wbsQuery} onChange={(e) => setWbsQuery(e.target.value)} placeholder="WBS 코드 또는 작업명 검색" />
-            <div className="max-h-[52vh] overflow-y-auto rounded-xl border border-border/60">
+            <div className="max-h-[52vh] overflow-y-auto rounded-xl border border-slate-300">
               {filteredTasks.map((task) => {
                 const checked = draft?.linkedTaskIds.includes(task.id) || false
                 return (
@@ -444,7 +444,7 @@ export function WorkspaceView() {
                     key={task.id}
                     type="button"
                     onClick={() => toggleTask(task.id)}
-                    className={cn('flex w-full items-center gap-3 border-b border-border/40 px-4 py-3 text-left hover:bg-accent/40', checked && 'bg-primary/5')}
+                    className={cn('flex w-full items-center gap-3 border-b border-slate-200 px-4 py-3 text-left hover:bg-accent/40', checked && 'bg-primary/5')}
                   >
                     <span className={cn('flex h-5 w-5 items-center justify-center rounded border', checked ? 'border-primary bg-primary text-primary-foreground' : 'border-border')}>
                       {checked && <CheckCircle2 className="h-3.5 w-3.5" />}
@@ -476,7 +476,7 @@ export function WorkspaceView() {
                 onClick={() => updateDraft({ status })}
                 className={cn(
                   'flex w-full items-center justify-between rounded-lg border px-3 py-2 text-sm',
-                  draft?.status === status ? 'border-primary/30 bg-primary/5 text-primary' : 'border-border/60 hover:bg-accent/40'
+                  draft?.status === status ? 'border-primary/40 bg-primary/5 text-primary' : 'border-slate-300 hover:bg-accent/40'
                 )}
               >
                 <span>{STATUS_LABELS[status]}</span>
