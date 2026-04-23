@@ -116,6 +116,10 @@ function isMissingColumnError(message?: string) {
   ))
 }
 
+function isMissingSpecificColumn(message: string | undefined, column: string) {
+  return Boolean(message && (message.includes(column) || message.includes('schema cache')))
+}
+
 export const useWorkspaceStore = create<WorkspaceState>((set, get) => ({
   items: [],
   revisions: [],
@@ -207,6 +211,17 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => ({
       .select('*')
       .single()
 
+    if (error && isMissingSpecificColumn(error.message, 'folder_color')) {
+      const { folder_color: _folderColor, ...payloadWithoutFolderColor } = payload
+      const retry = await supabase
+        .from('workspace_items')
+        .insert(payloadWithoutFolderColor)
+        .select('*')
+        .single()
+      data = retry.data
+      error = retry.error
+    }
+
     if (error && isMissingColumnError(error.message)) {
       const legacyPayload = {
           project_id: projectId,
@@ -261,30 +276,43 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => ({
       items: state.items.map((item) => (item.id === id ? optimistic : item)),
     }))
 
+    const updatePayload = {
+      parent_id: optimistic.parent_id || null,
+      item_type: optimistic.item_type || 'document',
+      folder_color: optimistic.folder_color || null,
+      sort_order: optimistic.sort_order,
+      title: optimistic.title,
+      summary: optimistic.summary || null,
+      body: optimistic.body || null,
+      status: optimistic.status,
+      access_mode: optimistic.access_mode,
+      shared_user_ids: optimistic.shared_user_ids || [],
+      password_hash: optimistic.password_hash || null,
+      editor_font_size: optimistic.editor_font_size || 15,
+      links: optimistic.links || [],
+      updated_by: currentUserId || null,
+    }
+
     let { error } = await supabase
       .from('workspace_items')
-      .update({
-        parent_id: optimistic.parent_id || null,
-        item_type: optimistic.item_type || 'document',
-        folder_color: optimistic.folder_color || null,
-        sort_order: optimistic.sort_order,
-        title: optimistic.title,
-        summary: optimistic.summary || null,
-        body: optimistic.body || null,
-        status: optimistic.status,
-        access_mode: optimistic.access_mode,
-        shared_user_ids: optimistic.shared_user_ids || [],
-        password_hash: optimistic.password_hash || null,
-        editor_font_size: optimistic.editor_font_size || 15,
-        links: optimistic.links || [],
-        updated_by: currentUserId || null,
-      })
+      .update(updatePayload)
       .eq('id', id)
+
+    if (error && isMissingSpecificColumn(error.message, 'folder_color')) {
+      const { folder_color: _folderColor, ...payloadWithoutFolderColor } = updatePayload
+      const retry = await supabase
+        .from('workspace_items')
+        .update(payloadWithoutFolderColor)
+        .eq('id', id)
+      error = retry.error
+    }
 
     if (error && isMissingColumnError(error.message)) {
       const legacyResult = await supabase
         .from('workspace_items')
         .update({
+          parent_id: optimistic.parent_id || null,
+          sort_order: optimistic.sort_order,
           title: optimistic.title,
           summary: optimistic.summary || null,
           body: optimistic.body || null,
