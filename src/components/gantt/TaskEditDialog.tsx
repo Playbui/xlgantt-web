@@ -76,7 +76,6 @@ export function TaskEditDialog({ taskId, open, onClose }: TaskEditDialogProps) {
   const [actualEnd, setActualEnd] = useState('')
   const [totalWorkload, setTotalWorkload] = useState('')
   const [actualProgress, setActualProgress] = useState('')
-  const [useActualOverride, setUseActualOverride] = useState(false)
   const [taskBody, setTaskBody] = useState('')
   const [calendarType, setCalendarType] = useState('STD')
   const [isMilestone, setIsMilestone] = useState(false)
@@ -99,10 +98,7 @@ export function TaskEditDialog({ taskId, open, onClose }: TaskEditDialogProps) {
       setActualStart(task.actual_start || '')
       setActualEnd(task.actual_end || '')
       setTotalWorkload(task.total_workload?.toString() || '')
-      const hasActualOverride = task.actual_progress_override != null
-      setUseActualOverride(hasActualOverride)
-      const progressValue = hasActualOverride ? (task.actual_progress_override ?? 0) : task.actual_progress
-      setActualProgress((progressValue * 100).toString())
+      setActualProgress((task.actual_progress * 100).toString())
       setTaskBody(task.task_body || task.remarks || '')
       setCalendarType(task.calendar_type || 'STD')
       setIsMilestone(task.is_milestone || false)
@@ -155,26 +151,12 @@ export function TaskEditDialog({ taskId, open, onClose }: TaskEditDialogProps) {
   }, [taskId, workspaceItems])
 
   const hasDetails = currentDetails.length > 0
-  const hasAssignments = taskAssignments.length > 0
 
   const detailProgress = useMemo(() => {
     if (currentDetails.length === 0) return null
     const done = currentDetails.filter((d) => d.status === 'done').length
     return Math.round((done / currentDetails.length) * 100)
   }, [currentDetails])
-
-  const assignmentProgress = useMemo(() => {
-    if (taskAssignments.length === 0) return null
-    const totalAllocation = taskAssignments.reduce((sum, a) => sum + Math.max(0, a.allocation_percent || 0), 0)
-    const totalWeight = totalAllocation > 0 ? totalAllocation : taskAssignments.length
-    if (totalWeight <= 0) return 0
-    const weighted = taskAssignments.reduce((sum, a) => {
-      const weight = totalAllocation > 0 ? Math.max(0, a.allocation_percent || 0) : 1
-      const memberProgress = Math.max(0, Math.min(100, a.progress_percent || 0))
-      return sum + (memberProgress * weight)
-    }, 0) / totalWeight
-    return Math.round(weighted)
-  }, [taskAssignments])
 
   const handleDetailStatusChange = (detailId: string, currentStatus: string) => {
     const next = currentStatus === 'todo' ? 'in_progress' : currentStatus === 'in_progress' ? 'done' : 'todo'
@@ -202,23 +184,9 @@ export function TaskEditDialog({ taskId, open, onClose }: TaskEditDialogProps) {
     if (!hasDetails) {
       changes.total_workload = totalWorkload ? parseFloat(totalWorkload) : undefined
     }
-    // 실적 진척률: 세부항목이 있으면 자동 기본, 필요 시 PM이 수동 override
+    // 세부항목이 있으면 resource-store 쪽 자동 진척률을 유지합니다.
     if (!isGroup) {
-      if (hasDetails) {
-        if (useActualOverride) {
-          changes.actual_progress = actualProgress ? parseFloat(actualProgress) / 100 : 0
-        } else {
-          // 세부항목 자동 계산 모드 유지 (override만 해제)
-          changes.actual_progress_override = undefined
-        }
-      } else if (hasAssignments) {
-        if (useActualOverride) {
-          changes.actual_progress = actualProgress ? parseFloat(actualProgress) / 100 : 0
-        } else {
-          // 담당자 진척률 자동 계산 모드 유지 (override만 해제)
-          changes.actual_progress_override = undefined
-        }
-      } else {
+      if (!hasDetails) {
         changes.actual_progress = actualProgress ? parseFloat(actualProgress) / 100 : 0
       }
     }
@@ -243,7 +211,7 @@ export function TaskEditDialog({ taskId, open, onClose }: TaskEditDialogProps) {
     const existingMemberIds = new Set(taskAssignments.map(a => a.member_id))
     newAssignMemberIds.forEach((memberId) => {
       if (!existingMemberIds.has(memberId)) {
-        addAssignment({ id: crypto.randomUUID(), task_id: taskId, member_id: memberId, allocation_percent: parseInt(newAssignPercent) || 100, progress_percent: 0 })
+        addAssignment({ id: crypto.randomUUID(), task_id: taskId, member_id: memberId, allocation_percent: parseInt(newAssignPercent) || 100 })
       }
     })
     setNewAssignMemberIds([])
@@ -329,27 +297,14 @@ export function TaskEditDialog({ taskId, open, onClose }: TaskEditDialogProps) {
                         max="100"
                         value={
                           hasDetails
-                            ? (useActualOverride ? actualProgress : String(detailProgress ?? 0))
-                            : hasAssignments
-                              ? (useActualOverride ? actualProgress : String(assignmentProgress ?? 0))
-                              : actualProgress
+                            ? String(detailProgress ?? 0)
+                            : actualProgress
                         }
                         onChange={(e) => setActualProgress(e.target.value)}
-                        className={cn(fieldCls, (hasDetails || hasAssignments) && !useActualOverride && "bg-muted/60 text-muted-foreground")}
-                        disabled={isGroup || ((hasDetails || hasAssignments) && !useActualOverride)}
+                        className={cn(fieldCls, hasDetails && "bg-muted/60 text-muted-foreground")}
+                        disabled={isGroup || hasDetails}
                       />
-                      {(hasDetails || hasAssignments) && (
-                        <label className="mt-1 flex items-center gap-1.5 text-[10px] text-muted-foreground/70">
-                          <input
-                            type="checkbox"
-                            checked={useActualOverride}
-                            onChange={(e) => setUseActualOverride(e.target.checked)}
-                            className="w-3 h-3 rounded accent-primary"
-                            disabled={isGroup}
-                          />
-                          PM 수동값 사용 (해제하면 {hasDetails ? '세부항목' : '담당자'} 자동 계산)
-                        </label>
-                      )}
+                      {hasDetails && <span className="text-[10px] text-muted-foreground/60 mt-0.5 block">세부항목 완료율 기준 자동 계산</span>}
                     </Field>
                   </div>
                 </div>
@@ -368,35 +323,12 @@ export function TaskEditDialog({ taskId, open, onClose }: TaskEditDialogProps) {
                           <div className="mt-1 text-[10px] text-muted-foreground/70 leading-none">{a.company?.shortName || '미지정'}</div>
                         </div>
 
-                        <div className="ml-auto flex items-center gap-1.5 min-w-[210px]">
-                          <span className="text-[10px] text-muted-foreground/80 whitespace-nowrap">진척률</span>
-                          <Input
-                            type="number"
-                            min={0}
-                            max={100}
-                            value={a.progress_percent ?? 0}
-                            onChange={(e) => {
-                              const parsed = Number.parseInt(e.target.value, 10)
-                              if (Number.isNaN(parsed)) return
-                              updateAssignment(a.id, { progress_percent: Math.max(0, Math.min(100, parsed)) })
-                            }}
-                            className="h-7 w-16 text-xs text-right px-2 font-semibold"
-                          />
-                          <span className="text-[11px] font-semibold text-foreground/90">%</span>
-                        </div>
-
                         <Button variant="ghost" size="icon" className="h-6 w-6 opacity-0 group-hover/assign:opacity-70" onClick={() => removeAssignment(a.id)}>
                           <X className="h-3.5 w-3.5 text-red-500" />
                         </Button>
                       </div>
 
-                      <div className="mt-2 grid grid-cols-[1fr_auto] items-center gap-2">
-                        <div className="h-1.5 rounded-full bg-muted overflow-hidden">
-                          <div
-                            className="h-full rounded-full bg-primary transition-all"
-                            style={{ width: `${Math.max(0, Math.min(100, a.progress_percent ?? 0))}%` }}
-                          />
-                        </div>
+                      <div className="mt-2 flex items-center justify-end gap-2">
                         <div className="flex items-center gap-1">
                           <span className="text-[10px] text-muted-foreground/70 whitespace-nowrap">투입률</span>
                           <Input
@@ -423,8 +355,6 @@ export function TaskEditDialog({ taskId, open, onClose }: TaskEditDialogProps) {
                         onChange={setNewAssignMemberIds}
                         placeholder="담당자 선택..."
                         size="sm"
-                        className="w-full justify-between"
-                        popoverClassName="w-[min(92vw,720px)] max-w-[720px]"
                       />
                     </div>
                     <Input type="number" min="1" max="100" value={newAssignPercent} onChange={(e) => setNewAssignPercent(e.target.value)} className="w-18 h-7 text-xs px-1.5 text-right" placeholder="투입%" />
@@ -752,8 +682,6 @@ export function TaskEditDialog({ taskId, open, onClose }: TaskEditDialogProps) {
                         onChange={(ids) => updateTaskDetail(detail.id, { assignee_ids: ids, assignee_id: ids[0] || undefined })}
                         placeholder="담당자"
                         size="sm"
-                        className="min-w-[220px] justify-between"
-                        popoverClassName="w-[min(92vw,720px)] max-w-[720px]"
                       />
                       <DatePicker
                         value={detail.due_date || ''}

@@ -245,7 +245,7 @@ export function WorkspaceView() {
                     </div>
                   </div>
                   <RichContentEditor
-                    value={selectedItem.body}
+                    value={selectedItem.body || ''}
                     onChange={(value) => scheduleUpdate({ body: value })}
                     minHeight={520}
                     placeholder={'예)\n- 조사 배경\n- 비교안\n- 회의 메모\n- 미결 이슈\n- 다음 액션'}
