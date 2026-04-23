@@ -161,7 +161,7 @@ export function WorkspaceView() {
   const [shareUsersLoading, setShareUsersLoading] = useState(false)
   const [shareUsersError, setShareUsersError] = useState('')
   const [draggedItemId, setDraggedItemId] = useState<string | null>(null)
-  const [dragOverFolderId, setDragOverFolderId] = useState<string | null>(null)
+  const [dragOverTarget, setDragOverTarget] = useState<{ id: string; position: 'before' | 'inside' | 'after' } | null>(null)
 
   const selectedItem =
     items.find((item) => item.id === selectedItemId) ??
@@ -419,20 +419,48 @@ export function WorkspaceView() {
     return false
   }
 
-  const moveItemToFolder = async (itemId: string, targetFolderId: string | null) => {
+  const moveItemToPosition = async (
+    itemId: string,
+    targetParentId: string | null,
+    targetIndex: number,
+  ) => {
     const moving = items.find((item) => item.id === itemId)
     if (!moving) return
-    const target = targetFolderId ? items.find((item) => item.id === targetFolderId) : null
-    if (targetFolderId && (!target || target.item_type !== 'folder')) return
-    if (targetFolderId === itemId || (targetFolderId && isDescendantOf(targetFolderId, itemId))) return
+    if (targetParentId === itemId || (targetParentId && isDescendantOf(targetParentId, itemId))) return
 
-    const nextParentId = targetFolderId || undefined
-    const siblingCount = items.filter((item) => item.id !== itemId && (item.parent_id || null) === (targetFolderId || null)).length
-    await updateItem(itemId, {
-      parent_id: nextParentId,
-      sort_order: (siblingCount + 1) * 1000,
-    }, 'structure')
-    if (targetFolderId) setExpandedIds((prev) => new Set([...prev, targetFolderId]))
+    const siblings = items
+      .filter((item) => item.id !== itemId && (item.parent_id || null) === (targetParentId || null))
+      .sort((a, b) => a.sort_order - b.sort_order || a.title.localeCompare(b.title, 'ko'))
+    const nextItems = [...siblings]
+    nextItems.splice(Math.max(0, Math.min(targetIndex, nextItems.length)), 0, moving)
+
+    for (let index = 0; index < nextItems.length; index += 1) {
+      const item = nextItems[index]
+      const nextParent = targetParentId || undefined
+      const nextSort = (index + 1) * 1000
+      if (item.id === itemId || item.parent_id !== nextParent || item.sort_order !== nextSort) {
+        await updateItem(item.id, { parent_id: nextParent, sort_order: nextSort }, 'structure')
+      }
+    }
+    if (targetParentId) setExpandedIds((prev) => new Set([...prev, targetParentId]))
+  }
+
+  const moveItemToDropTarget = async (itemId: string, targetId: string, position: 'before' | 'inside' | 'after') => {
+    const target = items.find((item) => item.id === targetId)
+    if (!target || target.id === itemId) return
+    if (position === 'inside') {
+      if (target.item_type !== 'folder') return
+      const childCount = items.filter((item) => (item.parent_id || null) === target.id).length
+      await moveItemToPosition(itemId, target.id, childCount)
+      return
+    }
+
+    const targetParentId = target.parent_id || null
+    const siblings = items
+      .filter((item) => item.id !== itemId && (item.parent_id || null) === targetParentId)
+      .sort((a, b) => a.sort_order - b.sort_order || a.title.localeCompare(b.title, 'ko'))
+    const targetIndex = siblings.findIndex((item) => item.id === target.id)
+    await moveItemToPosition(itemId, targetParentId, position === 'before' ? targetIndex : targetIndex + 1)
   }
 
   const renderTree = (parentId?: string, depth = 0): React.ReactNode => {
@@ -441,6 +469,7 @@ export function WorkspaceView() {
       const hasChildren = (tree.get(item.id) || []).length > 0
       const expanded = expandedIds.has(item.id)
       const active = item.id === selectedItem?.id
+      const dragState = dragOverTarget?.id === item.id ? dragOverTarget.position : null
       return (
         <div key={item.id}>
           <div
@@ -453,30 +482,40 @@ export function WorkspaceView() {
             }}
             onDragEnd={() => {
               setDraggedItemId(null)
-              setDragOverFolderId(null)
+              setDragOverTarget(null)
             }}
             onDragOver={(e) => {
-              if (item.item_type !== 'folder' || !draggedItemId || draggedItemId === item.id) return
+              if (!draggedItemId || draggedItemId === item.id) return
               e.preventDefault()
               e.dataTransfer.dropEffect = 'move'
-              setDragOverFolderId(item.id)
+              const rect = e.currentTarget.getBoundingClientRect()
+              const y = e.clientY - rect.top
+              const ratio = y / Math.max(rect.height, 1)
+              const position =
+                item.item_type === 'folder' && ratio > 0.25 && ratio < 0.75
+                  ? 'inside'
+                  : ratio <= 0.5 ? 'before' : 'after'
+              setDragOverTarget({ id: item.id, position })
             }}
             onDragLeave={() => {
-              if (dragOverFolderId === item.id) setDragOverFolderId(null)
+              if (dragOverTarget?.id === item.id) setDragOverTarget(null)
             }}
             onDrop={async (e) => {
               e.preventDefault()
               e.stopPropagation()
               const movingId = e.dataTransfer.getData('text/plain') || draggedItemId
-              setDragOverFolderId(null)
+              const target = dragOverTarget
+              setDragOverTarget(null)
               setDraggedItemId(null)
-              if (item.item_type === 'folder' && movingId) await moveItemToFolder(movingId, item.id)
+              if (movingId && target?.id === item.id) await moveItemToDropTarget(movingId, item.id, target.position)
             }}
             className={cn(
-              'group flex h-9 items-center gap-1 rounded-lg px-2 text-left text-sm transition-colors',
+              'group relative flex h-9 items-center gap-1 rounded-lg px-2 text-left text-sm transition-colors',
               active ? 'bg-primary/8 text-primary' : 'hover:bg-accent/50',
               draggedItemId === item.id && 'opacity-45',
-              dragOverFolderId === item.id && 'bg-amber-100/80 ring-2 ring-amber-300'
+              dragState === 'inside' && 'bg-amber-100/80 ring-2 ring-amber-300',
+              dragState === 'before' && 'before:absolute before:left-2 before:right-2 before:top-0 before:h-0.5 before:rounded-full before:bg-blue-500',
+              dragState === 'after' && 'after:absolute after:bottom-0 after:left-2 after:right-2 after:h-0.5 after:rounded-full after:bg-blue-500'
             )}
             style={{ paddingLeft: 8 + depth * 14 }}
           >
@@ -559,24 +598,27 @@ export function WorkspaceView() {
         </div>
 
         <div
-          className={cn('min-h-0 flex-1 overflow-y-auto p-2', dragOverFolderId === 'root' && 'bg-blue-50/70')}
+          className={cn('min-h-0 flex-1 overflow-y-auto p-2', dragOverTarget?.id === 'root' && 'bg-blue-50/70')}
           onDragOver={(e) => {
             if (!draggedItemId) return
             if ((e.target as HTMLElement).closest('[data-workspace-tree-item]')) return
             e.preventDefault()
             e.dataTransfer.dropEffect = 'move'
-            setDragOverFolderId('root')
+            setDragOverTarget({ id: 'root', position: 'inside' })
           }}
           onDragLeave={() => {
-            if (dragOverFolderId === 'root') setDragOverFolderId(null)
+            if (dragOverTarget?.id === 'root') setDragOverTarget(null)
           }}
           onDrop={async (e) => {
             e.preventDefault()
             if ((e.target as HTMLElement).closest('[data-workspace-tree-item]')) return
             const movingId = e.dataTransfer.getData('text/plain') || draggedItemId
-            setDragOverFolderId(null)
+            setDragOverTarget(null)
             setDraggedItemId(null)
-            if (movingId) await moveItemToFolder(movingId, null)
+            if (movingId) {
+              const rootCount = items.filter((item) => !item.parent_id && item.id !== movingId).length
+              await moveItemToPosition(movingId, null, rootCount)
+            }
           }}
         >
           {renderTree()}
@@ -606,11 +648,15 @@ export function WorkspaceView() {
           <div className="flex h-full items-center justify-center px-6">
             <div className="w-full max-w-xl rounded-3xl border border-amber-200 bg-[linear-gradient(135deg,#fffaf0,#f8fbff)] px-8 py-10 text-center shadow-sm">
               <FolderOpen className="mx-auto h-12 w-12" style={{ color: draft.folder_color || '#f59e0b' }} />
+              <div className="mt-5 text-xs font-bold uppercase tracking-[0.12em] text-amber-700">폴더명 변경</div>
               <Input
                 value={draft.title}
                 onChange={(e) => updateDraft({ title: e.target.value })}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') void saveDraft('structure')
+                }}
                 placeholder="폴더명"
-                className="mx-auto mt-5 h-12 max-w-md border-none bg-transparent text-center text-3xl font-black shadow-none focus-visible:ring-0"
+                className="mx-auto mt-2 h-12 max-w-md border-amber-200 bg-white/80 text-center text-3xl font-black shadow-none focus-visible:ring-2 focus-visible:ring-amber-200"
               />
               <p className="mt-2 text-sm text-slate-600">이 폴더 아래에 문서나 하위 폴더를 추가해서 자료를 정리합니다.</p>
               <div className="mt-4 flex items-center justify-center gap-3">
