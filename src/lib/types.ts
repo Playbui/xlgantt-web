@@ -144,6 +144,7 @@ export interface WorkspaceItem {
   id: string
   project_id: string
   parent_id?: string
+  item_type: 'folder' | 'document'
   sort_order: number
   title: string
   summary?: string

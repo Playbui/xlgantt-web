@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef } from 'react'
-import { Bold, ImagePlus, Italic, List, ListOrdered, Table2, Underline } from 'lucide-react'
+import { Bold, Heading1, Heading2, Heading3, ImagePlus, Italic, List, ListOrdered, Minus, Pilcrow, Table2, Underline } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
 
@@ -10,7 +10,6 @@ interface RichContentEditorProps {
   className?: string
   minHeight?: number
   fontSize?: number
-  onFontSizeChange?: (fontSize: number) => void
   onUploadImages?: (files: File[]) => Promise<string[]>
 }
 
@@ -39,7 +38,6 @@ export function RichContentEditor({
   className,
   minHeight = 360,
   fontSize = 15,
-  onFontSizeChange,
   onUploadImages,
 }: RichContentEditorProps) {
   const editorRef = useRef<HTMLDivElement | null>(null)
@@ -134,6 +132,14 @@ export function RichContentEditor({
     `)
   }
 
+  const formatBlock = (tagName: 'p' | 'h1' | 'h2' | 'h3') => {
+    exec('formatBlock', tagName)
+  }
+
+  const insertDivider = () => {
+    insertHtml('<hr style="border:0; border-top:1px solid rgba(15,23,42,.18); margin:20px 0;" /><p></p>')
+  }
+
   const insertImageFromFiles = async (files: File[]) => {
     const imageFiles = files.filter((file) => file.type.startsWith('image/'))
     for (const file of imageFiles) {
@@ -163,6 +169,20 @@ export function RichContentEditor({
   return (
     <div className={cn('rounded-lg border border-slate-300 bg-background', className)}>
       <div className="flex flex-wrap items-center gap-1 border-b border-slate-300 bg-slate-50 px-2 py-2">
+        <Button type="button" variant="ghost" size="sm" className="h-8 px-2 text-xs font-bold" onClick={() => formatBlock('p')} title="본문">
+          <Pilcrow className="mr-1 h-3.5 w-3.5" />
+          본문
+        </Button>
+        <Button type="button" variant="ghost" size="icon" className="h-8 w-8" onClick={() => formatBlock('h1')} title="제목 1">
+          <Heading1 className="h-4 w-4" />
+        </Button>
+        <Button type="button" variant="ghost" size="icon" className="h-8 w-8" onClick={() => formatBlock('h2')} title="제목 2">
+          <Heading2 className="h-4 w-4" />
+        </Button>
+        <Button type="button" variant="ghost" size="icon" className="h-8 w-8" onClick={() => formatBlock('h3')} title="제목 3">
+          <Heading3 className="h-4 w-4" />
+        </Button>
+        <div className="mx-1 h-4 w-px bg-border" />
         <Button type="button" variant="ghost" size="icon" className="h-8 w-8" onClick={() => exec('bold')} title="굵게">
           <Bold className="h-4 w-4" />
         </Button>
@@ -182,6 +202,9 @@ export function RichContentEditor({
         <Button type="button" variant="ghost" size="icon" className="h-8 w-8" onClick={insertTable} title="표 삽입">
           <Table2 className="h-4 w-4" />
         </Button>
+        <Button type="button" variant="ghost" size="icon" className="h-8 w-8" onClick={insertDivider} title="구분선">
+          <Minus className="h-4 w-4" />
+        </Button>
         <label className="inline-flex cursor-pointer items-center justify-center">
           <input
             type="file"
@@ -200,22 +223,6 @@ export function RichContentEditor({
           </span>
         </label>
         <div className="ml-auto flex items-center gap-2 text-[11px] text-muted-foreground">
-          {onFontSizeChange && (
-            <>
-              <span className="whitespace-nowrap">본문 크기</span>
-              <input
-                type="range"
-                min={13}
-                max={22}
-                value={fontSize}
-                onChange={(e) => onFontSizeChange(Number(e.target.value))}
-                className="w-24 accent-primary"
-                title="본문 텍스트 크기"
-              />
-              <span className="w-8 text-right font-semibold text-foreground/80">{fontSize}px</span>
-              <span className="mx-1 h-4 w-px bg-border" />
-            </>
-          )}
           <span>이미지 드래그, 붙여넣기, 표 삽입 지원</span>
         </div>
       </div>

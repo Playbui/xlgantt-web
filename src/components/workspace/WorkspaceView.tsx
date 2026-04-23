@@ -3,7 +3,11 @@ import {
   CheckCircle2,
   ChevronDown,
   ChevronRight,
+  FileText,
   FilePlus2,
+  Folder,
+  FolderPlus,
+  FolderOpen,
   History,
   KeyRound,
   Link2,
@@ -43,7 +47,7 @@ const STATUS_TONES = {
   archived: 'bg-slate-100 text-slate-600 border-slate-200',
 } as const
 
-type DraftState = Pick<WorkspaceItem, 'title' | 'summary' | 'body' | 'status' | 'linkedTaskIds' | 'access_mode' | 'shared_user_ids' | 'password_hash' | 'editor_font_size'>
+type DraftState = Pick<WorkspaceItem, 'title' | 'summary' | 'body' | 'status' | 'linkedTaskIds' | 'access_mode' | 'shared_user_ids' | 'password_hash' | 'editor_font_size' | 'item_type'>
 
 const ACCESS_LABELS = {
   project: '프로젝트 공개',
@@ -64,6 +68,17 @@ const ACCESS_TONES = {
   restricted: 'border-sky-200 bg-sky-50 text-sky-700',
   password: 'border-amber-200 bg-amber-50 text-amber-700',
   private: 'border-slate-300 bg-slate-100 text-slate-700',
+} as const
+
+const REVISION_LABELS = {
+  created: '문서 생성',
+  title: '제목 변경',
+  summary: '요약 변경',
+  body: '본문 저장',
+  status: '상태 변경',
+  wbs: 'WBS 연결 변경',
+  attachment: '첨부 변경',
+  structure: '설정 변경',
 } as const
 
 async function hashText(text: string) {
@@ -158,6 +173,7 @@ export function WorkspaceView() {
     }
     setDraft({
       title: selectedItem.title,
+      item_type: selectedItem.item_type || 'document',
       summary: selectedItem.summary || '',
       body: selectedItem.body || '',
       status: selectedItem.status,
@@ -193,8 +209,10 @@ export function WorkspaceView() {
 
   const itemRevisions = useMemo(() => {
     if (!selectedItem) return []
-    return revisions.filter((revision) => revision.workspace_item_id === selectedItem.id).slice(0, 12)
+    return revisions.filter((revision) => revision.workspace_item_id === selectedItem.id)
   }, [revisions, selectedItem])
+
+  const visibleRevisions = itemRevisions.slice(0, 5)
 
   const itemAttachments = useMemo(() => {
     if (!selectedItem) return []
@@ -271,10 +289,10 @@ export function WorkspaceView() {
     }
   }
 
-  const handleCreate = async (parentId?: string | null) => {
+  const handleCreate = async (parentId?: string | null, itemType: WorkspaceItem['item_type'] = 'document') => {
     if (!currentProject) return
-    if (dirty && !confirm('저장하지 않은 변경이 있습니다. 새 문서를 만들까요?')) return
-    const id = await createItem(currentProject.id, parentId)
+    if (dirty && !confirm('저장하지 않은 변경이 있습니다. 새 항목을 만들까요?')) return
+    const id = await createItem(currentProject.id, parentId, itemType)
     if (id && parentId) setExpandedIds((prev) => new Set([...prev, parentId]))
   }
 
@@ -359,18 +377,32 @@ export function WorkspaceView() {
               {hasChildren ? (
                 expanded ? <ChevronDown className="h-3.5 w-3.5" /> : <ChevronRight className="h-3.5 w-3.5" />
               ) : (
-                <span className="h-1.5 w-1.5 rounded-full bg-muted-foreground/30" />
+                <span className="h-5 w-5" />
               )}
             </button>
-            <button type="button" className="min-w-0 flex-1 truncate text-left" onClick={() => handleSelectItem(item.id)}>
+            <button type="button" className="flex min-w-0 flex-1 items-center gap-1.5 truncate text-left" onClick={() => handleSelectItem(item.id)}>
+              {item.item_type === 'folder'
+                ? expanded ? <FolderOpen className="h-4 w-4 flex-shrink-0 text-amber-600" /> : <Folder className="h-4 w-4 flex-shrink-0 text-amber-600" />
+                : <FileText className="h-4 w-4 flex-shrink-0 text-slate-500" />}
               {item.title || '제목 없음'}
             </button>
-            {item.access_mode !== 'project' && <Lock className="h-3.5 w-3.5 text-muted-foreground" />}
-            {item.linkedTaskIds.length > 0 && <span className="text-[10px] text-muted-foreground">W{item.linkedTaskIds.length}</span>}
+            {item.item_type === 'document' && item.access_mode !== 'project' && <Lock className="h-3.5 w-3.5 text-muted-foreground" />}
+            {item.item_type === 'document' && item.linkedTaskIds.length > 0 && <span className="text-[10px] text-muted-foreground">W{item.linkedTaskIds.length}</span>}
+            {item.item_type === 'folder' && <span className="text-[10px] text-muted-foreground">{(tree.get(item.id) || []).length}</span>}
+            {item.item_type === 'folder' && (
+              <button
+                type="button"
+                className="hidden h-6 w-6 items-center justify-center rounded hover:bg-background group-hover:flex"
+                onClick={() => void handleCreate(item.id, 'folder')}
+                title="하위 폴더 추가"
+              >
+                <FolderPlus className="h-3.5 w-3.5" />
+              </button>
+            )}
             <button
               type="button"
               className="hidden h-6 w-6 items-center justify-center rounded hover:bg-background group-hover:flex"
-              onClick={() => void handleCreate(item.id)}
+              onClick={() => void handleCreate(item.id, 'document')}
               title="하위 문서 추가"
             >
               <FilePlus2 className="h-3.5 w-3.5" />
@@ -391,10 +423,16 @@ export function WorkspaceView() {
               <div className="text-sm font-semibold text-foreground">업무노트</div>
               <p className="mt-1 text-xs text-muted-foreground">문서 트리와 WBS를 연결해 관리합니다.</p>
             </div>
-            <Button size="sm" className="h-8 gap-1.5" onClick={() => void handleCreate(null)} disabled={!currentProject}>
-              <FilePlus2 className="h-3.5 w-3.5" />
-              문서
-            </Button>
+            <div className="flex gap-1">
+              <Button size="sm" variant="outline" className="h-8 gap-1.5 bg-white" onClick={() => void handleCreate(null, 'folder')} disabled={!currentProject}>
+                <FolderPlus className="h-3.5 w-3.5" />
+                폴더
+              </Button>
+              <Button size="sm" className="h-8 gap-1.5" onClick={() => void handleCreate(null, 'document')} disabled={!currentProject}>
+                <FilePlus2 className="h-3.5 w-3.5" />
+                문서
+              </Button>
+            </div>
           </div>
           <div className="relative mt-3">
             <Search className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground/50" />
@@ -415,6 +453,32 @@ export function WorkspaceView() {
       <section className="min-h-0 overflow-y-auto">
         {isLoading ? (
           <div className="flex h-full items-center justify-center px-6 text-sm text-muted-foreground">업무노트를 불러오는 중입니다...</div>
+        ) : selectedItem && draft && draft.item_type === 'folder' ? (
+          <div className="flex h-full items-center justify-center px-6">
+            <div className="w-full max-w-xl rounded-3xl border border-amber-200 bg-[linear-gradient(135deg,#fffaf0,#f8fbff)] px-8 py-10 text-center shadow-sm">
+              <FolderOpen className="mx-auto h-12 w-12 text-amber-600" />
+              <Input
+                value={draft.title}
+                onChange={(e) => updateDraft({ title: e.target.value })}
+                placeholder="폴더명"
+                className="mx-auto mt-5 h-12 max-w-md border-none bg-transparent text-center text-3xl font-black shadow-none focus-visible:ring-0"
+              />
+              <p className="mt-2 text-sm text-slate-600">이 폴더 아래에 문서나 하위 폴더를 추가해서 자료를 정리합니다.</p>
+              <div className="mt-6 flex justify-center gap-2">
+                <Button variant="outline" className="gap-1.5 bg-white" onClick={() => void handleCreate(selectedItem.id, 'folder')}>
+                  <FolderPlus className="h-4 w-4" />
+                  하위 폴더
+                </Button>
+                <Button className="gap-1.5" onClick={() => void handleCreate(selectedItem.id, 'document')}>
+                  <FilePlus2 className="h-4 w-4" />
+                  문서 추가
+                </Button>
+                <Button variant="outline" onClick={() => void saveDraft('structure')} disabled={!dirty || saving}>
+                  {saving ? '저장 중' : '폴더 저장'}
+                </Button>
+              </div>
+            </div>
+          </div>
         ) : selectedItem && draft && !selectedLocked ? (
           <div className="mx-auto max-w-5xl px-8 py-6">
             <div className="rounded-2xl border border-slate-300 bg-[linear-gradient(135deg,#f8fbff_0%,#eef7f4_58%,#f7f8fb_100%)] p-5 shadow-sm">
@@ -495,7 +559,6 @@ export function WorkspaceView() {
                 onChange={(value) => updateDraft({ body: value })}
                 minHeight={560}
                 fontSize={draft.editor_font_size}
-                onFontSizeChange={(fontSize) => updateDraft({ editor_font_size: fontSize })}
                 placeholder={'조사 배경, 검토안, 회의 메모, 결정사항, 미결 이슈를 자유롭게 작성하세요.'}
               />
             </div>
@@ -516,7 +579,7 @@ export function WorkspaceView() {
             <div className="rounded-2xl border border-dashed border-slate-300 bg-card px-8 py-12 text-center">
               <div className="text-lg font-semibold">문서를 만들어보세요</div>
               <p className="mt-2 text-sm text-muted-foreground">트리로 문서를 정리하고 WBS와 연결할 수 있습니다.</p>
-              <Button className="mt-5 gap-1.5" onClick={() => void handleCreate(null)} disabled={!currentProject}>
+              <Button className="mt-5 gap-1.5" onClick={() => void handleCreate(null, 'document')} disabled={!currentProject}>
                 <FilePlus2 className="h-4 w-4" />
                 첫 문서 만들기
               </Button>
@@ -527,26 +590,6 @@ export function WorkspaceView() {
 
       <aside className="min-h-0 overflow-y-auto border-l border-slate-300 bg-slate-50/70 px-4 py-5">
         <div className="space-y-5">
-          <section className="rounded-xl border border-slate-300 bg-card">
-            <div className="flex items-center gap-2 border-b border-slate-300 px-4 py-3 text-xs font-semibold uppercase tracking-[0.08em] text-muted-foreground">
-              <History className="h-4 w-4" />
-              수정 이력
-            </div>
-            <div className="space-y-3 px-4 py-4">
-              {itemRevisions.length > 0 ? itemRevisions.map((revision) => (
-                <div key={revision.id} className="rounded-lg border border-slate-300 bg-background px-3 py-2">
-                  <div className="flex items-center justify-between gap-2">
-                    <span className="text-xs font-medium">{revision.changed_by_name || '사용자'}</span>
-                    <span className="text-[10px] text-muted-foreground">{new Date(revision.created_at).toLocaleString('ko-KR')}</span>
-                  </div>
-                  <div className="mt-1 text-[11px] text-muted-foreground">{revision.change_type}</div>
-                </div>
-              )) : (
-                <div className="text-xs text-muted-foreground">아직 표시할 이력이 없습니다.</div>
-              )}
-            </div>
-          </section>
-
           <section className="rounded-xl border border-slate-300 bg-card">
             <div className="flex items-center justify-between border-b border-slate-300 px-4 py-3">
               <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.08em] text-muted-foreground">
@@ -559,7 +602,7 @@ export function WorkspaceView() {
                   type="file"
                   className="hidden"
                   multiple
-                  disabled={!selectedItem}
+                  disabled={!selectedItem || selectedItem.item_type === 'folder'}
                   onChange={async (e) => {
                     if (!selectedItem) return
                     const files = Array.from(e.target.files || [])
@@ -582,7 +625,33 @@ export function WorkspaceView() {
                   <div className="mt-1 text-[10px] text-muted-foreground">{formatBytes(file.size)} · {file.uploaded_by_name || '사용자'}</div>
                 </a>
               )) : (
-                <div className="text-xs text-muted-foreground">첨부된 문서가 없습니다.</div>
+                <div className="text-xs text-muted-foreground">{selectedItem?.item_type === 'folder' ? '폴더에는 첨부를 추가하지 않습니다.' : '첨부된 문서가 없습니다.'}</div>
+              )}
+            </div>
+          </section>
+
+          <section className="rounded-xl border border-slate-300 bg-card">
+            <div className="flex items-center justify-between border-b border-slate-300 px-4 py-3">
+              <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.08em] text-muted-foreground">
+                <History className="h-4 w-4" />
+                수정 이력
+              </div>
+              <span className="text-[10px] text-muted-foreground">최근 {Math.min(itemRevisions.length, 5)} / {itemRevisions.length}</span>
+            </div>
+            <div className="max-h-80 space-y-2 overflow-y-auto px-4 py-4">
+              {visibleRevisions.length > 0 ? visibleRevisions.map((revision) => (
+                <div key={revision.id} className="rounded-lg border border-slate-300 bg-background px-3 py-2">
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="text-xs font-semibold">{REVISION_LABELS[revision.change_type] || '변경 저장'}</span>
+                    <span className="text-[10px] text-muted-foreground">{new Date(revision.created_at).toLocaleString('ko-KR')}</span>
+                  </div>
+                  <div className="mt-1 text-[11px] text-muted-foreground">{revision.changed_by_name || '사용자'}</div>
+                </div>
+              )) : (
+                <div className="text-xs text-muted-foreground">아직 표시할 이력이 없습니다.</div>
+              )}
+              {itemRevisions.length > 5 && (
+                <div className="pt-1 text-center text-[11px] text-muted-foreground">나머지 {itemRevisions.length - 5}건은 활동 로그에서 확인</div>
               )}
             </div>
           </section>
