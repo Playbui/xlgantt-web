@@ -85,7 +85,6 @@ export function RichContentEditor({
   onUploadImages,
 }: RichContentEditorProps) {
   const editor = useEditor({
-    immediatelyRender: false,
     extensions: [
       StarterKit.configure({
         heading: { levels: [1, 2, 3] },
@@ -107,6 +106,7 @@ export function RichContentEditor({
       TableCell,
     ],
     content: value || '',
+    editable: true,
     editorProps: {
       attributes: {
         class: cn(
@@ -127,6 +127,7 @@ export function RichContentEditor({
           'prose-td:border prose-td:border-slate-200 prose-td:px-3 prose-td:py-2 prose-td:align-top',
           'prose-img:my-4 prose-img:rounded-2xl prose-img:border prose-img:border-slate-200 prose-img:shadow-[0_10px_25px_rgba(15,23,42,0.08)]',
           'before:pointer-events-none before:float-left before:h-0 before:text-slate-400 before:content-[attr(data-placeholder)]',
+          'cursor-text',
         ),
         style: `min-height:${minHeight}px; font-size:${fontSize}px;`,
       },
@@ -167,6 +168,7 @@ export function RichContentEditor({
   useEffect(() => {
     if (!editor) return
 
+    editor.setEditable(true)
     editor.setOptions({
       editorProps: {
         ...editor.options.editorProps,
@@ -287,8 +289,20 @@ export function RichContentEditor({
         </div>
       </div>
 
-      <div className="relative bg-[radial-gradient(circle_at_top,#ffffff_0%,#fbfcfe_40%,#f8fafc_100%)]">
-        <EditorContent editor={editor} className="min-h-[inherit] [&_.ProseMirror]:min-h-[inherit]" />
+      <div
+        className="relative bg-[radial-gradient(circle_at_top,#ffffff_0%,#fbfcfe_40%,#f8fafc_100%)]"
+        onMouseDown={(e) => {
+          const target = e.target as HTMLElement
+          if (target.closest('button,input,label,a')) return
+          requestAnimationFrame(() => {
+            editor.chain().focus().run()
+          })
+        }}
+      >
+        <EditorContent
+          editor={editor}
+          className="min-h-[inherit] cursor-text [&_.ProseMirror]:min-h-[560px] [&_.ProseMirror]:cursor-text"
+        />
       </div>
     </div>
   )
