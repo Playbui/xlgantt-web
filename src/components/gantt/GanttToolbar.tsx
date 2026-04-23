@@ -27,12 +27,13 @@ import { useTaskStore } from '@/stores/task-store'
 import { useProjectStore } from '@/stores/project-store'
 import { useResourceStore } from '@/stores/resource-store'
 import { useAuthStore } from '@/stores/auth-store'
-import { useUIStore } from '@/stores/ui-store'
+import { DEFAULT_GANTT_FILTERS, useUIStore } from '@/stores/ui-store'
 import { useUndoRedo } from '@/hooks/use-undo-redo'
 import { ColumnSettingsDropdown } from './ColumnSettingsDropdown'
 import { findIndentParent, recalculateWBSCodes } from '@/lib/wbs'
 import { downloadWbsExcelTemplate } from '@/lib/wbs-excel'
 import { WbsExcelImportDialog } from './WbsExcelImportDialog'
+import { cn } from '@/lib/utils'
 
 interface GanttToolbarProps {
   onOpenTaskDialog: (taskId: string) => void
@@ -54,6 +55,8 @@ export function GanttToolbar({ onOpenTaskDialog, onScrollToToday }: GanttToolbar
     setRowHeight,
     showFilterPanel,
     toggleFilterPanel,
+    ganttFilters,
+    resetGanttFilters,
   } = useUIStore()
   const { taskDetails, assignments } = useResourceStore()
   const currentUser = useAuthStore((s) => s.currentUser)
@@ -66,6 +69,15 @@ export function GanttToolbar({ onOpenTaskDialog, onScrollToToday }: GanttToolbar
   const hasSelection = selectedTaskIds.size > 0
   const myProjectRole = project && currentUser ? getMyProjectRole(project.id, currentUser.id) : null
   const canManageWbsImport = currentUser?.role === 'admin' || currentUser?.role === 'pm' || myProjectRole === 'pm'
+  const activeFilterCount = [
+    ganttFilters.status !== DEFAULT_GANTT_FILTERS.status,
+    ganttFilters.structure !== DEFAULT_GANTT_FILTERS.structure,
+    ganttFilters.assignee !== DEFAULT_GANTT_FILTERS.assignee,
+    ganttFilters.workspace !== DEFAULT_GANTT_FILTERS.workspace,
+    ganttFilters.deliverable !== DEFAULT_GANTT_FILTERS.deliverable,
+    ganttFilters.level !== DEFAULT_GANTT_FILTERS.level,
+  ].filter(Boolean).length
+  const hasActiveFilters = activeFilterCount > 0
 
   // 작업 추가 (선택된 작업 아래에)
   const handleAddTask = () => {
@@ -458,15 +470,33 @@ export function GanttToolbar({ onOpenTaskDialog, onScrollToToday }: GanttToolbar
       <Separator orientation="vertical" className="mx-1 h-5" />
 
       <Button
-        variant={showFilterPanel ? 'default' : 'outline'}
+        variant={showFilterPanel || hasActiveFilters ? 'default' : 'outline'}
         size="sm"
-        className="h-8 gap-1.5 text-xs"
+        className={cn(
+          "h-8 gap-1.5 text-xs",
+          hasActiveFilters && "bg-blue-600 text-white hover:bg-blue-700"
+        )}
         onClick={toggleFilterPanel}
-        title="필터 패널 열기/닫기"
+        title={hasActiveFilters ? `필터 ${activeFilterCount}개 적용 중` : '필터 패널 열기/닫기'}
       >
         <SlidersHorizontal className="h-3.5 w-3.5" />
         필터
+        {hasActiveFilters && (
+          <span className="ml-0.5 rounded-full bg-white/20 px-1.5 text-[10px] font-bold">{activeFilterCount}</span>
+        )}
       </Button>
+
+      {hasActiveFilters && (
+        <Button
+          variant="ghost"
+          size="sm"
+          className="h-8 px-2 text-xs font-semibold text-blue-700 hover:bg-blue-50 hover:text-blue-800"
+          onClick={resetGanttFilters}
+          title="적용된 필터 초기화"
+        >
+          초기화
+        </Button>
+      )}
 
       {/* 검색 입력창 */}
       <div className="relative flex items-center ml-2">

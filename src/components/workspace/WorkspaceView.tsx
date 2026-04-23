@@ -5,13 +5,17 @@ import {
   ChevronRight,
   FilePlus2,
   History,
+  KeyRound,
   Link2,
   Paperclip,
   Lock,
   Save,
   Search,
   Settings2,
+  ShieldCheck,
+  ShieldOff,
   Trash2,
+  Users,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -48,6 +52,20 @@ const ACCESS_LABELS = {
   private: '비공개',
 } as const
 
+const ACCESS_OPTIONS = [
+  { mode: 'project', title: '프로젝트 공개', desc: '프로젝트 구성원 모두 열람' },
+  { mode: 'restricted', title: '공유자만', desc: '지정한 사람만 열람' },
+  { mode: 'password', title: '비밀번호', desc: '비밀번호 입력 후 열람' },
+  { mode: 'private', title: '비공개', desc: '작성자/관리자만 열람' },
+] as const
+
+const ACCESS_TONES = {
+  project: 'border-emerald-200 bg-emerald-50 text-emerald-700',
+  restricted: 'border-sky-200 bg-sky-50 text-sky-700',
+  password: 'border-amber-200 bg-amber-50 text-amber-700',
+  private: 'border-slate-300 bg-slate-100 text-slate-700',
+} as const
+
 async function hashText(text: string) {
   const encoded = new TextEncoder().encode(text)
   const digest = await crypto.subtle.digest('SHA-256', encoded)
@@ -60,6 +78,13 @@ function WorkspaceStatusBadge({ status }: { status: WorkspaceItem['status'] }) {
       {STATUS_LABELS[status]}
     </Badge>
   )
+}
+
+function AccessIcon({ mode, className }: { mode: WorkspaceItem['access_mode']; className?: string }) {
+  if (mode === 'project') return <ShieldCheck className={className} />
+  if (mode === 'restricted') return <Users className={className} />
+  if (mode === 'password') return <KeyRound className={className} />
+  return <ShieldOff className={className} />
 }
 
 function buildTree(items: WorkspaceItem[]) {
@@ -183,6 +208,26 @@ export function WorkspaceView() {
       [task.wbs_code, task.task_name].some((value) => value.toLowerCase().includes(normalized))
     )
   }, [tasks, wbsQuery])
+
+  const approvedUsers = useMemo(() => users.filter((user) => user.approved), [users])
+
+  const sharedUsers = useMemo(() => {
+    const ids = draft?.shared_user_ids || []
+    return ids
+      .map((id) => users.find((user) => user.id === id))
+      .filter(Boolean)
+  }, [draft?.shared_user_ids, users])
+
+  const accessSummary = useMemo(() => {
+    if (!draft) return ''
+    if (draft.access_mode === 'project') return '프로젝트 구성원 전체'
+    if (draft.access_mode === 'password') return draft.password_hash ? '비밀번호 설정됨' : '비밀번호 미설정'
+    if (draft.access_mode === 'private') return '작성자/관리자만'
+    if (sharedUsers.length === 0) return '공유자 미지정'
+    const first = sharedUsers[0]
+    const firstName = first?.name || first?.email || '공유자'
+    return sharedUsers.length === 1 ? firstName : `${firstName} 외 ${sharedUsers.length - 1}명`
+  }, [draft, sharedUsers])
 
   const updateDraft = (changes: Partial<DraftState>) => {
     setDraft((prev) => (prev ? { ...prev, ...changes } : prev))
@@ -372,23 +417,59 @@ export function WorkspaceView() {
           <div className="flex h-full items-center justify-center px-6 text-sm text-muted-foreground">업무노트를 불러오는 중입니다...</div>
         ) : selectedItem && draft && !selectedLocked ? (
           <div className="mx-auto max-w-5xl px-8 py-6">
-            <div className="border-b border-slate-300 pb-4">
-              <div className="flex items-center justify-between gap-3">
-                <div className="flex min-w-0 items-center gap-2">
-                  <WorkspaceStatusBadge status={draft.status} />
-                  <span className="text-xs text-muted-foreground">수정 {new Date(selectedItem.updated_at).toLocaleString('ko-KR')}</span>
-                  {dirty && <span className="text-xs font-medium text-amber-600">저장 안 됨</span>}
+            <div className="rounded-2xl border border-slate-300 bg-[linear-gradient(135deg,#f8fbff_0%,#eef7f4_58%,#f7f8fb_100%)] p-5 shadow-sm">
+              <div className="flex items-start justify-between gap-4">
+                <div className="min-w-0 flex-1">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <WorkspaceStatusBadge status={draft.status} />
+                    <button
+                      type="button"
+                      onClick={() => setSecurityDialogOpen(true)}
+                      className={cn('inline-flex h-6 items-center gap-1.5 rounded-full border px-2.5 text-[11px] font-semibold', ACCESS_TONES[draft.access_mode])}
+                    >
+                      <AccessIcon mode={draft.access_mode} className="h-3.5 w-3.5" />
+                      {ACCESS_LABELS[draft.access_mode]}
+                    </button>
+                    <span className="rounded-full bg-white/80 px-2.5 py-1 text-[11px] font-medium text-slate-600 ring-1 ring-slate-200">
+                      {accessSummary}
+                    </span>
+                    <span className="text-xs text-slate-500">수정 {new Date(selectedItem.updated_at).toLocaleString('ko-KR')}</span>
+                    {dirty && <span className="rounded-full bg-amber-100 px-2.5 py-1 text-[11px] font-bold text-amber-700">저장 안 됨</span>}
+                  </div>
+
+                  <Input
+                    value={draft.title}
+                    onChange={(e) => updateDraft({ title: e.target.value })}
+                    placeholder="문서 제목"
+                    className="mt-4 h-14 border-none bg-transparent px-0 text-3xl font-black tracking-tight text-slate-950 shadow-none focus-visible:ring-0"
+                  />
+
+                  <div className="mt-3 flex flex-wrap gap-2">
+                    {linkedTasks.length > 0 ? (
+                      linkedTasks.map((task) => (
+                        <Badge key={task!.id} variant="secondary" className="h-7 gap-1.5 rounded-full bg-white/85 px-3 text-slate-800 ring-1 ring-slate-200">
+                          <span className="font-mono text-[11px] text-slate-600">{task!.wbs_code}</span>
+                          <span className="max-w-[220px] truncate">{task!.task_name}</span>
+                        </Badge>
+                      ))
+                    ) : (
+                      <button type="button" className="rounded-full border border-dashed border-slate-300 bg-white/70 px-3 py-1.5 text-xs font-medium text-slate-500 hover:border-primary/50 hover:text-primary" onClick={() => setWbsDialogOpen(true)}>
+                        연결된 WBS가 없습니다. 클릭해서 연결하세요.
+                      </button>
+                    )}
+                  </div>
                 </div>
-                <div className="flex items-center gap-2">
-                  <Button variant="outline" size="sm" className="h-8 gap-1.5" onClick={() => setMetaDialogOpen(true)}>
+
+                <div className="flex shrink-0 flex-wrap justify-end gap-2">
+                  <Button variant="outline" size="sm" className="h-8 gap-1.5 bg-white/80" onClick={() => setMetaDialogOpen(true)}>
                     <Settings2 className="h-3.5 w-3.5" />
                     상태
                   </Button>
-                  <Button variant="outline" size="sm" className="h-8 gap-1.5" onClick={() => setSecurityDialogOpen(true)}>
+                  <Button variant="outline" size="sm" className="h-8 gap-1.5 bg-white/80" onClick={() => setSecurityDialogOpen(true)}>
                     <Lock className="h-3.5 w-3.5" />
                     공유/보안
                   </Button>
-                  <Button variant="outline" size="sm" className="h-8 gap-1.5" onClick={() => setWbsDialogOpen(true)}>
+                  <Button variant="outline" size="sm" className="h-8 gap-1.5 bg-white/80" onClick={() => setWbsDialogOpen(true)}>
                     <Link2 className="h-3.5 w-3.5" />
                     WBS 연결
                   </Button>
@@ -397,28 +478,6 @@ export function WorkspaceView() {
                     {saving ? '저장 중' : '저장'}
                   </Button>
                 </div>
-              </div>
-
-              <Input
-                value={draft.title}
-                onChange={(e) => updateDraft({ title: e.target.value })}
-                placeholder="문서 제목"
-                className="mt-4 h-12 border-none px-0 text-3xl font-semibold shadow-none focus-visible:ring-0"
-              />
-
-              <div className="mt-3 flex flex-wrap gap-2">
-                {linkedTasks.length > 0 ? (
-                  linkedTasks.map((task) => (
-                    <Badge key={task!.id} variant="secondary" className="h-7 gap-1.5 rounded-full px-3">
-                      <span className="font-mono text-[11px]">{task!.wbs_code}</span>
-                      <span className="max-w-[220px] truncate">{task!.task_name}</span>
-                    </Badge>
-                  ))
-                ) : (
-                  <button type="button" className="text-xs text-muted-foreground hover:text-primary" onClick={() => setWbsDialogOpen(true)}>
-                    연결된 WBS가 없습니다. 클릭해서 연결하세요.
-                  </button>
-                )}
               </div>
             </div>
 
@@ -604,46 +663,75 @@ export function WorkspaceView() {
       </Dialog>
 
       <Dialog open={securityDialogOpen} onOpenChange={setSecurityDialogOpen}>
-        <DialogContent className="max-w-xl">
+        <DialogContent className="max-w-2xl overflow-hidden p-0">
+          <div className="border-b border-slate-300 bg-[linear-gradient(135deg,#f8fbff,#eef7f4)] px-6 py-5">
           <DialogHeader>
-            <DialogTitle>공유/보안 및 접근 설정</DialogTitle>
+            <DialogTitle className="flex items-center gap-2 text-lg">
+              <ShieldCheck className="h-5 w-5 text-primary" />
+              공유/보안 및 접근 설정
+            </DialogTitle>
           </DialogHeader>
+            <p className="mt-2 text-sm text-slate-600">문서를 누가 볼 수 있는지 정하고, 필요한 경우 공유자나 비밀번호를 지정합니다.</p>
+          </div>
           {draft && (
-            <div className="space-y-5">
+            <div className="space-y-5 px-6 py-5">
               <div>
                 <div className="mb-2 text-xs font-semibold text-muted-foreground">문서 공개 범위</div>
                 <div className="grid grid-cols-4 gap-2">
-                  {(['project', 'restricted', 'password', 'private'] as const).map((mode) => (
+                  {ACCESS_OPTIONS.map((option) => (
                     <button
-                      key={mode}
+                      key={option.mode}
                       type="button"
-                      className={cn('rounded-lg border px-3 py-2 text-sm', draft.access_mode === mode ? 'border-primary bg-primary/5 text-primary' : 'border-slate-300 hover:bg-accent/40')}
-                      onClick={() => updateDraft({ access_mode: mode })}
+                      className={cn(
+                        'min-h-[92px] rounded-xl border px-3 py-3 text-left transition-all',
+                        draft.access_mode === option.mode
+                          ? 'border-primary bg-primary/5 shadow-[inset_0_0_0_1px_rgba(0,102,204,.18)]'
+                          : 'border-slate-300 bg-white hover:border-slate-400 hover:bg-slate-50'
+                      )}
+                      onClick={() => updateDraft({ access_mode: option.mode })}
                     >
-                      {ACCESS_LABELS[mode]}
+                      <div className={cn('mb-2 inline-flex h-7 w-7 items-center justify-center rounded-lg border', ACCESS_TONES[option.mode])}>
+                        <AccessIcon mode={option.mode} className="h-4 w-4" />
+                      </div>
+                      <div className="text-sm font-bold text-slate-900">{option.title}</div>
+                      <div className="mt-1 text-[11px] leading-4 text-slate-500">{option.desc}</div>
                     </button>
                   ))}
                 </div>
               </div>
 
               {draft.access_mode === 'restricted' && (
-                <div>
-                  <div className="mb-2 text-xs font-semibold text-muted-foreground">공유자 지정</div>
-                  <div className="max-h-48 overflow-y-auto rounded-xl border border-slate-300">
-                    {users.filter((user) => user.approved).map((user) => (
-                      <label key={user.id} className="flex cursor-pointer items-center gap-3 border-b border-slate-200 px-3 py-2 text-sm hover:bg-accent/40">
-                        <input type="checkbox" checked={draft.shared_user_ids.includes(user.id)} onChange={() => toggleSharedUser(user.id)} />
-                        <span className="min-w-0 flex-1 truncate">{user.name || user.email}</span>
-                        <span className="text-xs text-muted-foreground">{user.email}</span>
-                      </label>
-                    ))}
+                <div className="rounded-2xl border border-sky-200 bg-sky-50/50 p-4">
+                  <div className="mb-3 flex items-center justify-between gap-3">
+                    <div>
+                      <div className="text-sm font-bold text-slate-900">공유자 지정</div>
+                      <div className="mt-1 text-xs text-slate-500">{accessSummary}</div>
+                    </div>
+                    <Badge variant="outline" className="bg-white">{draft.shared_user_ids.length}명 선택</Badge>
+                  </div>
+                  <div className="max-h-56 overflow-y-auto rounded-xl border border-slate-300 bg-white">
+                    {approvedUsers.length > 0 ? approvedUsers.map((user) => {
+                      const checked = draft.shared_user_ids.includes(user.id)
+                      return (
+                        <label key={user.id} className={cn('flex cursor-pointer items-center gap-3 border-b border-slate-200 px-3 py-2 text-sm last:border-b-0 hover:bg-accent/40', checked && 'bg-sky-50')}>
+                          <input type="checkbox" checked={checked} onChange={() => toggleSharedUser(user.id)} />
+                          <span className="flex h-7 w-7 items-center justify-center rounded-full bg-slate-100 text-[11px] font-bold text-slate-600">
+                            {(user.name || user.email || '?').slice(0, 1)}
+                          </span>
+                          <span className="min-w-0 flex-1 truncate font-medium">{user.name || user.email}</span>
+                          <span className="text-xs text-muted-foreground">{user.email}</span>
+                        </label>
+                      )
+                    }) : (
+                      <div className="px-4 py-8 text-center text-sm text-muted-foreground">선택 가능한 승인 사용자가 없습니다.</div>
+                    )}
                   </div>
                 </div>
               )}
 
               {draft.access_mode === 'password' && (
-                <div>
-                  <div className="mb-2 text-xs font-semibold text-muted-foreground">문서 비밀번호</div>
+                <div className="rounded-2xl border border-amber-200 bg-amber-50/60 p-4">
+                  <div className="mb-2 text-sm font-bold text-slate-900">문서 비밀번호</div>
                   <div className="flex gap-2">
                     <Input type="password" value={newPassword} onChange={(e) => setNewPassword(e.target.value)} placeholder={draft.password_hash ? '새 비밀번호 입력' : '비밀번호 입력'} />
                     <Button variant="outline" onClick={() => void applyNewPassword()}>적용</Button>

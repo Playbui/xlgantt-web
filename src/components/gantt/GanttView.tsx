@@ -75,6 +75,14 @@ function FilterChip({
 
 function GanttFilterPanel() {
   const { ganttFilters, setGanttFilters, resetGanttFilters } = useUIStore()
+  const activeFilterCount = [
+    ganttFilters.status !== 'all',
+    ganttFilters.structure !== 'all',
+    ganttFilters.assignee !== 'all',
+    ganttFilters.workspace !== 'all',
+    ganttFilters.deliverable !== 'all',
+    ganttFilters.level !== null,
+  ].filter(Boolean).length
 
   const renderGroup = <K extends keyof GanttFilters>(
     label: string,
@@ -96,7 +104,11 @@ function GanttFilterPanel() {
   )
 
   return (
-    <div className="flex min-h-11 flex-shrink-0 items-center gap-4 overflow-x-auto border-b border-slate-200 bg-slate-50/80 px-4 py-2">
+    <div className="flex min-h-12 flex-shrink-0 items-center gap-4 overflow-x-auto border-b border-blue-200 bg-[linear-gradient(90deg,#f6fbff_0%,#f4fbf7_55%,#fffaf0_100%)] px-4 py-2 shadow-[inset_0_-1px_0_rgba(15,23,42,.04)]">
+      <div className="flex flex-shrink-0 items-center gap-2 rounded-full border border-blue-200 bg-white px-3 py-1.5 text-xs font-bold text-blue-700">
+        필터
+        {activeFilterCount > 0 && <span className="rounded-full bg-blue-600 px-1.5 text-[10px] text-white">{activeFilterCount}</span>}
+      </div>
       {renderGroup('상태', 'status', Object.entries(FILTER_LABELS.status).map(([value, label]) => ({ value: value as GanttFilters['status'], label })))}
       <div className="h-5 w-px flex-shrink-0 bg-border" />
       {renderGroup('담당자', 'assignee', Object.entries(FILTER_LABELS.assignee).map(([value, label]) => ({ value: value as GanttFilters['assignee'], label })))}
@@ -115,7 +127,7 @@ function GanttFilterPanel() {
       {renderGroup('연계', 'workspace', Object.entries(FILTER_LABELS.workspace).map(([value, label]) => ({ value: value as GanttFilters['workspace'], label })))}
       <div className="h-5 w-px flex-shrink-0 bg-border" />
       {renderGroup('산출물', 'deliverable', Object.entries(FILTER_LABELS.deliverable).map(([value, label]) => ({ value: value as GanttFilters['deliverable'], label })))}
-      <button type="button" className="ml-auto h-7 flex-shrink-0 rounded-md border border-red-200 bg-red-50 px-3 text-xs font-medium text-red-600 hover:bg-red-100" onClick={resetGanttFilters}>
+      <button type="button" className="ml-auto h-7 flex-shrink-0 rounded-md border border-slate-300 bg-white px-3 text-xs font-bold text-slate-600 hover:border-red-200 hover:bg-red-50 hover:text-red-600" onClick={resetGanttFilters}>
         초기화
       </button>
     </div>
