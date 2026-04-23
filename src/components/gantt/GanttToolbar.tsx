@@ -17,6 +17,7 @@ import {
   ListOrdered,
   Download,
   FileSpreadsheet,
+  SlidersHorizontal,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -26,7 +27,7 @@ import { useTaskStore } from '@/stores/task-store'
 import { useProjectStore } from '@/stores/project-store'
 import { useResourceStore } from '@/stores/resource-store'
 import { useAuthStore } from '@/stores/auth-store'
-import { useUIStore, type FilterStatus } from '@/stores/ui-store'
+import { useUIStore } from '@/stores/ui-store'
 import { useUndoRedo } from '@/hooks/use-undo-redo'
 import { ColumnSettingsDropdown } from './ColumnSettingsDropdown'
 import { findIndentParent, recalculateWBSCodes } from '@/lib/wbs'
@@ -44,15 +45,15 @@ export function GanttToolbar({ onOpenTaskDialog, onScrollToToday }: GanttToolbar
   const getMyProjectRole = useProjectStore((s) => s.getMyProjectRole)
   const {
     searchQuery,
-    filterStatus,
     setSearchQuery,
-    setFilterStatus,
     showProgressLine,
     toggleProgressLine,
     showArchived,
     toggleShowArchived,
     rowHeight,
     setRowHeight,
+    showFilterPanel,
+    toggleFilterPanel,
   } = useUIStore()
   const { taskDetails, assignments } = useResourceStore()
   const currentUser = useAuthStore((s) => s.currentUser)
@@ -456,17 +457,16 @@ export function GanttToolbar({ onOpenTaskDialog, onScrollToToday }: GanttToolbar
 
       <Separator orientation="vertical" className="mx-1 h-5" />
 
-      {/* 필터 드롭다운 */}
-      <select
-        value={filterStatus}
-        onChange={(e) => setFilterStatus(e.target.value as FilterStatus)}
-        className="h-8 text-sm border border-border rounded-md bg-background px-2 focus:outline-none focus:ring-1 focus:ring-ring"
+      <Button
+        variant={showFilterPanel ? 'default' : 'outline'}
+        size="sm"
+        className="h-8 gap-1.5 text-xs"
+        onClick={toggleFilterPanel}
+        title="필터 패널 열기/닫기"
       >
-        <option value="all">전체</option>
-        <option value="delayed">지연</option>
-        <option value="completed">완료</option>
-        <option value="in_progress">진행중</option>
-      </select>
+        <SlidersHorizontal className="h-3.5 w-3.5" />
+        필터
+      </Button>
 
       {/* 검색 입력창 */}
       <div className="relative flex items-center ml-2">

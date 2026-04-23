@@ -96,6 +96,10 @@ async function writeRevision(item: WorkspaceItem, changeType: WorkspaceRevision[
   if (error) console.error('업무노트 이력 저장 실패:', error.message)
 }
 
+function isMissingColumnError(message?: string) {
+  return Boolean(message && (message.includes('parent_id') || message.includes('sort_order') || message.includes('schema cache')))
+}
+
 export const useWorkspaceStore = create<WorkspaceState>((set, get) => ({
   items: [],
   revisions: [],
@@ -175,11 +179,31 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => ({
       updated_by: currentUserId || null,
     }
 
-    const { data, error } = await supabase
+    let { data, error } = await supabase
       .from('workspace_items')
       .insert(payload)
       .select('*')
       .single()
+
+    if (error && isMissingColumnError(error.message)) {
+      const legacyPayload = {
+        project_id: projectId,
+        title: payload.title,
+        summary: payload.summary,
+        body: payload.body,
+        status: payload.status,
+        links: payload.links,
+        created_by: payload.created_by,
+        updated_by: payload.updated_by,
+      }
+      const legacyResult = await supabase
+        .from('workspace_items')
+        .insert(legacyPayload)
+        .select('*')
+        .single()
+      data = legacyResult.data
+      error = legacyResult.error
+    }
 
     if (error || !data) {
       console.error('업무노트 생성 실패:', error?.message)
@@ -215,7 +239,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => ({
       items: state.items.map((item) => (item.id === id ? optimistic : item)),
     }))
 
-    const { error } = await supabase
+    let { error } = await supabase
       .from('workspace_items')
       .update({
         parent_id: optimistic.parent_id || null,
@@ -228,6 +252,21 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => ({
         updated_by: currentUserId || null,
       })
       .eq('id', id)
+
+    if (error && isMissingColumnError(error.message)) {
+      const legacyResult = await supabase
+        .from('workspace_items')
+        .update({
+          title: optimistic.title,
+          summary: optimistic.summary || null,
+          body: optimistic.body || null,
+          status: optimistic.status,
+          links: optimistic.links || [],
+          updated_by: currentUserId || null,
+        })
+        .eq('id', id)
+      error = legacyResult.error
+    }
 
     if (error) {
       console.error('업무노트 저장 실패:', error.message)

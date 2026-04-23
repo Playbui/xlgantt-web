@@ -6,6 +6,29 @@ import { DEFAULT_VISIBLE_COLUMNS, REQUIRED_COLUMNS, getTotalColumnWidth } from '
 export type ViewMode = 'gantt' | 'progress' | 'analysis' | 'workload' | 'calendar' | 'resources' | 'settings' | 'activity' | 'mytasks' | 'memberTasks' | 'workspace'
 export type MobileTab = 'mytasks' | 'progress' | 'activity'
 export type FilterStatus = 'all' | 'delayed' | 'completed' | 'in_progress'
+export type GanttStatusFilter = 'all' | 'not_started' | 'in_progress' | 'completed' | 'delayed'
+export type GanttStructureFilter = 'all' | 'group' | 'leaf' | 'milestone'
+export type GanttWorkspaceFilter = 'all' | 'linked' | 'unlinked'
+export type GanttDeliverableFilter = 'all' | 'has' | 'missing'
+export type GanttAssigneeFilter = 'all' | 'mine' | 'assigned' | 'unassigned'
+
+export interface GanttFilters {
+  status: GanttStatusFilter
+  structure: GanttStructureFilter
+  assignee: GanttAssigneeFilter
+  workspace: GanttWorkspaceFilter
+  deliverable: GanttDeliverableFilter
+  level: number | null
+}
+
+export const DEFAULT_GANTT_FILTERS: GanttFilters = {
+  status: 'all',
+  structure: 'all',
+  assignee: 'all',
+  workspace: 'all',
+  deliverable: 'all',
+  level: null,
+}
 
 export interface GanttOptions {
   barHeight: number                              // 바 높이 (기본 16, 범위 12~24)
@@ -38,6 +61,8 @@ interface UIState {
   linkSourceTaskId: string | null // first-clicked task in link mode
   searchQuery: string
   filterStatus: FilterStatus
+  showFilterPanel: boolean
+  ganttFilters: GanttFilters
   visibleColumns: string[] // 표시할 컬럼 ID 목록
   columnWidths: Record<string, number> // 컬럼별 커스텀 너비 (localStorage 저장)
   showProgressLine: boolean // Progress Line 표시 여부
@@ -60,6 +85,9 @@ interface UIState {
   cancelLinkMode: () => void
   setSearchQuery: (query: string) => void
   setFilterStatus: (status: FilterStatus) => void
+  toggleFilterPanel: () => void
+  setGanttFilters: (filters: Partial<GanttFilters>) => void
+  resetGanttFilters: () => void
   toggleColumn: (columnId: string) => void
   moveColumn: (columnId: string, direction: 'up' | 'down') => void
   resetColumns: () => void
@@ -89,6 +117,8 @@ export const useUIStore = create<UIState>()(
       linkSourceTaskId: null,
       searchQuery: '',
       filterStatus: 'all' as FilterStatus,
+      showFilterPanel: false,
+      ganttFilters: { ...DEFAULT_GANTT_FILTERS },
       visibleColumns: [...DEFAULT_VISIBLE_COLUMNS],
       columnWidths: {},
       showProgressLine: false,
@@ -114,6 +144,9 @@ export const useUIStore = create<UIState>()(
       cancelLinkMode: () => set({ linkMode: false, linkSourceTaskId: null }),
       setSearchQuery: (searchQuery) => set({ searchQuery }),
       setFilterStatus: (filterStatus) => set({ filterStatus }),
+      toggleFilterPanel: () => set((s) => ({ showFilterPanel: !s.showFilterPanel })),
+      setGanttFilters: (filters) => set((s) => ({ ganttFilters: { ...s.ganttFilters, ...filters } })),
+      resetGanttFilters: () => set({ ganttFilters: { ...DEFAULT_GANTT_FILTERS }, filterStatus: 'all' }),
       toggleColumn: (columnId) => set((s) => {
         if (REQUIRED_COLUMNS.includes(columnId) && s.visibleColumns.includes(columnId)) {
           return s
@@ -188,6 +221,8 @@ export const useUIStore = create<UIState>()(
         ganttOptions: state.ganttOptions,
         customDateRange: state.customDateRange,
         rowHeight: state.rowHeight,
+        showFilterPanel: state.showFilterPanel,
+        ganttFilters: state.ganttFilters,
       }),
     }
   )
