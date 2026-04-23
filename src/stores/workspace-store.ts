@@ -36,6 +36,7 @@ function dbRowToWorkspaceItem(row: Record<string, unknown>, linkedTaskIds: strin
     project_id: row.project_id as string,
     parent_id: (row.parent_id as string) || undefined,
     item_type: ((row.item_type as WorkspaceItem['item_type']) || 'document'),
+    folder_color: (row.folder_color as string) || undefined,
     sort_order: Number(row.sort_order ?? 0),
     title: (row.title as string) || '',
     summary: (row.summary as string) || '',
@@ -105,6 +106,7 @@ function isMissingColumnError(message?: string) {
   return Boolean(message && (
     message.includes('parent_id') ||
     message.includes('item_type') ||
+    message.includes('folder_color') ||
     message.includes('sort_order') ||
     message.includes('access_mode') ||
     message.includes('shared_user_ids') ||
@@ -184,6 +186,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => ({
       project_id: projectId,
       parent_id: parentId || null,
       item_type: itemType,
+      folder_color: itemType === 'folder' ? '#f59e0b' : null,
       sort_order: (siblingCount + 1) * 1000,
       title: itemType === 'folder' ? '새 폴더' : '새 문서',
       summary: '',
@@ -263,6 +266,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => ({
       .update({
         parent_id: optimistic.parent_id || null,
         item_type: optimistic.item_type || 'document',
+        folder_color: optimistic.folder_color || null,
         sort_order: optimistic.sort_order,
         title: optimistic.title,
         summary: optimistic.summary || null,

@@ -145,6 +145,7 @@ export interface WorkspaceItem {
   project_id: string
   parent_id?: string
   item_type: 'folder' | 'document'
+  folder_color?: string
   sort_order: number
   title: string
   summary?: string

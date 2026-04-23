@@ -48,7 +48,7 @@ const STATUS_TONES = {
   archived: 'bg-slate-100 text-slate-600 border-slate-200',
 } as const
 
-type DraftState = Pick<WorkspaceItem, 'title' | 'summary' | 'body' | 'status' | 'linkedTaskIds' | 'access_mode' | 'shared_user_ids' | 'password_hash' | 'editor_font_size' | 'item_type'>
+type DraftState = Pick<WorkspaceItem, 'title' | 'summary' | 'body' | 'status' | 'linkedTaskIds' | 'access_mode' | 'shared_user_ids' | 'password_hash' | 'editor_font_size' | 'item_type' | 'folder_color'>
 
 const ACCESS_LABELS = {
   project: '프로젝트 공개',
@@ -160,6 +160,8 @@ export function WorkspaceView() {
   const [shareableUsers, setShareableUsers] = useState<typeof users>([])
   const [shareUsersLoading, setShareUsersLoading] = useState(false)
   const [shareUsersError, setShareUsersError] = useState('')
+  const [draggedItemId, setDraggedItemId] = useState<string | null>(null)
+  const [dragOverFolderId, setDragOverFolderId] = useState<string | null>(null)
 
   const selectedItem =
     items.find((item) => item.id === selectedItemId) ??
@@ -179,6 +181,7 @@ export function WorkspaceView() {
     setDraft({
       title: selectedItem.title,
       item_type: selectedItem.item_type || 'document',
+      folder_color: selectedItem.folder_color || '#f59e0b',
       summary: selectedItem.summary || '',
       body: selectedItem.body || '',
       status: selectedItem.status,
@@ -399,12 +402,37 @@ export function WorkspaceView() {
   const handleDeleteSelected = async () => {
     if (!selectedItem) return
     if (!canManageDocument) {
-      alert('문서 작성자 또는 관리자만 삭제할 수 있습니다.')
+      alert('작성자 또는 관리자만 삭제할 수 있습니다.')
       return
     }
-    const confirmed = confirm(`"${selectedItem.title || '제목 없음'}" 문서를 삭제하시겠습니까?\n하위 문서가 있다면 함께 삭제됩니다.`)
+    const confirmed = confirm(`"${selectedItem.title || '제목 없음'}" ${selectedItem.item_type === 'folder' ? '폴더' : '문서'}를 삭제하시겠습니까?\n하위 항목이 있다면 함께 삭제됩니다.`)
     if (!confirmed) return
     await deleteItem(selectedItem.id)
+  }
+
+  const isDescendantOf = (itemId: string, maybeAncestorId: string) => {
+    let current = items.find((item) => item.id === itemId)
+    while (current?.parent_id) {
+      if (current.parent_id === maybeAncestorId) return true
+      current = items.find((item) => item.id === current?.parent_id)
+    }
+    return false
+  }
+
+  const moveItemToFolder = async (itemId: string, targetFolderId: string | null) => {
+    const moving = items.find((item) => item.id === itemId)
+    if (!moving) return
+    const target = targetFolderId ? items.find((item) => item.id === targetFolderId) : null
+    if (targetFolderId && (!target || target.item_type !== 'folder')) return
+    if (targetFolderId === itemId || (targetFolderId && isDescendantOf(targetFolderId, itemId))) return
+
+    const nextParentId = targetFolderId || undefined
+    const siblingCount = items.filter((item) => item.id !== itemId && (item.parent_id || null) === (targetFolderId || null)).length
+    await updateItem(itemId, {
+      parent_id: nextParentId,
+      sort_order: (siblingCount + 1) * 1000,
+    }, 'structure')
+    if (targetFolderId) setExpandedIds((prev) => new Set([...prev, targetFolderId]))
   }
 
   const renderTree = (parentId?: string, depth = 0): React.ReactNode => {
@@ -416,9 +444,39 @@ export function WorkspaceView() {
       return (
         <div key={item.id}>
           <div
+            data-workspace-tree-item="true"
+            draggable
+            onDragStart={(e) => {
+              setDraggedItemId(item.id)
+              e.dataTransfer.effectAllowed = 'move'
+              e.dataTransfer.setData('text/plain', item.id)
+            }}
+            onDragEnd={() => {
+              setDraggedItemId(null)
+              setDragOverFolderId(null)
+            }}
+            onDragOver={(e) => {
+              if (item.item_type !== 'folder' || !draggedItemId || draggedItemId === item.id) return
+              e.preventDefault()
+              e.dataTransfer.dropEffect = 'move'
+              setDragOverFolderId(item.id)
+            }}
+            onDragLeave={() => {
+              if (dragOverFolderId === item.id) setDragOverFolderId(null)
+            }}
+            onDrop={async (e) => {
+              e.preventDefault()
+              e.stopPropagation()
+              const movingId = e.dataTransfer.getData('text/plain') || draggedItemId
+              setDragOverFolderId(null)
+              setDraggedItemId(null)
+              if (item.item_type === 'folder' && movingId) await moveItemToFolder(movingId, item.id)
+            }}
             className={cn(
               'group flex h-9 items-center gap-1 rounded-lg px-2 text-left text-sm transition-colors',
-              active ? 'bg-primary/8 text-primary' : 'hover:bg-accent/50'
+              active ? 'bg-primary/8 text-primary' : 'hover:bg-accent/50',
+              draggedItemId === item.id && 'opacity-45',
+              dragOverFolderId === item.id && 'bg-amber-100/80 ring-2 ring-amber-300'
             )}
             style={{ paddingLeft: 8 + depth * 14 }}
           >
@@ -440,11 +498,13 @@ export function WorkspaceView() {
             </button>
             <button type="button" className="flex min-w-0 flex-1 items-center gap-1.5 truncate text-left" onClick={() => handleSelectItem(item.id)}>
               {item.item_type === 'folder'
-                ? expanded ? <FolderOpen className="h-4 w-4 flex-shrink-0 text-amber-600" /> : <Folder className="h-4 w-4 flex-shrink-0 text-amber-600" />
+                ? expanded
+                  ? <FolderOpen className="h-4 w-4 flex-shrink-0" style={{ color: item.folder_color || '#f59e0b' }} />
+                  : <Folder className="h-4 w-4 flex-shrink-0" style={{ color: item.folder_color || '#f59e0b' }} />
                 : <FileText className="h-4 w-4 flex-shrink-0 text-slate-500" />}
               {item.title || '제목 없음'}
             </button>
-            {item.item_type === 'document' && item.access_mode !== 'project' && <Lock className="h-3.5 w-3.5 text-muted-foreground" />}
+            {item.access_mode !== 'project' && <Lock className="h-3.5 w-3.5 text-muted-foreground" />}
             {item.item_type === 'document' && item.linkedTaskIds.length > 0 && <span className="text-[10px] text-muted-foreground">W{item.linkedTaskIds.length}</span>}
             {item.item_type === 'folder' && <span className="text-[10px] text-muted-foreground">{(tree.get(item.id) || []).length}</span>}
             {item.item_type === 'folder' && (
@@ -498,7 +558,27 @@ export function WorkspaceView() {
           </div>
         </div>
 
-        <div className="min-h-0 flex-1 overflow-y-auto p-2">
+        <div
+          className={cn('min-h-0 flex-1 overflow-y-auto p-2', dragOverFolderId === 'root' && 'bg-blue-50/70')}
+          onDragOver={(e) => {
+            if (!draggedItemId) return
+            if ((e.target as HTMLElement).closest('[data-workspace-tree-item]')) return
+            e.preventDefault()
+            e.dataTransfer.dropEffect = 'move'
+            setDragOverFolderId('root')
+          }}
+          onDragLeave={() => {
+            if (dragOverFolderId === 'root') setDragOverFolderId(null)
+          }}
+          onDrop={async (e) => {
+            e.preventDefault()
+            if ((e.target as HTMLElement).closest('[data-workspace-tree-item]')) return
+            const movingId = e.dataTransfer.getData('text/plain') || draggedItemId
+            setDragOverFolderId(null)
+            setDraggedItemId(null)
+            if (movingId) await moveItemToFolder(movingId, null)
+          }}
+        >
           {renderTree()}
           {filteredItems.length === 0 && (
             <div className="rounded-xl border border-dashed border-slate-300 bg-background px-4 py-10 text-center text-sm text-muted-foreground">
@@ -511,10 +591,21 @@ export function WorkspaceView() {
       <section className="min-h-0 overflow-y-auto">
         {isLoading ? (
           <div className="flex h-full items-center justify-center px-6 text-sm text-muted-foreground">업무노트를 불러오는 중입니다...</div>
+        ) : selectedLocked ? (
+          <div className="flex h-full items-center justify-center px-6">
+            <div className="rounded-2xl border border-slate-300 bg-card px-8 py-12 text-center shadow-sm">
+              <Lock className="mx-auto h-8 w-8 text-muted-foreground" />
+              <div className="mt-4 text-lg font-semibold">잠긴 항목입니다</div>
+              <p className="mt-2 text-sm text-muted-foreground">공유자로 지정되었거나 비밀번호를 입력해야 볼 수 있습니다.</p>
+              {selectedItem?.access_mode === 'password' && (
+                <Button className="mt-5" onClick={() => setUnlockDialogOpen(true)}>비밀번호 입력</Button>
+              )}
+            </div>
+          </div>
         ) : selectedItem && draft && draft.item_type === 'folder' ? (
           <div className="flex h-full items-center justify-center px-6">
             <div className="w-full max-w-xl rounded-3xl border border-amber-200 bg-[linear-gradient(135deg,#fffaf0,#f8fbff)] px-8 py-10 text-center shadow-sm">
-              <FolderOpen className="mx-auto h-12 w-12 text-amber-600" />
+              <FolderOpen className="mx-auto h-12 w-12" style={{ color: draft.folder_color || '#f59e0b' }} />
               <Input
                 value={draft.title}
                 onChange={(e) => updateDraft({ title: e.target.value })}
@@ -522,7 +613,26 @@ export function WorkspaceView() {
                 className="mx-auto mt-5 h-12 max-w-md border-none bg-transparent text-center text-3xl font-black shadow-none focus-visible:ring-0"
               />
               <p className="mt-2 text-sm text-slate-600">이 폴더 아래에 문서나 하위 폴더를 추가해서 자료를 정리합니다.</p>
-              <div className="mt-6 flex justify-center gap-2">
+              <div className="mt-4 flex items-center justify-center gap-3">
+                <label className="flex items-center gap-2 rounded-full border border-slate-300 bg-white px-3 py-1.5 text-xs font-semibold text-slate-600">
+                  폴더 색상
+                  <input
+                    type="color"
+                    value={draft.folder_color || '#f59e0b'}
+                    onChange={(e) => updateDraft({ folder_color: e.target.value })}
+                    className="h-6 w-8 cursor-pointer rounded border border-slate-200 p-0"
+                  />
+                </label>
+                <button
+                  type="button"
+                  onClick={() => setSecurityDialogOpen(true)}
+                  className={cn('inline-flex h-8 items-center gap-1.5 rounded-full border px-3 text-xs font-semibold', ACCESS_TONES[draft.access_mode])}
+                >
+                  <AccessIcon mode={draft.access_mode} className="h-3.5 w-3.5" />
+                  {ACCESS_LABELS[draft.access_mode]}
+                </button>
+              </div>
+              <div className="mt-6 flex flex-wrap justify-center gap-2">
                 <Button variant="outline" className="gap-1.5 bg-white" onClick={() => void handleCreate(selectedItem.id, 'folder')}>
                   <FolderPlus className="h-4 w-4" />
                   하위 폴더
@@ -533,6 +643,10 @@ export function WorkspaceView() {
                 </Button>
                 <Button variant="outline" onClick={() => void saveDraft('structure')} disabled={!dirty || saving}>
                   {saving ? '저장 중' : '폴더 저장'}
+                </Button>
+                <Button variant="outline" className="gap-1.5 text-red-600" onClick={handleDeleteSelected} disabled={!canManageDocument}>
+                  <Trash2 className="h-4 w-4" />
+                  폴더 삭제
                 </Button>
               </div>
             </div>
@@ -619,17 +733,6 @@ export function WorkspaceView() {
                 fontSize={draft.editor_font_size}
                 placeholder={'조사 배경, 검토안, 회의 메모, 결정사항, 미결 이슈를 자유롭게 작성하세요.'}
               />
-            </div>
-          </div>
-        ) : selectedLocked ? (
-          <div className="flex h-full items-center justify-center px-6">
-            <div className="rounded-2xl border border-slate-300 bg-card px-8 py-12 text-center shadow-sm">
-              <Lock className="mx-auto h-8 w-8 text-muted-foreground" />
-              <div className="mt-4 text-lg font-semibold">잠긴 문서입니다</div>
-              <p className="mt-2 text-sm text-muted-foreground">공유자로 지정되었거나 비밀번호를 입력해야 볼 수 있습니다.</p>
-              {selectedItem?.access_mode === 'password' && (
-                <Button className="mt-5" onClick={() => setUnlockDialogOpen(true)}>비밀번호 입력</Button>
-              )}
             </div>
           </div>
         ) : (
