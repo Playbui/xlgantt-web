@@ -3,6 +3,7 @@ import { X, Calendar, Users, CheckCircle2, Circle, Loader2, FileText, Plus, Tras
 import { useTaskStore } from '@/stores/task-store'
 import { useResourceStore } from '@/stores/resource-store'
 import { useUIStore } from '@/stores/ui-store'
+import { RichContentEditor } from '@/components/task-workspace/RichContentEditor'
 import { cn } from '@/lib/utils'
 
 export function MobileTaskDetailSheet() {
@@ -191,12 +192,11 @@ export function MobileTaskDetailSheet() {
                 </div>
                 {editingBody ? (
                   <div className="space-y-2">
-                    <textarea
+                    <RichContentEditor
                       value={taskBodyValue}
-                      onChange={(e) => setTaskBodyValue(e.target.value)}
-                      className="w-full text-sm border border-border rounded-lg p-2 min-h-[60px] outline-none focus:ring-2 focus:ring-primary/30 bg-background resize-none"
+                      onChange={setTaskBodyValue}
                       placeholder="수행방안 또는 본문 입력..."
-                      autoFocus
+                      minHeight={220}
                     />
                     <div className="flex gap-2 justify-end">
                       <button onClick={() => setEditingBody(false)} className="px-3 py-1.5 text-xs rounded-lg border border-border active:bg-accent">취소</button>
@@ -204,7 +204,10 @@ export function MobileTaskDetailSheet() {
                     </div>
                   </div>
                 ) : (
-                  <p className="whitespace-pre-wrap text-sm text-foreground/80">{task.task_body || task.remarks || '—'}</p>
+                  <div
+                    className="prose prose-sm max-w-none text-foreground/80"
+                    dangerouslySetInnerHTML={{ __html: task.task_body || task.remarks || '<p>—</p>' }}
+                  />
                 )}
               </div>
             </>
@@ -339,11 +342,11 @@ export function MobileTaskDetailSheet() {
                         {/* 메모 */}
                         <div>
                           <label className="text-[10px] font-semibold text-muted-foreground block mb-1">메모</label>
-                          <textarea
+                          <RichContentEditor
                             value={d.description || ''}
-                            onChange={(e) => updateTaskDetail(d.id, { description: e.target.value })}
+                            onChange={(value) => updateTaskDetail(d.id, { description: value })}
                             placeholder="메모 입력..."
-                            className="w-full text-sm border border-border/50 rounded-lg p-2.5 min-h-[60px] outline-none focus:ring-2 focus:ring-primary/30 bg-background resize-none"
+                            minHeight={160}
                           />
                         </div>
 

@@ -35,6 +35,8 @@ import { useProjectStore } from '@/stores/project-store'
 import type { CustomStatus } from '@/stores/project-store'
 import { TaskEditDialog } from '@/components/gantt/TaskEditDialog'
 import { CardDetailModal } from '@/components/mytasks/CardDetailModal'
+import { RichContentEditor } from '@/components/task-workspace/RichContentEditor'
+import { richTextToPlainText } from '@/lib/rich-text'
 import { cn } from '@/lib/utils'
 import type { TaskDetail } from '@/lib/resource-types'
 import type { Task } from '@/lib/types'
@@ -288,7 +290,7 @@ export function MyTasksDashboard() {
       if (q) {
         const title = card.type === 'detail' ? card.detail.title : card.task.task_name
         const taskName = card.task.task_name
-        const desc = card.type === 'detail' ? (card.detail.description || '') : ''
+        const desc = card.type === 'detail' ? richTextToPlainText(card.detail.description || '') : ''
         if (![title, taskName, desc].some((s) => s.toLowerCase().includes(q))) return false
       }
       // 기간 필터
@@ -624,27 +626,19 @@ export function MyTasksDashboard() {
             </span>
           )}
           {detail.description && !isExpanded && (
-            <span className="truncate max-w-[150px] italic text-muted-foreground/70">{detail.description.split('\n')[0]}</span>
+            <span className="truncate max-w-[150px] italic text-muted-foreground/70">{richTextToPlainText(detail.description).split('\n')[0]}</span>
           )}
         </div>
 
         {/* 확장 영역: 메모 편집 */}
         {isExpanded && (
           <div className="px-3 pb-2.5 border-t border-border/30">
-            <textarea
-              ref={(el) => {
-                if (el) { el.style.height = 'auto'; el.style.height = Math.max(60, el.scrollHeight) + 'px' }
-              }}
-              placeholder="메모를 입력하세요..."
+            <RichContentEditor
               value={detail.description || ''}
-              onChange={(e) => {
-                handleDescriptionChange(detail.id, e.target.value)
-                e.target.style.height = 'auto'
-                e.target.style.height = Math.max(60, e.target.scrollHeight) + 'px'
-              }}
-              onClick={(e) => e.stopPropagation()}
-              className="w-full text-sm text-foreground bg-white border border-border rounded-md px-3 py-2 resize-none outline-none focus:border-primary/50 focus:ring-1 focus:ring-primary/20 placeholder:text-muted-foreground/40 mt-2 overflow-hidden"
-              style={{ minHeight: 60 }}
+              onChange={(value) => handleDescriptionChange(detail.id, value)}
+              placeholder="메모를 입력하세요..."
+              minHeight={140}
+              className="mt-2"
             />
           </div>
         )}

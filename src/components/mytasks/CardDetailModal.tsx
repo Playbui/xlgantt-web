@@ -31,6 +31,7 @@ import { useAuthStore } from '@/stores/auth-store'
 import { useResourceStore } from '@/stores/resource-store'
 import { useTaskStore } from '@/stores/task-store'
 import { useProjectStore } from '@/stores/project-store'
+import { RichContentEditor } from '@/components/task-workspace/RichContentEditor'
 import { cn } from '@/lib/utils'
 import type { TaskDetail } from '@/lib/resource-types'
 import type { Task } from '@/lib/types'
@@ -88,7 +89,6 @@ export function CardDetailModal({ detailId, open, onClose }: CardDetailModalProp
 
   const fileInputRef = useRef<HTMLInputElement>(null)
   const titleInputRef = useRef<HTMLInputElement>(null)
-  const textareaRef = useRef<HTMLTextAreaElement>(null)
   const panelRef = useRef<HTMLDivElement>(null)
 
   const detail: TaskDetail | undefined = useMemo(() => {
@@ -174,22 +174,6 @@ export function CardDetailModal({ detailId, open, onClose }: CardDetailModalProp
     }
     setEditingTitle(false)
   }, [detail, titleValue, updateTaskDetail])
-
-  // Auto-resize textarea
-  const autoResizeTextarea = useCallback(() => {
-    const el = textareaRef.current
-    if (el) {
-      el.style.height = 'auto'
-      el.style.height = Math.max(150, el.scrollHeight) + 'px'
-    }
-  }, [])
-
-  useEffect(() => {
-    if (open) {
-      // 약간의 지연으로 레이아웃 변경 후 높이 재계산
-      requestAnimationFrame(autoResizeTextarea)
-    }
-  }, [open, detail?.description, isFullscreen, autoResizeTextarea])
 
   // File handling (Supabase Storage)
   const handleFiles = useCallback(
@@ -476,13 +460,11 @@ export function CardDetailModal({ detailId, open, onClose }: CardDetailModalProp
         <FileText className="h-4 w-4 text-primary" />
         <span className="text-xs font-bold tracking-wide text-foreground uppercase">메모</span>
       </div>
-      <textarea
-        ref={textareaRef}
-        placeholder="메모를 입력하세요..."
+      <RichContentEditor
         value={detail.description || ''}
-        onChange={(e) => updateTaskDetail(detail.id, { description: e.target.value })}
-        className="w-full text-sm text-foreground bg-white border border-border rounded-lg px-4 py-3 resize-y outline-none focus:border-primary/50 focus:ring-1 focus:ring-primary/20 placeholder:text-muted-foreground/40 transition-colors"
-        style={{ minHeight: 150 }}
+        onChange={(value) => updateTaskDetail(detail.id, { description: value })}
+        placeholder="메모를 입력하세요..."
+        minHeight={220}
       />
     </div>
   )

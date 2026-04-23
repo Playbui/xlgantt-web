@@ -11,6 +11,7 @@ import { format } from 'date-fns'
 import { TaskEditDialog } from '@/components/gantt/TaskEditDialog'
 import { CardDetailModal } from '@/components/mytasks/CardDetailModal'
 import { OrganizationPath } from '@/components/organization/OrganizationPath'
+import { richTextToPlainText } from '@/lib/rich-text'
 import type { Task } from '@/lib/types'
 import type { TaskAssignment, TaskDetail, TeamMember } from '@/lib/resource-types'
 
@@ -994,7 +995,7 @@ export function MemberTasksView() {
                                             <Clock className="h-2.5 w-2.5" />{detail.due_date}
                                           </span>
                                         )}
-                                        {detail.description && <span className="truncate max-w-[100px] italic">{detail.description.split('\n')[0]}</span>}
+                                        {detail.description && <span className="truncate max-w-[100px] italic">{richTextToPlainText(detail.description).split('\n')[0]}</span>}
                                       </div>
                                     )}
                                   </div>

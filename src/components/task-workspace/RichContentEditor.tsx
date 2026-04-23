@@ -1,16 +1,17 @@
 import type { ReactNode } from 'react'
-import { useEffect } from 'react'
-import { EditorContent, useEditor } from '@tiptap/react'
-import Image from '@tiptap/extension-image'
-import Placeholder from '@tiptap/extension-placeholder'
-import StarterKit from '@tiptap/starter-kit'
-import { Table } from '@tiptap/extension-table'
-import { TableCell } from '@tiptap/extension-table-cell'
-import { TableHeader } from '@tiptap/extension-table-header'
-import { TableRow } from '@tiptap/extension-table-row'
-import Underline from '@tiptap/extension-underline'
-import { Bold, Heading1, Heading2, Heading3, ImagePlus, Italic, List, ListOrdered, Minus, Pilcrow, Table2, Underline as UnderlineIcon } from 'lucide-react'
+import { useEffect, useMemo, useRef } from 'react'
+import { Plate, PlateContent, createPlateEditor, usePlateEditor } from 'platejs/react'
+import { deserializeHtml, type Value } from 'platejs'
+import { serializeHtml } from 'platejs/static'
+import { BlockquotePlugin, BoldPlugin, H1Plugin, H2Plugin, H3Plugin, HorizontalRulePlugin, ItalicPlugin, UnderlinePlugin } from '@platejs/basic-nodes/react'
+import { ListPlugin } from '@platejs/list/react'
+import { toggleList } from '@platejs/list'
+import { TableCellHeaderPlugin, TableCellPlugin, TablePlugin, TableRowPlugin } from '@platejs/table/react'
+import { ImagePlugin, insertMedia } from '@platejs/media/react'
+import { insertImage } from '@platejs/media'
+import { Bold, Heading1, Heading2, Heading3, ImagePlus, Italic, List, ListOrdered, Minus, Pilcrow, Quote, Table2, Underline as UnderlineIcon } from 'lucide-react'
 import { Button } from '@/components/ui/button'
+import { isRichTextEmpty, normalizeRichTextHtml } from '@/lib/rich-text'
 import { cn } from '@/lib/utils'
 
 interface RichContentEditorProps {
@@ -29,28 +30,6 @@ interface ToolbarButtonProps {
   onClick: () => void
   children: ReactNode
   size?: 'icon' | 'sm'
-}
-
-function readFileAsDataUrl(file: File): Promise<string> {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader()
-    reader.onload = () => resolve(String(reader.result || ''))
-    reader.onerror = reject
-    reader.readAsDataURL(file)
-  })
-}
-
-function escapeHtml(text: string) {
-  return text
-    .replaceAll('&', '&amp;')
-    .replaceAll('<', '&lt;')
-    .replaceAll('>', '&gt;')
-    .replaceAll('"', '&quot;')
-    .replaceAll("'", '&#039;')
-}
-
-function normalizeHtml(html: string) {
-  return html.replace(/\s+/g, ' ').trim()
 }
 
 function ToolbarButton({ active = false, title, onClick, children, size = 'icon' }: ToolbarButtonProps) {
@@ -75,6 +54,28 @@ function ToolbarButton({ active = false, title, onClick, children, size = 'icon'
   )
 }
 
+const EDITOR_PLUGINS = [
+  BoldPlugin,
+  ItalicPlugin,
+  UnderlinePlugin,
+  H1Plugin,
+  H2Plugin,
+  H3Plugin,
+  BlockquotePlugin,
+  HorizontalRulePlugin,
+  ListPlugin,
+  TablePlugin,
+  TableRowPlugin,
+  TableCellPlugin,
+  TableCellHeaderPlugin,
+  ImagePlugin,
+]
+
+function createEditorValue(html: string) {
+  const editor = createPlateEditor({ plugins: EDITOR_PLUGINS })
+  return deserializeHtml(editor, { element: html || '<p></p>' }) as Value
+}
+
 export function RichContentEditor({
   value,
   onChange,
@@ -84,130 +85,78 @@ export function RichContentEditor({
   fontSize = 15,
   onUploadImages,
 }: RichContentEditorProps) {
-  const editor = useEditor({
-    extensions: [
-      StarterKit.configure({
-        heading: { levels: [1, 2, 3] },
-      }),
-      Underline,
-      Placeholder.configure({
-        placeholder,
-        emptyEditorClass: 'is-editor-empty',
-      }),
-      Image.configure({
-        inline: false,
-        allowBase64: true,
-      }),
-      Table.configure({
-        resizable: true,
-      }),
-      TableRow,
-      TableHeader,
-      TableCell,
-    ],
-    content: value || '',
-    editable: true,
-    editorProps: {
-      attributes: {
-        class: cn(
-          'min-h-full max-w-none px-7 py-6 text-[15px] leading-7 text-slate-800 outline-none',
-          'prose prose-sm prose-slate max-w-none',
-          'prose-p:my-2.5 prose-p:text-[15px] prose-p:leading-7 prose-headings:font-semibold prose-headings:tracking-[-0.02em] prose-headings:text-slate-950',
-          'prose-h1:mt-7 prose-h1:mb-3 prose-h1:border-b prose-h1:border-slate-200 prose-h1:pb-2 prose-h1:text-[1.85rem]',
-          'prose-h2:mt-6 prose-h2:mb-2 prose-h2:text-[1.4rem]',
-          'prose-h3:mt-4 prose-h3:mb-2 prose-h3:text-[1.1rem] prose-h3:text-slate-800',
-          'prose-strong:text-slate-950 prose-code:rounded prose-code:bg-slate-100 prose-code:px-1 prose-code:py-0.5 prose-code:text-[0.9em] prose-code:text-slate-700',
-          'prose-ul:my-3 prose-ul:list-disc prose-ul:pl-6 prose-ul:marker:text-slate-400',
-          'prose-ol:my-3 prose-ol:list-decimal prose-ol:pl-6 prose-ol:marker:text-slate-400',
-          'prose-li:my-1.5 prose-li:pl-1',
-          'prose-blockquote:my-4 prose-blockquote:border-l-4 prose-blockquote:border-slate-300 prose-blockquote:bg-slate-50 prose-blockquote:px-4 prose-blockquote:py-2 prose-blockquote:text-slate-700',
-          'prose-hr:my-6 prose-hr:border-slate-200',
-          'prose-table:my-5 prose-table:w-full prose-table:border-collapse prose-table:overflow-hidden prose-table:rounded-xl',
-          'prose-th:border prose-th:border-slate-200 prose-th:bg-slate-100 prose-th:px-3 prose-th:py-2 prose-th:text-left prose-th:text-[12px] prose-th:font-semibold prose-th:text-slate-600',
-          'prose-td:border prose-td:border-slate-200 prose-td:px-3 prose-td:py-2 prose-td:align-top',
-          'prose-img:my-4 prose-img:rounded-2xl prose-img:border prose-img:border-slate-200 prose-img:shadow-[0_10px_25px_rgba(15,23,42,0.08)]',
-          'before:pointer-events-none before:float-left before:h-0 before:text-slate-400 before:content-[attr(data-placeholder)]',
-          'cursor-text',
-        ),
-        style: `min-height:${minHeight}px; font-size:${fontSize}px;`,
-      },
-      handlePaste: (_view, event) => {
-        const files = Array.from(event.clipboardData?.files || []).filter((file) => file.type.startsWith('image/'))
-        if (files.length === 0) return false
+  const normalizedValue = normalizeRichTextHtml(value)
+  const lastSyncedValueRef = useRef(normalizedValue)
+  const syncLockRef = useRef(false)
+  const fileInputRef = useRef<HTMLInputElement | null>(null)
 
-        void (async () => {
-          await insertImageFromFiles(files)
-        })()
-        return true
-      },
-      handleDrop: (_view, event) => {
-        const files = Array.from(event.dataTransfer?.files || []).filter((file) => file.type.startsWith('image/'))
-        if (files.length === 0) return false
+  const plugins = useMemo(() => EDITOR_PLUGINS, [])
 
-        void (async () => {
-          await insertImageFromFiles(files)
-        })()
-        return true
-      },
-    },
-    onUpdate: ({ editor: currentEditor }) => {
-      onChange(currentEditor.isEmpty ? '' : currentEditor.getHTML())
-    },
+  const editor = usePlateEditor({
+    plugins,
+    value: createEditorValue(value || '<p></p>'),
   })
 
   useEffect(() => {
     if (!editor) return
-
-    const nextValue = value || ''
-    const currentValue = editor.isEmpty ? '' : editor.getHTML()
-    if (normalizeHtml(currentValue) !== normalizeHtml(nextValue)) {
-      editor.commands.setContent(nextValue, { emitUpdate: false })
+    if (syncLockRef.current) {
+      syncLockRef.current = false
+      return
     }
+
+    const nextValue = normalizeRichTextHtml(value)
+    if (nextValue === lastSyncedValueRef.current) return
+
+    editor.tf.setValue(createEditorValue(value || '<p></p>'))
+    lastSyncedValueRef.current = nextValue
   }, [editor, value])
 
-  useEffect(() => {
-    if (!editor) return
+  const handleValueChange = ({ editor: currentEditor }: { editor: typeof editor }) => {
+    void (async () => {
+      const html = await serializeHtml(currentEditor)
+      const nextValue = isRichTextEmpty(html) ? '' : normalizeRichTextHtml(html)
+      if (nextValue === lastSyncedValueRef.current) return
 
-    editor.setEditable(true)
-    editor.setOptions({
-      editorProps: {
-        ...editor.options.editorProps,
-        attributes: {
-          ...editor.options.editorProps?.attributes,
-          style: `min-height:${minHeight}px; font-size:${fontSize}px;`,
-        },
-      },
-    })
-  }, [editor, fontSize, minHeight])
+      syncLockRef.current = true
+      lastSyncedValueRef.current = nextValue
+      onChange(nextValue)
+    })()
+  }
 
-  const insertImageFromFiles = async (files: File[]) => {
-    if (!editor) return
+  const handleImageInsert = async (files: File[]) => {
+    if (!editor || files.length === 0) return
 
-    for (const file of files) {
-      let src = ''
-      if (onUploadImages) {
-        try {
-          const uploaded = await onUploadImages([file])
-          src = uploaded[0] || ''
-        } catch {
-          src = ''
-        }
+    if (onUploadImages) {
+      const urls = await onUploadImages(files)
+      for (const url of urls) {
+        if (!url) continue
+        insertImage(editor, url)
       }
+      return
+    }
 
-      if (!src) {
-        src = await readFileAsDataUrl(file)
-      }
+    const transfer = new DataTransfer()
+    files.forEach((file) => transfer.items.add(file))
+    insertMedia(editor, transfer.files)
+  }
 
-      editor
-        .chain()
-        .focus()
-        .setImage({
-          src,
-          alt: escapeHtml(file.name),
-          title: file.name,
-        })
-        .createParagraphNear()
-        .run()
+  const isBlockActive = (type: string) => {
+    try {
+      return !!editor?.api.some({
+        match: { type },
+      })
+    } catch {
+      return false
+    }
+  }
+
+  const isMarkActive = (key: 'bold' | 'italic' | 'underline') => {
+    try {
+      return !!editor?.api.some({
+        match: (_node) => Boolean((editor.api.marks?.() as Record<string, boolean> | null)?.[key]),
+      })
+    } catch {
+      return false
     }
   }
 
@@ -218,92 +167,106 @@ export function RichContentEditor({
   return (
     <div className={cn('overflow-hidden rounded-[20px] border border-slate-300 bg-[linear-gradient(180deg,#fdfefe_0%,#fafcff_100%)] shadow-[0_10px_30px_rgba(15,23,42,0.06)]', className)}>
       <div className="flex flex-wrap items-center gap-1.5 border-b border-slate-200 bg-[linear-gradient(180deg,#f7f9fc_0%,#f2f5f9_100%)] px-3 py-2.5">
-        <ToolbarButton title="본문" size="sm" active={editor.isActive('paragraph')} onClick={() => editor.chain().focus().setParagraph().run()}>
+        <ToolbarButton title="본문" size="sm" active={isBlockActive('p')} onClick={() => editor.tf.toggleBlock('p')}>
           <Pilcrow className="mr-1 h-3.5 w-3.5" />
           본문
         </ToolbarButton>
-        <ToolbarButton title="제목 1" active={editor.isActive('heading', { level: 1 })} onClick={() => editor.chain().focus().toggleHeading({ level: 1 }).run()}>
+        <ToolbarButton title="제목 1" active={isBlockActive('h1')} onClick={() => editor.tf.toggleBlock('h1')}>
           <Heading1 className="h-4 w-4" />
         </ToolbarButton>
-        <ToolbarButton title="제목 2" active={editor.isActive('heading', { level: 2 })} onClick={() => editor.chain().focus().toggleHeading({ level: 2 }).run()}>
+        <ToolbarButton title="제목 2" active={isBlockActive('h2')} onClick={() => editor.tf.toggleBlock('h2')}>
           <Heading2 className="h-4 w-4" />
         </ToolbarButton>
-        <ToolbarButton title="제목 3" active={editor.isActive('heading', { level: 3 })} onClick={() => editor.chain().focus().toggleHeading({ level: 3 }).run()}>
+        <ToolbarButton title="제목 3" active={isBlockActive('h3')} onClick={() => editor.tf.toggleBlock('h3')}>
           <Heading3 className="h-4 w-4" />
+        </ToolbarButton>
+        <ToolbarButton title="인용" active={isBlockActive('blockquote')} onClick={() => editor.tf.toggleBlock('blockquote')}>
+          <Quote className="h-4 w-4" />
         </ToolbarButton>
 
         <div className="mx-1 h-4 w-px bg-slate-200" />
 
-        <ToolbarButton title="굵게" active={editor.isActive('bold')} onClick={() => editor.chain().focus().toggleBold().run()}>
+        <ToolbarButton title="굵게" active={isMarkActive('bold')} onClick={() => editor.tf.toggleMark('bold')}>
           <Bold className="h-4 w-4" />
         </ToolbarButton>
-        <ToolbarButton title="기울임" active={editor.isActive('italic')} onClick={() => editor.chain().focus().toggleItalic().run()}>
+        <ToolbarButton title="기울임" active={isMarkActive('italic')} onClick={() => editor.tf.toggleMark('italic')}>
           <Italic className="h-4 w-4" />
         </ToolbarButton>
-        <ToolbarButton title="밑줄" active={editor.isActive('underline')} onClick={() => editor.chain().focus().toggleUnderline().run()}>
+        <ToolbarButton title="밑줄" active={isMarkActive('underline')} onClick={() => editor.tf.toggleMark('underline')}>
           <UnderlineIcon className="h-4 w-4" />
         </ToolbarButton>
 
         <div className="mx-1 h-4 w-px bg-slate-200" />
 
-        <ToolbarButton title="글머리표" active={editor.isActive('bulletList')} onClick={() => editor.chain().focus().toggleBulletList().run()}>
+        <ToolbarButton title="글머리표" active={isBlockActive('ul')} onClick={() => toggleList(editor, { listStyleType: 'disc' })}>
           <List className="h-4 w-4" />
         </ToolbarButton>
-        <ToolbarButton title="번호 목록" active={editor.isActive('orderedList')} onClick={() => editor.chain().focus().toggleOrderedList().run()}>
+        <ToolbarButton title="번호 목록" active={isBlockActive('ol')} onClick={() => toggleList(editor, { listStyleType: 'decimal' })}>
           <ListOrdered className="h-4 w-4" />
         </ToolbarButton>
-        <ToolbarButton
-          title="표 삽입"
-          active={editor.isActive('table')}
-          onClick={() =>
-            editor.chain().focus().insertTable({ rows: 3, cols: 3, withHeaderRow: true }).run()
-          }
-        >
+        <ToolbarButton title="표 삽입" active={isBlockActive('table')} onClick={() => editor.tf.insert.table({ colCount: 3, rowCount: 3, header: true })}>
           <Table2 className="h-4 w-4" />
         </ToolbarButton>
-        <ToolbarButton title="구분선" onClick={() => editor.chain().focus().setHorizontalRule().run()}>
+        <ToolbarButton title="구분선" onClick={() => editor.tf.insertNodes({ type: 'hr', children: [{ text: '' }] })}>
           <Minus className="h-4 w-4" />
         </ToolbarButton>
 
-        <label className="inline-flex cursor-pointer items-center justify-center">
-          <input
-            type="file"
-            accept="image/*"
-            multiple
-            className="hidden"
-            onChange={async (e) => {
-              const files = Array.from(e.target.files || []).filter((file) => file.type.startsWith('image/'))
-              if (files.length === 0) return
-              await insertImageFromFiles(files)
-              e.currentTarget.value = ''
-            }}
-          />
-          <span className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-transparent text-slate-500 transition-colors hover:border-slate-200 hover:bg-white hover:text-slate-900">
-            <ImagePlus className="h-4 w-4" />
-          </span>
-        </label>
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept="image/*"
+          multiple
+          className="hidden"
+          onChange={async (e) => {
+            const files = Array.from(e.target.files || []).filter((file) => file.type.startsWith('image/'))
+            await handleImageInsert(files)
+            e.currentTarget.value = ''
+          }}
+        />
+        <ToolbarButton title="이미지" onClick={() => fileInputRef.current?.click()}>
+          <ImagePlus className="h-4 w-4" />
+        </ToolbarButton>
 
         <div className="ml-auto flex items-center gap-2 text-[11px] text-slate-500">
-          <span className="hidden rounded-full border border-slate-200 bg-white/80 px-2.5 py-1 md:inline-flex">문서형 편집</span>
+          <span className="hidden rounded-full border border-slate-200 bg-white/80 px-2.5 py-1 md:inline-flex">Plate 에디터</span>
           <span>이미지 드래그, 붙여넣기, 표 삽입 지원</span>
         </div>
       </div>
 
-      <div
-        className="relative bg-[radial-gradient(circle_at_top,#ffffff_0%,#fbfcfe_40%,#f8fafc_100%)]"
-        onMouseDown={(e) => {
-          const target = e.target as HTMLElement
-          if (target.closest('button,input,label,a')) return
-          requestAnimationFrame(() => {
-            editor.chain().focus().run()
-          })
-        }}
-      >
-        <EditorContent
-          editor={editor}
-          className="min-h-[inherit] cursor-text [&_.ProseMirror]:min-h-[560px] [&_.ProseMirror]:cursor-text"
-        />
-      </div>
+      <Plate editor={editor} onValueChange={handleValueChange}>
+        <div className="relative bg-[radial-gradient(circle_at_top,#ffffff_0%,#fbfcfe_40%,#f8fafc_100%)]">
+          <PlateContent
+            placeholder={placeholder}
+            className={cn(
+              'min-h-[inherit] cursor-text px-7 py-6 text-[15px] leading-7 text-slate-800 outline-none',
+              'prose prose-sm prose-slate max-w-none',
+              'prose-p:my-2.5 prose-p:text-[15px] prose-p:leading-7 prose-headings:font-semibold prose-headings:tracking-[-0.02em] prose-headings:text-slate-950',
+              'prose-h1:mt-7 prose-h1:mb-3 prose-h1:border-b prose-h1:border-slate-200 prose-h1:pb-2 prose-h1:text-[1.85rem]',
+              'prose-h2:mt-6 prose-h2:mb-2 prose-h2:text-[1.4rem]',
+              'prose-h3:mt-4 prose-h3:mb-2 prose-h3:text-[1.1rem] prose-h3:text-slate-800',
+              'prose-ul:my-3 prose-ul:list-disc prose-ul:pl-6 prose-ol:my-3 prose-ol:list-decimal prose-ol:pl-6 prose-li:my-1.5 prose-li:pl-1',
+              'prose-blockquote:my-4 prose-blockquote:border-l-4 prose-blockquote:border-slate-300 prose-blockquote:bg-slate-50 prose-blockquote:px-4 prose-blockquote:py-2 prose-blockquote:text-slate-700',
+              'prose-hr:my-6 prose-hr:border-slate-200',
+              'prose-table:my-5 prose-table:w-full prose-table:border-collapse prose-th:border prose-th:border-slate-200 prose-th:bg-slate-100 prose-th:px-3 prose-th:py-2 prose-td:border prose-td:border-slate-200 prose-td:px-3 prose-td:py-2',
+              'prose-img:my-4 prose-img:rounded-2xl prose-img:border prose-img:border-slate-200 prose-img:shadow-[0_10px_25px_rgba(15,23,42,0.08)]',
+              '[&_.slate-placeholder]:pointer-events-none [&_.slate-placeholder]:absolute [&_.slate-placeholder]:text-slate-400',
+            )}
+            style={{ minHeight, fontSize }}
+            onPaste={(event) => {
+              const files = Array.from(event.clipboardData?.files || []).filter((file) => file.type.startsWith('image/'))
+              if (files.length === 0) return
+              event.preventDefault()
+              void handleImageInsert(files)
+            }}
+            onDrop={(event) => {
+              const files = Array.from(event.dataTransfer?.files || []).filter((file) => file.type.startsWith('image/'))
+              if (files.length === 0) return
+              event.preventDefault()
+              void handleImageInsert(files)
+            }}
+          />
+        </div>
+      </Plate>
     </div>
   )
 }

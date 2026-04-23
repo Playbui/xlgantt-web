@@ -31,6 +31,7 @@ import { useTaskStore } from '@/stores/task-store'
 import { useProjectStore } from '@/stores/project-store'
 import { useAuthStore } from '@/stores/auth-store'
 import { supabase } from '@/lib/supabase'
+import { richTextToPlainText } from '@/lib/rich-text'
 import { cn } from '@/lib/utils'
 import type { WorkspaceItem } from '@/lib/types'
 
@@ -202,7 +203,7 @@ export function WorkspaceView() {
     const normalized = query.trim().toLowerCase()
     if (!normalized) return items
     return items.filter((item) =>
-      [item.title, item.summary || '', item.body || ''].some((value) => value.toLowerCase().includes(normalized))
+      [item.title, item.summary || '', richTextToPlainText(item.body || '')].some((value) => value.toLowerCase().includes(normalized))
     )
   }, [items, query])
 

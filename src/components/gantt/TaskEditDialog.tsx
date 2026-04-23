@@ -23,6 +23,7 @@ import { DEP_TYPE_LABELS } from '@/lib/types'
 import { cn } from '@/lib/utils'
 import { MemberPicker } from '@/components/common/MemberPicker'
 import { DatePicker } from '@/components/ui/date-picker'
+import { RichContentEditor } from '@/components/task-workspace/RichContentEditor'
 
 interface TaskEditDialogProps {
   taskId: string | null
@@ -717,11 +718,11 @@ export function TaskEditDialog({ taskId, open, onClose }: TaskEditDialogProps) {
               <p className="text-[11px] text-muted-foreground">
                 세부항목이 없어도 작업 배경, 수행방안, 산출물 기준, 이슈 메모를 자유롭게 기록할 수 있습니다.
               </p>
-              <textarea
+              <RichContentEditor
                 value={taskBody}
-                onChange={(e) => setTaskBody(e.target.value)}
+                onChange={setTaskBody}
                 placeholder={'예:\n1. 업무 종료 후 자동 적재 파이프라인 구축\n2. 업무단위 분류/시간정보 기준 정합 절차 수립\n3. 연간 누적 관리체계 마련'}
-                className="min-h-[140px] w-full rounded-md border border-border/60 bg-background px-3 py-2 text-sm leading-6 outline-none transition-colors focus:border-primary/50 focus:ring-1 focus:ring-primary/20"
+                minHeight={220}
               />
             </div>
           </Section>
@@ -821,12 +822,12 @@ export function TaskEditDialog({ taskId, open, onClose }: TaskEditDialogProps) {
 
                     {/* Row 3: 메모 (항상 표시, 한 줄부터 시작, 포커스 시 확장) */}
                     <div className="pl-6">
-                      <textarea
-                        placeholder="메모..."
+                      <RichContentEditor
                         value={detail.description || ''}
-                        onChange={(e) => updateTaskDetail(detail.id, { description: e.target.value })}
-                        className="w-full text-[11px] text-foreground/70 bg-white/60 border border-border/40 rounded px-2 py-1 resize-y outline-none focus:border-primary/50 focus:ring-1 focus:ring-primary/20 placeholder:text-muted-foreground/30"
-                        rows={1}
+                        onChange={(value) => updateTaskDetail(detail.id, { description: value })}
+                        placeholder="메모..."
+                        minHeight={120}
+                        className="rounded-xl bg-white/80"
                       />
                     </div>
                   </div>
