@@ -3,7 +3,7 @@ import { persist } from 'zustand/middleware'
 import type { ZoomLevel } from '@/lib/types'
 import { DEFAULT_VISIBLE_COLUMNS, REQUIRED_COLUMNS, getTotalColumnWidth } from '@/lib/column-defs'
 
-export type ViewMode = 'gantt' | 'progress' | 'analysis' | 'workload' | 'calendar' | 'resources' | 'settings' | 'activity' | 'mytasks' | 'memberTasks'
+export type ViewMode = 'gantt' | 'progress' | 'analysis' | 'workload' | 'calendar' | 'resources' | 'settings' | 'activity' | 'mytasks' | 'memberTasks' | 'workspace'
 export type MobileTab = 'mytasks' | 'progress' | 'activity'
 export type FilterStatus = 'all' | 'delayed' | 'completed' | 'in_progress'
 
@@ -43,6 +43,7 @@ interface UIState {
   showProgressLine: boolean // Progress Line 표시 여부
   showArchived: boolean // 아카이브된 작업 표시 여부
   customDateRange: { start: string; end: string } | null // 기간 필터 (null이면 프로젝트 전체 기간)
+  rowHeight: number // 간트/WBS 행 높이
   ganttOptions: GanttOptions // 간트 차트 옵션
   mobileActiveTab: MobileTab // 모바일 하단 탭
   mobileTaskId: string | null // 모바일 태스크 상세 시트
@@ -67,6 +68,7 @@ interface UIState {
   toggleProgressLine: () => void
   toggleShowArchived: () => void
   setCustomDateRange: (range: { start: string; end: string } | null) => void
+  setRowHeight: (height: number) => void
   setGanttOptions: (options: Partial<GanttOptions>) => void
   resetGanttOptions: () => void
   setMobileActiveTab: (tab: MobileTab) => void
@@ -92,6 +94,7 @@ export const useUIStore = create<UIState>()(
       showProgressLine: false,
       showArchived: false,
       customDateRange: null,
+      rowHeight: 40,
       ganttOptions: { ...DEFAULT_GANTT_OPTIONS },
       mobileActiveTab: 'mytasks' as MobileTab,
       mobileTaskId: null,
@@ -149,6 +152,7 @@ export const useUIStore = create<UIState>()(
       toggleProgressLine: () => set((s) => ({ showProgressLine: !s.showProgressLine })),
       toggleShowArchived: () => set((s) => ({ showArchived: !s.showArchived })),
       setCustomDateRange: (customDateRange) => set({ customDateRange }),
+      setRowHeight: (rowHeight) => set({ rowHeight: Math.max(20, Math.min(60, rowHeight)) }),
       setGanttOptions: (options) => set((s) => ({
         ganttOptions: { ...s.ganttOptions, ...options },
       })),
@@ -183,6 +187,7 @@ export const useUIStore = create<UIState>()(
         columnWidths: state.columnWidths,
         ganttOptions: state.ganttOptions,
         customDateRange: state.customDateRange,
+        rowHeight: state.rowHeight,
       }),
     }
   )

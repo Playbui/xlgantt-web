@@ -1,6 +1,5 @@
 import { type RefObject, useMemo, useEffect, useState, useCallback } from 'react'
 import type { Task, Dependency, GanttScale, ColorTheme } from '@/lib/types'
-import { ROW_HEIGHT } from '@/lib/types'
 import { generateTimescale, getTodayX, generateNonWorkingBands, taskToBarRect, calcProgressLinePoints, getStatusDateX } from '@/lib/gantt-math'
 import { calculateDependencyPath, ARROW_MARKER_ID } from '@/lib/dependency-routing'
 import { useUIStore } from '@/stores/ui-store'
@@ -38,6 +37,7 @@ export function GanttChart({
   const cancelLinkMode = useUIStore((s) => s.cancelLinkMode)
   const showProgressLine = useUIStore((s) => s.showProgressLine)
   const ganttOptions = useUIStore((s) => s.ganttOptions)
+  const rowHeight = useUIStore((s) => s.rowHeight)
   const project = useProjectStore((s) => s.currentProject)
   const selectedTaskIds = useTaskStore((s) => s.selectedTaskIds)
 
@@ -83,18 +83,18 @@ export function GanttChart({
     [scale, stdHolidaySet]
   )
 
-  const totalHeight = tasks.length * ROW_HEIGHT
+  const totalHeight = tasks.length * rowHeight
   const { totalWidth } = scale
 
   // Pre-compute bar rects for dependency arrow routing
   const barRects = useMemo(() => {
     const map = new Map<string, ReturnType<typeof taskToBarRect>>()
     tasks.forEach((task, index) => {
-      const rect = taskToBarRect(task, scale, index, ROW_HEIGHT)
+      const rect = taskToBarRect(task, scale, index, rowHeight)
       if (rect) map.set(task.id, rect)
     })
     return map
-  }, [tasks, scale])
+  }, [tasks, scale, rowHeight])
 
   // Progress Line data
   const statusDateX = useMemo(
@@ -105,8 +105,8 @@ export function GanttChart({
   const progressLinePoints = useMemo(() => {
     if (!showProgressLine) return []
     const statusDate = project?.status_date ? new Date(project.status_date) : new Date()
-    return calcProgressLinePoints(tasks, scale, statusDate, ROW_HEIGHT)
-  }, [showProgressLine, tasks, scale, project?.status_date])
+    return calcProgressLinePoints(tasks, scale, statusDate, rowHeight)
+  }, [showProgressLine, tasks, scale, project?.status_date, rowHeight])
 
   const progressLineColor = theme.colors[13] || '#ff6b35'
 
@@ -208,18 +208,18 @@ export function GanttChart({
               <g key={`sel-${task.id}`} filter="url(#selected-row-shadow)">
                 <rect
                   x={0}
-                  y={index * ROW_HEIGHT}
+                  y={index * rowHeight}
                   width={totalWidth}
-                  height={ROW_HEIGHT}
+                  height={rowHeight}
                   fill="rgba(254, 242, 242, 0.88)"
                   stroke="rgba(248, 113, 113, 0.95)"
                   strokeWidth={2}
                 />
                 <rect
                   x={0}
-                  y={index * ROW_HEIGHT}
+                  y={index * rowHeight}
                   width={3}
-                  height={ROW_HEIGHT}
+                  height={rowHeight}
                   fill="#ef4444"
                 />
               </g>
@@ -231,9 +231,9 @@ export function GanttChart({
             <line
               key={`grid-${index}`}
               x1={0}
-              y1={(index + 1) * ROW_HEIGHT - 0.5}
+              y1={(index + 1) * rowHeight - 0.5}
               x2={totalWidth}
-              y2={(index + 1) * ROW_HEIGHT - 0.5}
+              y2={(index + 1) * rowHeight - 0.5}
               stroke="#cbd5e1"
               strokeWidth={1}
             />

@@ -1,4 +1,5 @@
 import { useRef, useCallback, useMemo, useEffect, useState } from 'react'
+import { BarChart3, BriefcaseBusiness, CalendarDays, Sigma } from 'lucide-react'
 import { TaskTable } from './TaskTable'
 import { GanttChart } from './GanttChart'
 import { GanttToolbar } from './GanttToolbar'
@@ -138,6 +139,30 @@ export function GanttView() {
     )
   }, [project, zoomLevel, customDateRange])
 
+  const ganttSummary = useMemo(() => {
+    const activeTasks = tasks.filter((task) => !task.archived_at)
+    const leafTasks = activeTasks.filter((task) => !task.is_group)
+    const totalWorkload = leafTasks.reduce((sum, task) => sum + (task.total_workload || 0), 0)
+    const weightedProgress =
+      totalWorkload > 0
+        ? leafTasks.reduce((sum, task) => sum + (task.actual_progress || 0) * (task.total_workload || 0), 0) / totalWorkload
+        : leafTasks.length > 0
+          ? leafTasks.reduce((sum, task) => sum + (task.actual_progress || 0), 0) / leafTasks.length
+          : 0
+
+    const starts = activeTasks.map((task) => task.planned_start).filter(Boolean).sort() as string[]
+    const ends = activeTasks.map((task) => task.planned_end).filter(Boolean).sort() as string[]
+
+    return {
+      totalTasks: activeTasks.length,
+      leafTasks: leafTasks.length,
+      totalWorkload,
+      progressPercent: Math.round(weightedProgress * 100),
+      start: starts[0] || project?.start_date || '',
+      end: ends[ends.length - 1] || project?.end_date || '',
+    }
+  }, [tasks, project?.start_date, project?.end_date])
+
   // Auto-scroll to project start date on mount
   useEffect(() => {
     if (scale && chartScrollRef.current && project) {
@@ -243,6 +268,35 @@ export function GanttView() {
       <GanttToolbar onOpenTaskDialog={handleOpenTaskDialog} onScrollToToday={() => {
         scrollChartToDate(new Date())
       }} />
+
+      <div className="flex h-10 flex-shrink-0 items-center gap-5 border-b border-slate-200 bg-slate-50/70 px-5 text-sm">
+        <div className="flex items-center gap-2">
+          <BriefcaseBusiness className="h-4 w-4 text-slate-500" />
+          <span className="text-xs text-muted-foreground">작업</span>
+          <span className="font-bold text-foreground">{ganttSummary.totalTasks.toLocaleString()}개</span>
+          <span className="text-xs font-medium text-muted-foreground">(단위 {ganttSummary.leafTasks.toLocaleString()}개)</span>
+        </div>
+        <div className="h-4 w-px bg-border" />
+        <div className="flex items-center gap-2">
+          <Sigma className="h-4 w-4 text-slate-500" />
+          <span className="text-xs text-muted-foreground">총 공수</span>
+          <span className="font-bold text-foreground">{ganttSummary.totalWorkload.toLocaleString(undefined, { maximumFractionDigits: 1 })}일</span>
+        </div>
+        <div className="h-4 w-px bg-border" />
+        <div className="flex items-center gap-2">
+          <BarChart3 className="h-4 w-4 text-slate-500" />
+          <span className="text-xs text-muted-foreground">전체 진척률</span>
+          <span className="font-bold text-foreground">{ganttSummary.progressPercent}%</span>
+        </div>
+        <div className="h-4 w-px bg-border" />
+        <div className="flex items-center gap-2">
+          <CalendarDays className="h-4 w-4 text-slate-500" />
+          <span className="text-xs text-muted-foreground">기간</span>
+          <span className="font-bold text-foreground">
+            {ganttSummary.start || '-'} ~ {ganttSummary.end || '-'}
+          </span>
+        </div>
+      </div>
 
       {/* Main split pane */}
       <div ref={containerRef} className="flex flex-1 overflow-hidden">

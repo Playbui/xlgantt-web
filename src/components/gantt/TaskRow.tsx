@@ -1,11 +1,12 @@
 import { useCallback, useMemo } from 'react'
-import { ArrowUp, ChevronRight, GripVertical } from 'lucide-react'
+import { ArrowUp, ChevronRight, GripVertical, NotebookText } from 'lucide-react'
 import type { Task } from '@/lib/types'
-import { ROW_HEIGHT } from '@/lib/types'
 import { useTaskStore } from '@/stores/task-store'
 import { useResourceStore } from '@/stores/resource-store'
 import { useProjectStore } from '@/stores/project-store'
 import { useAuthStore } from '@/stores/auth-store'
+import { useWorkspaceStore } from '@/stores/workspace-store'
+import { useUIStore } from '@/stores/ui-store'
 import { TaskCell } from './TaskCell'
 import { cn } from '@/lib/utils'
 import type { ColumnDef } from '@/lib/column-defs'
@@ -32,6 +33,8 @@ export function TaskRow({ task, rowIndex, columns, onDoubleClick, onContextMenu,
   const { assignments, members, companies, taskDetails } = useResourceStore()
   const theme = useProjectStore((s) => s.theme)
   const users = useAuthStore((s) => s.users)
+  const workspaceItems = useWorkspaceStore((s) => s.items)
+  const rowHeight = useUIStore((s) => s.rowHeight)
 
   // 레벨1 그룹 작업의 테마 색상 (colors[0] = 그룹 계획 색상)
   const level1GroupColor = task.is_group && task.wbs_level === 1 ? theme.colors[0] : undefined
@@ -75,6 +78,10 @@ export function TaskRow({ task, rowIndex, columns, onDoubleClick, onContextMenu,
       archivedAtLabel,
     }
   }, [task.archived_at, task.archived_by, users])
+
+  const workspaceCount = useMemo(() => {
+    return workspaceItems.filter((item) => item.linkedTaskIds.includes(task.id)).length
+  }, [task.id, workspaceItems])
 
   // 총 컬럼 너비 계산
   const totalWidth = useMemo(() => columns.reduce((sum, col) => sum + col.width, 0), [columns])
@@ -165,6 +172,12 @@ export function TaskRow({ task, rowIndex, columns, onDoubleClick, onContextMenu,
                 : "bg-blue-100 text-blue-700"
             )}>
               {detailCount.done}/{detailCount.total}
+            </span>
+          )}
+          {workspaceCount > 0 && (
+            <span className="mr-1 inline-flex flex-shrink-0 items-center gap-1 rounded bg-slate-100 px-1.5 py-0.5 text-[10px] font-medium text-slate-700">
+              <NotebookText className="h-3 w-3" />
+              {workspaceCount}
             </span>
           )}
         </div>
@@ -409,7 +422,7 @@ export function TaskRow({ task, rowIndex, columns, onDoubleClick, onContextMenu,
         !isSelected && !task.is_group && rowIndex % 2 === 1 && 'bg-muted/20',
         isDragging && 'opacity-40',
       )}
-      style={{ height: ROW_HEIGHT, minWidth: totalWidth, ...(level1GroupColor ? { color: level1GroupColor } : {}) }}
+      style={{ height: rowHeight, minWidth: totalWidth, ...(level1GroupColor ? { color: level1GroupColor } : {}) }}
       onClick={handleClick}
       onDoubleClick={() => onDoubleClick?.(task.id)}
       onContextMenu={handleContextMenu}

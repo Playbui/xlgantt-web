@@ -18,6 +18,7 @@ export function TaskTable({ tasks, scrollRef, onScroll, onDoubleClickTask }: Tas
   const visibleColumns = useUIStore((s) => s.visibleColumns)
   const columnWidths = useUIStore((s) => s.columnWidths)
   const setColumnWidth = useUIStore((s) => s.setColumnWidth)
+  const rowHeight = useUIStore((s) => s.rowHeight)
 
   // 컬럼 리사이즈 상태
   const resizeRef = useRef<{ colId: string; startX: number; startW: number } | null>(null)
@@ -29,7 +30,7 @@ export function TaskTable({ tasks, scrollRef, onScroll, onDoubleClickTask }: Tas
     handleDragOver,
     handleDragEnd,
     handleDrop,
-  } = useDragReorder(tasks)
+  } = useDragReorder(tasks, rowHeight)
 
   // Sync scroll refs: the drag hook needs the scroll container ref
   useEffect(() => {

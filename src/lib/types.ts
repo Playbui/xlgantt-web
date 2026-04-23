@@ -134,6 +134,27 @@ export interface ProjectMember {
   joined_at: string
 }
 
+export interface WorkspaceLink {
+  id: string
+  title: string
+  url: string
+}
+
+export interface WorkspaceItem {
+  id: string
+  project_id: string
+  title: string
+  summary?: string
+  body?: string
+  status: 'draft' | 'active' | 'done' | 'archived'
+  linkedTaskIds: string[]
+  links: WorkspaceLink[]
+  created_by?: string
+  updated_by?: string
+  created_at: string
+  updated_at: string
+}
+
 // ============================================================
 // Enums & Constants
 // ============================================================

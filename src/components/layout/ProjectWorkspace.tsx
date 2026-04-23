@@ -9,6 +9,7 @@ import { ResourceManager } from '@/components/settings/ResourceManager'
 import { ActivityTimeline } from '@/components/activity/ActivityTimeline'
 import { MyTasksDashboard } from '@/components/mytasks/MyTasksDashboard'
 import { MemberTasksView } from '@/components/member-tasks/MemberTasksView'
+import { WorkspaceView } from '@/components/workspace/WorkspaceView'
 import { useProjectStore } from '@/stores/project-store'
 import { useTaskStore } from '@/stores/task-store'
 import { useResourceStore } from '@/stores/resource-store'
@@ -17,6 +18,7 @@ import { useUndoStore } from '@/stores/undo-store'
 import { useAuthStore } from '@/stores/auth-store'
 import { useActivityStore } from '@/stores/activity-store'
 import { useCalendarStore } from '@/stores/calendar-store'
+import { useWorkspaceStore } from '@/stores/workspace-store'
 import { SAMPLE_PROJECT, SAMPLE_TASKS, SAMPLE_DEPENDENCIES } from '@/lib/sample-data'
 import { useIsMobile } from '@/hooks/use-is-mobile'
 import { MobileShell } from '@/components/mobile/MobileShell'
@@ -46,6 +48,8 @@ function MainContent() {
       return <MyTasksDashboard />
     case 'memberTasks':
       return <MemberTasksView />
+    case 'workspace':
+      return <WorkspaceView />
     default:
       return <GanttView />
   }
@@ -59,6 +63,7 @@ export function ProjectWorkspace() {
   const fetchAllUsers = useAuthStore((s) => s.fetchAllUsers)
   const loadActivityLogs = useActivityStore((s) => s.loadLogs)
   const loadCalendars = useCalendarStore((s) => s.loadCalendars)
+  const loadWorkspaceItems = useWorkspaceStore((s) => s.loadItems)
   const currentUserId = useAuthStore((s) => s.currentUser?.id)
   const clearUndo = useUndoStore((s) => s.clear)
 
@@ -78,6 +83,7 @@ export function ProjectWorkspace() {
           loadResources(projectId),
           loadProjectMembers(projectId),
           loadCalendars(projectId),
+          loadWorkspaceItems(projectId),
           fetchAllUsers(),
           // 활동로그도 DB에서 로드 (현재 사용자 기준, 첫 페이지)
           loadActivityLogs(projectId, { userId: currentUserId, offset: 0, limit: 50 }),
