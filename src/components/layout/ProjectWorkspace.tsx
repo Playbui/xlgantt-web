@@ -60,7 +60,7 @@ export function ProjectWorkspace() {
   const { setTasks, setDependencies, loadTasks, loadDependencies } = useTaskStore()
   const { loadResources } = useResourceStore()
   const fetchAllUsers = useAuthStore((s) => s.fetchAllUsers)
-  const loadActivityLogs = useActivityStore((s) => s.loadLogs)
+  const loadActivityLogs = useActivityStore((s) => (s as { loadLogs?: (projectId: string, options?: { userId?: string; offset?: number; limit?: number }) => Promise<void> }).loadLogs)
   const currentUserId = useAuthStore((s) => s.currentUser?.id)
   const clearUndo = useUndoStore((s) => s.clear)
 
@@ -81,7 +81,7 @@ export function ProjectWorkspace() {
           loadProjectMembers(projectId),
           fetchAllUsers(),
           // 활동로그도 DB에서 로드 (현재 사용자 기준, 첫 페이지)
-          loadActivityLogs(projectId, { userId: currentUserId, offset: 0, limit: 50 }),
+          loadActivityLogs?.(projectId, { userId: currentUserId, offset: 0, limit: 50 }),
         ])
         // 서버에서 작업 데이터가 비어있고, 샘플 프로젝트인 경우 폴백
         const { tasks } = useTaskStore.getState()
