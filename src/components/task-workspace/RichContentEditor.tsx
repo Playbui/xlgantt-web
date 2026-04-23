@@ -1,5 +1,15 @@
-import { useEffect, useMemo, useRef } from 'react'
-import { Bold, Heading1, Heading2, Heading3, ImagePlus, Italic, List, ListOrdered, Minus, Pilcrow, Table2, Underline } from 'lucide-react'
+import type { ReactNode } from 'react'
+import { useEffect } from 'react'
+import { EditorContent, useEditor } from '@tiptap/react'
+import Image from '@tiptap/extension-image'
+import Placeholder from '@tiptap/extension-placeholder'
+import StarterKit from '@tiptap/starter-kit'
+import { Table } from '@tiptap/extension-table'
+import { TableCell } from '@tiptap/extension-table-cell'
+import { TableHeader } from '@tiptap/extension-table-header'
+import { TableRow } from '@tiptap/extension-table-row'
+import Underline from '@tiptap/extension-underline'
+import { Bold, Heading1, Heading2, Heading3, ImagePlus, Italic, List, ListOrdered, Minus, Pilcrow, Table2, Underline as UnderlineIcon } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
 
@@ -11,6 +21,14 @@ interface RichContentEditorProps {
   minHeight?: number
   fontSize?: number
   onUploadImages?: (files: File[]) => Promise<string[]>
+}
+
+interface ToolbarButtonProps {
+  active?: boolean
+  title: string
+  onClick: () => void
+  children: ReactNode
+  size?: 'icon' | 'sm'
 }
 
 function readFileAsDataUrl(file: File): Promise<string> {
@@ -31,6 +49,31 @@ function escapeHtml(text: string) {
     .replaceAll("'", '&#039;')
 }
 
+function normalizeHtml(html: string) {
+  return html.replace(/\s+/g, ' ').trim()
+}
+
+function ToolbarButton({ active = false, title, onClick, children, size = 'icon' }: ToolbarButtonProps) {
+  return (
+    <Button
+      type="button"
+      variant="ghost"
+      size={size}
+      title={title}
+      aria-label={title}
+      data-active={active ? 'true' : 'false'}
+      className={cn(
+        size === 'icon' ? 'h-8 w-8' : 'h-8 px-2 text-xs font-bold',
+        'border border-transparent text-slate-600 hover:bg-white hover:text-slate-900 data-[active=true]:border-slate-300 data-[active=true]:bg-white data-[active=true]:text-primary data-[active=true]:shadow-sm',
+      )}
+      onMouseDown={(e) => e.preventDefault()}
+      onClick={onClick}
+    >
+      {children}
+    </Button>
+  )
+}
+
 export function RichContentEditor({
   value,
   onChange,
@@ -40,205 +83,102 @@ export function RichContentEditor({
   fontSize = 15,
   onUploadImages,
 }: RichContentEditorProps) {
-  const editorRef = useRef<HTMLDivElement | null>(null)
-  const savedRangeRef = useRef<Range | null>(null)
+  const editor = useEditor({
+    immediatelyRender: false,
+    extensions: [
+      StarterKit.configure({
+        heading: { levels: [1, 2, 3] },
+      }),
+      Underline,
+      Placeholder.configure({
+        placeholder,
+        emptyEditorClass: 'is-editor-empty',
+      }),
+      Image.configure({
+        inline: false,
+        allowBase64: true,
+      }),
+      Table.configure({
+        resizable: true,
+      }),
+      TableRow,
+      TableHeader,
+      TableCell,
+    ],
+    content: value || '',
+    editorProps: {
+      attributes: {
+        class: cn(
+          'min-h-full max-w-none px-4 py-3 text-[15px] leading-7 text-slate-800 outline-none',
+          'prose prose-sm prose-slate max-w-none',
+          'prose-p:my-2 prose-headings:font-semibold prose-headings:text-slate-950',
+          'prose-h1:mt-5 prose-h1:mb-3 prose-h1:text-[1.7rem]',
+          'prose-h2:mt-4 prose-h2:mb-2 prose-h2:text-[1.35rem]',
+          'prose-h3:mt-3 prose-h3:mb-2 prose-h3:text-[1.1rem]',
+          'prose-ul:my-3 prose-ul:list-disc prose-ul:pl-6',
+          'prose-ol:my-3 prose-ol:list-decimal prose-ol:pl-6',
+          'prose-li:my-1',
+          'prose-hr:my-5 prose-hr:border-slate-300',
+          'prose-table:my-4 prose-table:w-full prose-table:border-collapse',
+          'prose-th:border prose-th:border-slate-300 prose-th:bg-slate-100 prose-th:px-3 prose-th:py-2 prose-th:text-left',
+          'prose-td:border prose-td:border-slate-300 prose-td:px-3 prose-td:py-2',
+          'prose-img:my-3 prose-img:rounded-xl prose-img:border prose-img:border-slate-200',
+          'before:pointer-events-none before:float-left before:h-0 before:text-slate-400 before:content-[attr(data-placeholder)]',
+        ),
+        style: `min-height:${minHeight}px; font-size:${fontSize}px;`,
+      },
+      handlePaste: (_view, event) => {
+        const files = Array.from(event.clipboardData?.files || []).filter((file) => file.type.startsWith('image/'))
+        if (files.length === 0) return false
 
-  const isEmpty = useMemo(() => {
-    const plain = value
-      .replace(/<[^>]+>/g, '')
-      .replace(/&nbsp;/g, ' ')
-      .trim()
-    return plain.length === 0
-  }, [value])
+        void (async () => {
+          await insertImageFromFiles(files)
+        })()
+        return true
+      },
+      handleDrop: (_view, event) => {
+        const files = Array.from(event.dataTransfer?.files || []).filter((file) => file.type.startsWith('image/'))
+        if (files.length === 0) return false
+
+        void (async () => {
+          await insertImageFromFiles(files)
+        })()
+        return true
+      },
+    },
+    onUpdate: ({ editor: currentEditor }) => {
+      onChange(currentEditor.isEmpty ? '' : currentEditor.getHTML())
+    },
+  })
 
   useEffect(() => {
-    const editor = editorRef.current
-    if (!editor) return
-    if (editor.innerHTML !== value) {
-      editor.innerHTML = value || ''
-    }
-  }, [value])
-
-  const editorContainsNode = (node: Node | null) => {
-    const editor = editorRef.current
-    return Boolean(editor && node && editor.contains(node))
-  }
-
-  const saveSelection = () => {
-    const selection = window.getSelection()
-    if (!selection || selection.rangeCount === 0) return
-
-    const range = selection.getRangeAt(0)
-    if (editorContainsNode(range.commonAncestorContainer)) {
-      savedRangeRef.current = range.cloneRange()
-    }
-  }
-
-  const restoreSelection = () => {
-    const editor = editorRef.current
     if (!editor) return
 
-    editor.focus()
-    const selection = window.getSelection()
-    if (!selection) return
-
-    if (editorContainsNode(selection.anchorNode)) return
-
-    const savedRange = savedRangeRef.current
-    if (!savedRange) return
-
-    try {
-      selection.removeAllRanges()
-      selection.addRange(savedRange)
-    } catch {
-      savedRangeRef.current = null
+    const nextValue = value || ''
+    const currentValue = editor.isEmpty ? '' : editor.getHTML()
+    if (normalizeHtml(currentValue) !== normalizeHtml(nextValue)) {
+      editor.commands.setContent(nextValue, { emitUpdate: false })
     }
-  }
+  }, [editor, value])
 
-  const emitChange = () => {
-    const editor = editorRef.current
+  useEffect(() => {
     if (!editor) return
-    onChange(editor.innerHTML)
-    saveSelection()
-  }
 
-  const focusEditor = () => {
-    restoreSelection()
-  }
-
-  const exec = (command: string, commandValue?: string) => {
-    focusEditor()
-    document.execCommand(command, false, commandValue)
-    emitChange()
-  }
-
-  const insertHtml = (html: string) => {
-    focusEditor()
-    const selection = window.getSelection()
-    if (!selection || selection.rangeCount === 0 || !editorContainsNode(selection.anchorNode)) {
-      editorRef.current?.insertAdjacentHTML('beforeend', html)
-      emitChange()
-      return
-    }
-
-    const range = selection.getRangeAt(0)
-    range.deleteContents()
-
-    const wrapper = document.createElement('div')
-    wrapper.innerHTML = html
-    const fragment = document.createDocumentFragment()
-    let lastNode: ChildNode | null = null
-
-    while (wrapper.firstChild) {
-      lastNode = fragment.appendChild(wrapper.firstChild)
-    }
-
-    range.insertNode(fragment)
-    if (lastNode) {
-      const nextRange = document.createRange()
-      nextRange.setStartAfter(lastNode)
-      nextRange.collapse(true)
-      selection.removeAllRanges()
-      selection.addRange(nextRange)
-    }
-
-    emitChange()
-  }
-
-  const findBlockElement = (node: Node | null) => {
-    const editor = editorRef.current
-    if (!editor || !node) return null
-
-    let current: Node | null = node.nodeType === Node.TEXT_NODE ? node.parentNode : node
-    while (current && current !== editor) {
-      if (current instanceof HTMLElement && ['P', 'DIV', 'H1', 'H2', 'H3', 'H4', 'H5', 'H6', 'LI'].includes(current.tagName)) {
-        return current
-      }
-      current = current.parentNode
-    }
-
-    return null
-  }
-
-  const moveCursorToEnd = (element: HTMLElement) => {
-    const selection = window.getSelection()
-    if (!selection) return
-
-    const nextRange = document.createRange()
-    nextRange.selectNodeContents(element)
-    nextRange.collapse(false)
-    selection.removeAllRanges()
-    selection.addRange(nextRange)
-    savedRangeRef.current = nextRange.cloneRange()
-  }
-
-  const insertTable = () => {
-    insertHtml(`
-      <table style="width:100%; border-collapse:collapse; margin:12px 0;">
-        <tbody>
-          <tr>
-            <td style="border:1px solid rgba(55,53,47,.16); padding:8px;">셀</td>
-            <td style="border:1px solid rgba(55,53,47,.16); padding:8px;">셀</td>
-            <td style="border:1px solid rgba(55,53,47,.16); padding:8px;">셀</td>
-          </tr>
-          <tr>
-            <td style="border:1px solid rgba(55,53,47,.16); padding:8px;">셀</td>
-            <td style="border:1px solid rgba(55,53,47,.16); padding:8px;">셀</td>
-            <td style="border:1px solid rgba(55,53,47,.16); padding:8px;">셀</td>
-          </tr>
-          <tr>
-            <td style="border:1px solid rgba(55,53,47,.16); padding:8px;">셀</td>
-            <td style="border:1px solid rgba(55,53,47,.16); padding:8px;">셀</td>
-            <td style="border:1px solid rgba(55,53,47,.16); padding:8px;">셀</td>
-          </tr>
-        </tbody>
-      </table>
-      <p></p>
-    `)
-  }
-
-  const formatBlock = (tagName: 'p' | 'h1' | 'h2' | 'h3') => {
-    focusEditor()
-    const editor = editorRef.current
-    const selection = window.getSelection()
-
-    if (!editor || !selection || selection.rangeCount === 0 || !editorContainsNode(selection.anchorNode)) {
-      insertHtml(`<${tagName}><br></${tagName}>`)
-      return
-    }
-
-    const range = selection.getRangeAt(0)
-    const block = findBlockElement(range.startContainer)
-
-    if (block && block.tagName !== 'LI') {
-      const replacement = document.createElement(tagName)
-      replacement.innerHTML = block.innerHTML || '<br>'
-      block.replaceWith(replacement)
-      moveCursorToEnd(replacement)
-      emitChange()
-      return
-    }
-
-    const selectedText = range.toString()
-    const replacement = document.createElement(tagName)
-    replacement.textContent = selectedText.trim() ? selectedText : ''
-    if (!replacement.textContent) {
-      replacement.appendChild(document.createElement('br'))
-    }
-
-    range.deleteContents()
-    range.insertNode(replacement)
-    moveCursorToEnd(replacement)
-    emitChange()
-  }
-
-  const insertDivider = () => {
-    insertHtml('<hr style="border:0; border-top:1px solid rgba(15,23,42,.18); margin:20px 0;" /><p></p>')
-  }
+    editor.setOptions({
+      editorProps: {
+        ...editor.options.editorProps,
+        attributes: {
+          ...editor.options.editorProps?.attributes,
+          style: `min-height:${minHeight}px; font-size:${fontSize}px;`,
+        },
+      },
+    })
+  }, [editor, fontSize, minHeight])
 
   const insertImageFromFiles = async (files: File[]) => {
-    const imageFiles = files.filter((file) => file.type.startsWith('image/'))
-    for (const file of imageFiles) {
+    if (!editor) return
+
+    for (const file of files) {
       let src = ''
       if (onUploadImages) {
         try {
@@ -248,59 +188,78 @@ export function RichContentEditor({
           src = ''
         }
       }
+
       if (!src) {
         src = await readFileAsDataUrl(file)
       }
-      const safeAlt = escapeHtml(file.name)
-      insertHtml(`
-        <figure style="margin:12px 0;">
-          <img src="${src}" alt="${safeAlt}" style="max-width:100%; height:auto; border-radius:8px; border:1px solid rgba(55,53,47,.12);" />
-          <figcaption style="margin-top:6px; font-size:12px; color:rgba(55,53,47,.6);">${safeAlt}</figcaption>
-        </figure>
-        <p></p>
-      `)
+
+      editor
+        .chain()
+        .focus()
+        .setImage({
+          src,
+          alt: escapeHtml(file.name),
+          title: file.name,
+        })
+        .createParagraphNear()
+        .run()
     }
   }
 
+  if (!editor) {
+    return <div className={cn('rounded-lg border border-slate-300 bg-background', className)} />
+  }
+
   return (
-    <div className={cn('rounded-lg border border-slate-300 bg-background', className)}>
+    <div className={cn('rounded-lg border border-slate-300 bg-background shadow-[0_1px_2px_rgba(15,23,42,0.04)]', className)}>
       <div className="flex flex-wrap items-center gap-1 border-b border-slate-300 bg-slate-50 px-2 py-2">
-        <Button type="button" variant="ghost" size="sm" className="h-8 px-2 text-xs font-bold" onClick={() => formatBlock('p')} title="본문">
+        <ToolbarButton title="본문" size="sm" active={editor.isActive('paragraph')} onClick={() => editor.chain().focus().setParagraph().run()}>
           <Pilcrow className="mr-1 h-3.5 w-3.5" />
           본문
-        </Button>
-        <Button type="button" variant="ghost" size="icon" className="h-8 w-8" onClick={() => formatBlock('h1')} title="제목 1">
+        </ToolbarButton>
+        <ToolbarButton title="제목 1" active={editor.isActive('heading', { level: 1 })} onClick={() => editor.chain().focus().toggleHeading({ level: 1 }).run()}>
           <Heading1 className="h-4 w-4" />
-        </Button>
-        <Button type="button" variant="ghost" size="icon" className="h-8 w-8" onClick={() => formatBlock('h2')} title="제목 2">
+        </ToolbarButton>
+        <ToolbarButton title="제목 2" active={editor.isActive('heading', { level: 2 })} onClick={() => editor.chain().focus().toggleHeading({ level: 2 }).run()}>
           <Heading2 className="h-4 w-4" />
-        </Button>
-        <Button type="button" variant="ghost" size="icon" className="h-8 w-8" onClick={() => formatBlock('h3')} title="제목 3">
+        </ToolbarButton>
+        <ToolbarButton title="제목 3" active={editor.isActive('heading', { level: 3 })} onClick={() => editor.chain().focus().toggleHeading({ level: 3 }).run()}>
           <Heading3 className="h-4 w-4" />
-        </Button>
-        <div className="mx-1 h-4 w-px bg-border" />
-        <Button type="button" variant="ghost" size="icon" className="h-8 w-8" onClick={() => exec('bold')} title="굵게">
+        </ToolbarButton>
+
+        <div className="mx-1 h-4 w-px bg-slate-300" />
+
+        <ToolbarButton title="굵게" active={editor.isActive('bold')} onClick={() => editor.chain().focus().toggleBold().run()}>
           <Bold className="h-4 w-4" />
-        </Button>
-        <Button type="button" variant="ghost" size="icon" className="h-8 w-8" onClick={() => exec('italic')} title="기울임">
+        </ToolbarButton>
+        <ToolbarButton title="기울임" active={editor.isActive('italic')} onClick={() => editor.chain().focus().toggleItalic().run()}>
           <Italic className="h-4 w-4" />
-        </Button>
-        <Button type="button" variant="ghost" size="icon" className="h-8 w-8" onClick={() => exec('underline')} title="밑줄">
-          <Underline className="h-4 w-4" />
-        </Button>
-        <div className="mx-1 h-4 w-px bg-border" />
-        <Button type="button" variant="ghost" size="icon" className="h-8 w-8" onClick={() => exec('insertUnorderedList')} title="글머리표">
+        </ToolbarButton>
+        <ToolbarButton title="밑줄" active={editor.isActive('underline')} onClick={() => editor.chain().focus().toggleUnderline().run()}>
+          <UnderlineIcon className="h-4 w-4" />
+        </ToolbarButton>
+
+        <div className="mx-1 h-4 w-px bg-slate-300" />
+
+        <ToolbarButton title="글머리표" active={editor.isActive('bulletList')} onClick={() => editor.chain().focus().toggleBulletList().run()}>
           <List className="h-4 w-4" />
-        </Button>
-        <Button type="button" variant="ghost" size="icon" className="h-8 w-8" onClick={() => exec('insertOrderedList')} title="번호 목록">
+        </ToolbarButton>
+        <ToolbarButton title="번호 목록" active={editor.isActive('orderedList')} onClick={() => editor.chain().focus().toggleOrderedList().run()}>
           <ListOrdered className="h-4 w-4" />
-        </Button>
-        <Button type="button" variant="ghost" size="icon" className="h-8 w-8" onClick={insertTable} title="표 삽입">
+        </ToolbarButton>
+        <ToolbarButton
+          title="표 삽입"
+          active={editor.isActive('table')}
+          onClick={() =>
+            editor.chain().focus().insertTable({ rows: 3, cols: 3, withHeaderRow: true }).run()
+          }
+        >
           <Table2 className="h-4 w-4" />
-        </Button>
-        <Button type="button" variant="ghost" size="icon" className="h-8 w-8" onClick={insertDivider} title="구분선">
+        </ToolbarButton>
+        <ToolbarButton title="구분선" onClick={() => editor.chain().focus().setHorizontalRule().run()}>
           <Minus className="h-4 w-4" />
-        </Button>
+        </ToolbarButton>
+
         <label className="inline-flex cursor-pointer items-center justify-center">
           <input
             type="file"
@@ -308,58 +267,24 @@ export function RichContentEditor({
             multiple
             className="hidden"
             onChange={async (e) => {
-              const files = Array.from(e.target.files || [])
+              const files = Array.from(e.target.files || []).filter((file) => file.type.startsWith('image/'))
               if (files.length === 0) return
               await insertImageFromFiles(files)
               e.currentTarget.value = ''
             }}
           />
-          <span className="inline-flex h-8 w-8 items-center justify-center rounded-md text-muted-foreground hover:bg-accent hover:text-accent-foreground">
+          <span className="inline-flex h-8 w-8 items-center justify-center rounded-md border border-transparent text-slate-600 hover:bg-white hover:text-slate-900">
             <ImagePlus className="h-4 w-4" />
           </span>
         </label>
+
         <div className="ml-auto flex items-center gap-2 text-[11px] text-muted-foreground">
           <span>이미지 드래그, 붙여넣기, 표 삽입 지원</span>
         </div>
       </div>
 
       <div className="relative">
-        {isEmpty && (
-          <div className="pointer-events-none absolute left-4 top-3 whitespace-pre-line text-sm text-muted-foreground/50">
-            {placeholder}
-          </div>
-        )}
-        <div
-          ref={editorRef}
-          contentEditable
-          suppressContentEditableWarning
-          className="prose prose-sm max-w-none px-4 py-3 outline-none [&_h1]:mb-3 [&_h1]:mt-4 [&_h1]:text-2xl [&_h1]:font-bold [&_h2]:mb-2 [&_h2]:mt-3 [&_h2]:text-xl [&_h2]:font-bold [&_h3]:mb-2 [&_h3]:mt-3 [&_h3]:text-lg [&_h3]:font-semibold"
-          style={{ minHeight, fontSize }}
-          onInput={emitChange}
-          onMouseUp={saveSelection}
-          onKeyUp={saveSelection}
-          onBlur={saveSelection}
-          onPaste={async (e) => {
-            const items = Array.from(e.clipboardData.items || [])
-            const imageFiles = items
-              .filter((item) => item.type.startsWith('image/'))
-              .map((item) => item.getAsFile())
-              .filter((file): file is File => Boolean(file))
-
-            if (imageFiles.length > 0) {
-              e.preventDefault()
-              await insertImageFromFiles(imageFiles)
-            }
-          }}
-          onDrop={async (e) => {
-            e.preventDefault()
-            const files = Array.from(e.dataTransfer.files || [])
-            if (files.length > 0) {
-              await insertImageFromFiles(files)
-            }
-          }}
-          onDragOver={(e) => e.preventDefault()}
-        />
+        <EditorContent editor={editor} className="min-h-[inherit] [&_.ProseMirror]:min-h-[inherit]" />
       </div>
     </div>
   )
