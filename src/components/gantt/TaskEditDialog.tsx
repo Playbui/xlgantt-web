@@ -74,6 +74,7 @@ const WORKSPACE_ACCESS_LABELS = {
   project: '공유',
   restricted: '지정',
   password: '비번',
+  private: '비공개',
 } as const
 
 function formatShortDate(value?: string) {

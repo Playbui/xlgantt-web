@@ -10,6 +10,7 @@ interface RichContentEditorProps {
   className?: string
   minHeight?: number
   fontSize?: number
+  onFontSizeChange?: (fontSize: number) => void
   onUploadImages?: (files: File[]) => Promise<string[]>
 }
 
@@ -38,6 +39,7 @@ export function RichContentEditor({
   className,
   minHeight = 360,
   fontSize = 15,
+  onFontSizeChange,
   onUploadImages,
 }: RichContentEditorProps) {
   const editorRef = useRef<HTMLDivElement | null>(null)
@@ -197,8 +199,24 @@ export function RichContentEditor({
             <ImagePlus className="h-4 w-4" />
           </span>
         </label>
-        <div className="ml-auto text-[11px] text-muted-foreground">
-          이미지 드래그, 붙여넣기, 표 삽입 지원
+        <div className="ml-auto flex items-center gap-2 text-[11px] text-muted-foreground">
+          {onFontSizeChange && (
+            <>
+              <span className="whitespace-nowrap">본문 크기</span>
+              <input
+                type="range"
+                min={13}
+                max={22}
+                value={fontSize}
+                onChange={(e) => onFontSizeChange(Number(e.target.value))}
+                className="w-24 accent-primary"
+                title="본문 텍스트 크기"
+              />
+              <span className="w-8 text-right font-semibold text-foreground/80">{fontSize}px</span>
+              <span className="mx-1 h-4 w-px bg-border" />
+            </>
+          )}
+          <span>이미지 드래그, 붙여넣기, 표 삽입 지원</span>
         </div>
       </div>
 

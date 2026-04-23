@@ -45,6 +45,7 @@ const ACCESS_LABELS = {
   project: '프로젝트 공개',
   restricted: '공유자만',
   password: '비밀번호',
+  private: '비공개',
 } as const
 
 async function hashText(text: string) {
@@ -200,7 +201,8 @@ export function WorkspaceView() {
     if (item.created_by === currentUser.id || item.updated_by === currentUser.id) return true
     if (item.access_mode === 'restricted') return item.shared_user_ids.includes(currentUser.id)
     if (item.access_mode === 'password') return unlockedIds.has(item.id)
-    return true
+    if (item.access_mode === 'private') return false
+    return false
   }
 
   const selectedLocked = selectedItem ? !canReadItem(selectedItem) : false
@@ -434,6 +436,7 @@ export function WorkspaceView() {
                 onChange={(value) => updateDraft({ body: value })}
                 minHeight={560}
                 fontSize={draft.editor_font_size}
+                onFontSizeChange={(fontSize) => updateDraft({ editor_font_size: fontSize })}
                 placeholder={'조사 배경, 검토안, 회의 메모, 결정사항, 미결 이슈를 자유롭게 작성하세요.'}
               />
             </div>
@@ -603,14 +606,14 @@ export function WorkspaceView() {
       <Dialog open={securityDialogOpen} onOpenChange={setSecurityDialogOpen}>
         <DialogContent className="max-w-xl">
           <DialogHeader>
-            <DialogTitle>공유/보안 및 편집 설정</DialogTitle>
+            <DialogTitle>공유/보안 및 접근 설정</DialogTitle>
           </DialogHeader>
           {draft && (
             <div className="space-y-5">
               <div>
                 <div className="mb-2 text-xs font-semibold text-muted-foreground">문서 공개 범위</div>
-                <div className="grid grid-cols-3 gap-2">
-                  {(['project', 'restricted', 'password'] as const).map((mode) => (
+                <div className="grid grid-cols-4 gap-2">
+                  {(['project', 'restricted', 'password', 'private'] as const).map((mode) => (
                     <button
                       key={mode}
                       type="button"
@@ -648,14 +651,6 @@ export function WorkspaceView() {
                   {draft.password_hash && <div className="mt-2 text-xs text-muted-foreground">비밀번호가 설정되어 있습니다.</div>}
                 </div>
               )}
-
-              <div>
-                <div className="mb-2 text-xs font-semibold text-muted-foreground">본문 텍스트 크기</div>
-                <div className="flex items-center gap-3">
-                  <input type="range" min={13} max={22} value={draft.editor_font_size} onChange={(e) => updateDraft({ editor_font_size: Number(e.target.value) })} className="w-full accent-primary" />
-                  <span className="w-12 text-right text-sm font-semibold">{draft.editor_font_size}px</span>
-                </div>
-              </div>
 
               <div className="flex justify-end gap-2">
                 <Button variant="outline" onClick={() => setSecurityDialogOpen(false)}>닫기</Button>

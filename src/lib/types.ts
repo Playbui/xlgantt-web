@@ -149,7 +149,7 @@ export interface WorkspaceItem {
   summary?: string
   body?: string
   status: 'draft' | 'active' | 'done' | 'archived'
-  access_mode: 'project' | 'restricted' | 'password'
+  access_mode: 'project' | 'restricted' | 'password' | 'private'
   shared_user_ids: string[]
   password_hash?: string
   editor_font_size: number
