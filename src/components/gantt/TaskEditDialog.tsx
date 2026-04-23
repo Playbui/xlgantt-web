@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from 'react'
-import { Plus, X, CheckSquare, Square, Paperclip, StickyNote, Link2, Users, FileText, ArrowRight, ArrowLeft, Upload, Trash2, Image, File as FileIcon, Loader2 } from 'lucide-react'
+import { Plus, X, CheckSquare, Square, Paperclip, StickyNote, Link2, Users, FileText, ArrowRight, ArrowLeft, Upload, Trash2, Image, File as FileIcon, Loader2, NotebookText } from 'lucide-react'
 import {
   Dialog,
   DialogContent,
@@ -16,6 +16,8 @@ import {
 import { Badge } from '@/components/ui/badge'
 import { useTaskStore } from '@/stores/task-store'
 import { useResourceStore } from '@/stores/resource-store'
+import { useWorkspaceStore } from '@/stores/workspace-store'
+import { useUIStore } from '@/stores/ui-store'
 import type { Task, DependencyType } from '@/lib/types'
 import { DEP_TYPE_LABELS } from '@/lib/types'
 import { cn } from '@/lib/utils'
@@ -61,9 +63,32 @@ function Field({ label, children, className }: { label: string; children: React.
   )
 }
 
+const WORKSPACE_STATUS_LABELS = {
+  draft: '초안',
+  active: '진행',
+  done: '완료',
+  archived: '보관',
+} as const
+
+const WORKSPACE_ACCESS_LABELS = {
+  project: '공유',
+  restricted: '지정',
+  password: '비번',
+} as const
+
+function formatShortDate(value?: string) {
+  if (!value) return '-'
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime())) return '-'
+  return date.toLocaleDateString('ko-KR', { month: 'short', day: 'numeric' })
+}
+
 export function TaskEditDialog({ taskId, open, onClose }: TaskEditDialogProps) {
   const { tasks, dependencies, updateTask, addDependency, removeDependency } = useTaskStore()
   const { companies, members, assignments, addAssignment, updateAssignment, removeAssignment, taskDetails, addTaskDetail, updateTaskDetail, deleteTaskDetail, uploadAttachment, removeAttachment } = useResourceStore()
+  const workspaceItems = useWorkspaceStore((s) => s.items)
+  const selectWorkspaceItem = useWorkspaceStore((s) => s.selectItem)
+  const setActiveView = useUIStore((s) => s.setActiveView)
   const task = taskId ? tasks.find((t) => t.id === taskId) : null
 
   // Form state
@@ -146,6 +171,13 @@ export function TaskEditDialog({ taskId, open, onClose }: TaskEditDialogProps) {
     if (!taskId) return []
     return taskDetails.filter((d) => d.task_id === taskId).sort((a, b) => a.sort_order - b.sort_order)
   }, [taskId, taskDetails])
+
+  const linkedWorkspaceItems = useMemo(() => {
+    if (!taskId) return []
+    return workspaceItems
+      .filter((item) => item.linkedTaskIds.includes(taskId))
+      .sort((a, b) => new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime())
+  }, [taskId, workspaceItems])
 
   const hasDetails = currentDetails.length > 0
   const hasAssignments = taskAssignments.length > 0
@@ -247,6 +279,12 @@ export function TaskEditDialog({ taskId, open, onClose }: TaskEditDialogProps) {
     const newId = crypto.randomUUID()
     addTaskDetail({ id: newId, task_id: taskId, sort_order: currentDetails.length * 1000 + 1000, title: newDetailTitle, status: 'todo', created_at: new Date().toISOString() })
     setNewDetailTitle('')
+  }
+
+  const handleOpenWorkspaceItem = (itemId: string) => {
+    selectWorkspaceItem(itemId)
+    setActiveView('workspace')
+    onClose()
   }
 
   if (!task) return null
@@ -431,6 +469,42 @@ export function TaskEditDialog({ taskId, open, onClose }: TaskEditDialogProps) {
 
             {/* 오른쪽: 선행/후행 + 첨부 */}
             <div className="space-y-4">
+              <Section icon={NotebookText} title="연결된 업무노트" count={linkedWorkspaceItems.length}>
+                {linkedWorkspaceItems.length > 0 ? (
+                  <div className="space-y-1.5">
+                    {linkedWorkspaceItems.map((item) => (
+                      <button
+                        key={item.id}
+                        type="button"
+                        onClick={() => handleOpenWorkspaceItem(item.id)}
+                        className="w-full rounded-md border border-border/70 bg-background px-2.5 py-2 text-left transition-colors hover:border-primary/45 hover:bg-primary/5"
+                      >
+                        <div className="flex items-center gap-2">
+                          <span className="min-w-0 flex-1 truncate text-xs font-semibold text-foreground">{item.title || '제목 없는 문서'}</span>
+                          <Badge variant="outline" className="h-4 px-1.5 text-[10px]">{WORKSPACE_STATUS_LABELS[item.status]}</Badge>
+                          {item.access_mode !== 'project' && (
+                            <Badge variant="secondary" className="h-4 px-1.5 text-[10px]">{WORKSPACE_ACCESS_LABELS[item.access_mode]}</Badge>
+                          )}
+                        </div>
+                        {item.summary && (
+                          <p className="mt-1 line-clamp-2 text-[11px] leading-4 text-muted-foreground">{item.summary}</p>
+                        )}
+                        <div className="mt-1.5 flex items-center justify-between text-[10px] text-muted-foreground/70">
+                          <span>업무노트에서 열기</span>
+                          <span>수정 {formatShortDate(item.updated_at)}</span>
+                        </div>
+                      </button>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="rounded-md border border-dashed border-border/70 bg-muted/20 px-3 py-4 text-center">
+                    <NotebookText className="mx-auto mb-1.5 h-4 w-4 text-muted-foreground/45" />
+                    <p className="text-xs font-medium text-muted-foreground">연결된 업무노트가 없습니다</p>
+                    <p className="mt-1 text-[11px] text-muted-foreground/65">업무노트 메뉴에서 이 WBS와 문서를 연결하면 여기에 표시됩니다.</p>
+                  </div>
+                )}
+              </Section>
+
               <Section icon={Link2} title="의존관계" count={predecessors.length + successors.length}>
                 <div className="space-y-3">
                   {/* 선행 */}
