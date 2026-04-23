@@ -30,6 +30,7 @@ import { useWorkspaceStore } from '@/stores/workspace-store'
 import { useTaskStore } from '@/stores/task-store'
 import { useProjectStore } from '@/stores/project-store'
 import { useAuthStore } from '@/stores/auth-store'
+import { supabase } from '@/lib/supabase'
 import { cn } from '@/lib/utils'
 import type { WorkspaceItem } from '@/lib/types'
 
@@ -140,6 +141,7 @@ export function WorkspaceView() {
   const currentProject = useProjectStore((s) => s.currentProject)
   const currentUser = useAuthStore((s) => s.currentUser)
   const users = useAuthStore((s) => s.users)
+  const fetchAllUsers = useAuthStore((s) => s.fetchAllUsers)
 
   const [query, setQuery] = useState('')
   const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set())
@@ -155,6 +157,9 @@ export function WorkspaceView() {
   const [newPassword, setNewPassword] = useState('')
   const [passwordError, setPasswordError] = useState('')
   const [wbsQuery, setWbsQuery] = useState('')
+  const [shareableUsers, setShareableUsers] = useState<typeof users>([])
+  const [shareUsersLoading, setShareUsersLoading] = useState(false)
+  const [shareUsersError, setShareUsersError] = useState('')
 
   const selectedItem =
     items.find((item) => item.id === selectedItemId) ??
@@ -228,6 +233,13 @@ export function WorkspaceView() {
   }, [tasks, wbsQuery])
 
   const approvedUsers = useMemo(() => users.filter((user) => user.approved), [users])
+  const visibleShareUsers = useMemo(() => {
+    const source = shareableUsers.length > 0 ? shareableUsers : approvedUsers
+    return source
+      .filter((user) => user.approved)
+      .filter((user) => user.id !== currentUser?.id)
+      .sort((a, b) => (a.name || a.email).localeCompare(b.name || b.email, 'ko'))
+  }, [approvedUsers, currentUser?.id, shareableUsers])
 
   const sharedUsers = useMemo(() => {
     const ids = draft?.shared_user_ids || []
@@ -246,6 +258,52 @@ export function WorkspaceView() {
     const firstName = first?.name || first?.email || '공유자'
     return sharedUsers.length === 1 ? firstName : `${firstName} 외 ${sharedUsers.length - 1}명`
   }, [draft, sharedUsers])
+
+  useEffect(() => {
+    if (!securityDialogOpen) return
+
+    let cancelled = false
+
+    const loadShareUsers = async () => {
+      setShareUsersLoading(true)
+      setShareUsersError('')
+
+      try {
+        if (currentProject?.id) {
+          const { data, error } = await supabase.rpc('project_visible_users', { p_project_id: currentProject.id })
+          if (!error && data) {
+            const nextUsers = ((data || []) as Array<Record<string, unknown>>).map((row) => ({
+              id: row.id as string,
+              email: (row.email as string) || '',
+              name: (row.name as string) || '',
+              role: (row.role as 'admin' | 'pm' | 'member' | 'guest') || 'member',
+              approved: (row.approved as boolean) ?? false,
+              avatar_url: (row.avatar_url as string) || undefined,
+              force_password_change: (row.force_password_change as boolean) ?? false,
+              created_at: (row.created_at as string) || new Date().toISOString(),
+            }))
+            if (!cancelled) setShareableUsers(nextUsers)
+            return
+          }
+        }
+
+        await fetchAllUsers()
+        if (!cancelled && useAuthStore.getState().users.length === 0) {
+          setShareUsersError('공유 가능한 사용자를 불러오지 못했습니다.')
+        }
+      } catch {
+        if (!cancelled) setShareUsersError('공유 가능한 사용자를 불러오지 못했습니다.')
+      } finally {
+        if (!cancelled) setShareUsersLoading(false)
+      }
+    }
+
+    void loadShareUsers()
+
+    return () => {
+      cancelled = true
+    }
+  }, [currentProject?.id, fetchAllUsers, securityDialogOpen])
 
   const updateDraft = (changes: Partial<DraftState>) => {
     setDraft((prev) => (prev ? { ...prev, ...changes } : prev))
@@ -779,7 +837,9 @@ export function WorkspaceView() {
                     <Badge variant="outline" className="bg-white">{draft.shared_user_ids.length}명 선택</Badge>
                   </div>
                   <div className="max-h-56 overflow-y-auto rounded-xl border border-slate-300 bg-white">
-                    {approvedUsers.length > 0 ? approvedUsers.map((user) => {
+                    {shareUsersLoading ? (
+                      <div className="px-4 py-8 text-center text-sm text-muted-foreground">공유자 목록을 불러오는 중입니다...</div>
+                    ) : visibleShareUsers.length > 0 ? visibleShareUsers.map((user) => {
                       const checked = draft.shared_user_ids.includes(user.id)
                       return (
                         <label key={user.id} className={cn('flex cursor-pointer items-center gap-3 border-b border-slate-200 px-3 py-2 text-sm last:border-b-0 hover:bg-accent/40', checked && 'bg-sky-50')}>
@@ -792,7 +852,9 @@ export function WorkspaceView() {
                         </label>
                       )
                     }) : (
-                      <div className="px-4 py-8 text-center text-sm text-muted-foreground">선택 가능한 승인 사용자가 없습니다.</div>
+                      <div className="px-4 py-8 text-center text-sm text-muted-foreground">
+                        {shareUsersError || '선택 가능한 프로젝트 사용자가 없습니다.'}
+                      </div>
                     )}
                   </div>
                 </div>
