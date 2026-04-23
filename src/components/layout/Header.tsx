@@ -23,6 +23,9 @@ import {
   User,
   Shield,
   LogOut,
+  Info,
+  Sparkles,
+  History,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import {
@@ -44,6 +47,7 @@ import { DatePicker } from '@/components/ui/date-picker'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { ProjectSwitcher } from '@/components/layout/ProjectSwitcher'
 import { useNavigate } from 'react-router-dom'
+import { APP_INFO, APP_UPDATES } from '@/lib/app-info'
 
 /* 그룹화된 탭 구조 - role 기반 표시 */
 type TabDef = { key: ViewMode; label: string; icon: React.ReactNode; adminOnly?: boolean; pmOrAdmin?: boolean }
@@ -198,6 +202,7 @@ export function Header() {
   const [rangeStart, setRangeStart] = useState('')
   const [rangeEnd, setRangeEnd] = useState('')
   const [helpDialogOpen, setHelpDialogOpen] = useState(false)
+  const [aboutDialogOpen, setAboutDialogOpen] = useState(false)
 
   const handleExport = () => {
     if (!project) return
@@ -482,6 +487,9 @@ export function Header() {
                 </DropdownMenuItem>
               )}
               <DropdownMenuSeparator />
+              <DropdownMenuItem onClick={() => setAboutDialogOpen(true)} className="text-xs cursor-pointer">
+                <Info className="h-3.5 w-3.5 mr-2" />정보 / 업데이트
+              </DropdownMenuItem>
               <DropdownMenuItem onClick={() => { logout().then(() => navigate('/login')) }} className="text-xs cursor-pointer text-red-500 focus:text-red-500">
                 <LogOut className="h-3.5 w-3.5 mr-2" />로그아웃
               </DropdownMenuItem>
@@ -590,6 +598,104 @@ export function Header() {
                 <div className="font-medium text-foreground mb-1">엑셀 업로드</div>
                 <p>WBS 일괄 등록은 엑셀 양식 다운로드 후 업로드 팝업에서 검증과 등록을 진행합니다.</p>
               </div>
+            </div>
+          </section>
+        </div>
+      </DialogContent>
+    </Dialog>
+
+    <Dialog open={aboutDialogOpen} onOpenChange={setAboutDialogOpen}>
+      <DialogContent className="w-[min(96vw,920px)] max-w-[920px] overflow-hidden p-0">
+        <div className="border-b border-slate-300 bg-[linear-gradient(135deg,#f8fbff_0%,#eef6ff_42%,#f7fffb_100%)] px-6 py-5">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-base">
+              <Info className="h-4 w-4 text-primary" />
+              정보 / 업데이트
+            </DialogTitle>
+          </DialogHeader>
+
+          <div className="mt-4 flex flex-wrap items-end justify-between gap-4">
+            <div className="space-y-2">
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="text-xl font-black tracking-tight text-slate-950">{APP_INFO.name}</span>
+                <span className="rounded-full border border-primary/20 bg-white/80 px-2.5 py-1 text-[11px] font-bold text-primary">
+                  v{APP_INFO.version}
+                </span>
+                <span className="rounded-full border border-emerald-200 bg-emerald-50 px-2.5 py-1 text-[11px] font-semibold text-emerald-700">
+                  {APP_INFO.channel}
+                </span>
+              </div>
+              <p className="max-w-2xl text-sm leading-6 text-slate-600">{APP_INFO.description}</p>
+            </div>
+
+            <div className="grid min-w-[220px] gap-2 rounded-2xl border border-white/70 bg-white/80 p-4 shadow-sm">
+              <div className="flex items-center justify-between text-xs">
+                <span className="text-slate-500">현재 버전</span>
+                <span className="font-bold text-slate-900">v{APP_INFO.version}</span>
+              </div>
+              <div className="flex items-center justify-between text-xs">
+                <span className="text-slate-500">최근 갱신</span>
+                <span className="font-semibold text-slate-800">{APP_INFO.updatedAt}</span>
+              </div>
+              <div className="flex items-center justify-between text-xs">
+                <span className="text-slate-500">업데이트 수</span>
+                <span className="font-semibold text-slate-800">{APP_UPDATES.length}건</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div className="grid gap-0 md:grid-cols-[minmax(0,0.92fr)_minmax(0,1.25fr)]">
+          <section className="border-b border-slate-200 px-6 py-5 md:border-b-0 md:border-r">
+            <div className="mb-3 flex items-center gap-2 text-sm font-semibold text-slate-900">
+              <Sparkles className="h-4 w-4 text-primary" />
+              이번 버전 핵심
+            </div>
+
+            <div className="space-y-3">
+              {APP_UPDATES[0].items.map((item) => (
+                <div key={item} className="rounded-2xl border border-slate-200 bg-slate-50/80 px-4 py-3 text-sm leading-6 text-slate-700">
+                  {item}
+                </div>
+              ))}
+            </div>
+          </section>
+
+          <section className="px-6 py-5">
+            <div className="mb-3 flex items-center gap-2 text-sm font-semibold text-slate-900">
+              <History className="h-4 w-4 text-primary" />
+              업데이트 이력
+            </div>
+
+            <div className="max-h-[52vh] space-y-4 overflow-y-auto pr-1">
+              {APP_UPDATES.map((update, index) => (
+                <article key={update.version} className="relative rounded-2xl border border-slate-200 bg-white px-4 py-4 shadow-[0_10px_24px_-20px_rgba(15,23,42,0.35)]">
+                  {index < APP_UPDATES.length - 1 && (
+                    <div className="absolute left-[22px] top-[58px] h-[calc(100%+16px)] w-px bg-slate-200" />
+                  )}
+                  <div className="flex gap-3">
+                    <div className="mt-1 h-3 w-3 rounded-full bg-primary ring-4 ring-blue-100" />
+                    <div className="min-w-0 flex-1">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <span className="text-base font-bold tracking-tight text-slate-950">v{update.version}</span>
+                        <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-medium text-slate-600">
+                          {update.releasedAt}
+                        </span>
+                      </div>
+                      <div className="mt-1 text-sm font-semibold text-slate-800">{update.title}</div>
+                      <p className="mt-1 text-sm leading-6 text-slate-600">{update.summary}</p>
+                      <ul className="mt-3 space-y-1.5 text-sm text-slate-700">
+                        {update.items.map((item) => (
+                          <li key={item} className="flex gap-2">
+                            <span className="mt-[9px] h-1.5 w-1.5 rounded-full bg-slate-400" />
+                            <span className="leading-6">{item}</span>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  </div>
+                </article>
+              ))}
             </div>
           </section>
         </div>
