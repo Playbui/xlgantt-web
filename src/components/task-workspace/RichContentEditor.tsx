@@ -41,6 +41,7 @@ export function RichContentEditor({
   onUploadImages,
 }: RichContentEditorProps) {
   const editorRef = useRef<HTMLDivElement | null>(null)
+  const savedRangeRef = useRef<Range | null>(null)
 
   const isEmpty = useMemo(() => {
     const plain = value
@@ -58,14 +59,51 @@ export function RichContentEditor({
     }
   }, [value])
 
+  const editorContainsNode = (node: Node | null) => {
+    const editor = editorRef.current
+    return Boolean(editor && node && editor.contains(node))
+  }
+
+  const saveSelection = () => {
+    const selection = window.getSelection()
+    if (!selection || selection.rangeCount === 0) return
+
+    const range = selection.getRangeAt(0)
+    if (editorContainsNode(range.commonAncestorContainer)) {
+      savedRangeRef.current = range.cloneRange()
+    }
+  }
+
+  const restoreSelection = () => {
+    const editor = editorRef.current
+    if (!editor) return
+
+    editor.focus()
+    const selection = window.getSelection()
+    if (!selection) return
+
+    if (editorContainsNode(selection.anchorNode)) return
+
+    const savedRange = savedRangeRef.current
+    if (!savedRange) return
+
+    try {
+      selection.removeAllRanges()
+      selection.addRange(savedRange)
+    } catch {
+      savedRangeRef.current = null
+    }
+  }
+
   const emitChange = () => {
     const editor = editorRef.current
     if (!editor) return
     onChange(editor.innerHTML)
+    saveSelection()
   }
 
   const focusEditor = () => {
-    editorRef.current?.focus()
+    restoreSelection()
   }
 
   const exec = (command: string, commandValue?: string) => {
@@ -77,7 +115,7 @@ export function RichContentEditor({
   const insertHtml = (html: string) => {
     focusEditor()
     const selection = window.getSelection()
-    if (!selection || selection.rangeCount === 0) {
+    if (!selection || selection.rangeCount === 0 || !editorContainsNode(selection.anchorNode)) {
       editorRef.current?.insertAdjacentHTML('beforeend', html)
       emitChange()
       return
@@ -107,6 +145,33 @@ export function RichContentEditor({
     emitChange()
   }
 
+  const findBlockElement = (node: Node | null) => {
+    const editor = editorRef.current
+    if (!editor || !node) return null
+
+    let current: Node | null = node.nodeType === Node.TEXT_NODE ? node.parentNode : node
+    while (current && current !== editor) {
+      if (current instanceof HTMLElement && ['P', 'DIV', 'H1', 'H2', 'H3', 'H4', 'H5', 'H6', 'LI'].includes(current.tagName)) {
+        return current
+      }
+      current = current.parentNode
+    }
+
+    return null
+  }
+
+  const moveCursorToEnd = (element: HTMLElement) => {
+    const selection = window.getSelection()
+    if (!selection) return
+
+    const nextRange = document.createRange()
+    nextRange.selectNodeContents(element)
+    nextRange.collapse(false)
+    selection.removeAllRanges()
+    selection.addRange(nextRange)
+    savedRangeRef.current = nextRange.cloneRange()
+  }
+
   const insertTable = () => {
     insertHtml(`
       <table style="width:100%; border-collapse:collapse; margin:12px 0;">
@@ -133,7 +198,38 @@ export function RichContentEditor({
   }
 
   const formatBlock = (tagName: 'p' | 'h1' | 'h2' | 'h3') => {
-    exec('formatBlock', tagName)
+    focusEditor()
+    const editor = editorRef.current
+    const selection = window.getSelection()
+
+    if (!editor || !selection || selection.rangeCount === 0 || !editorContainsNode(selection.anchorNode)) {
+      insertHtml(`<${tagName}><br></${tagName}>`)
+      return
+    }
+
+    const range = selection.getRangeAt(0)
+    const block = findBlockElement(range.startContainer)
+
+    if (block && block.tagName !== 'LI') {
+      const replacement = document.createElement(tagName)
+      replacement.innerHTML = block.innerHTML || '<br>'
+      block.replaceWith(replacement)
+      moveCursorToEnd(replacement)
+      emitChange()
+      return
+    }
+
+    const selectedText = range.toString()
+    const replacement = document.createElement(tagName)
+    replacement.textContent = selectedText.trim() ? selectedText : ''
+    if (!replacement.textContent) {
+      replacement.appendChild(document.createElement('br'))
+    }
+
+    range.deleteContents()
+    range.insertNode(replacement)
+    moveCursorToEnd(replacement)
+    emitChange()
   }
 
   const insertDivider = () => {
@@ -237,9 +333,12 @@ export function RichContentEditor({
           ref={editorRef}
           contentEditable
           suppressContentEditableWarning
-          className="prose prose-sm max-w-none px-4 py-3 outline-none"
+          className="prose prose-sm max-w-none px-4 py-3 outline-none [&_h1]:mb-3 [&_h1]:mt-4 [&_h1]:text-2xl [&_h1]:font-bold [&_h2]:mb-2 [&_h2]:mt-3 [&_h2]:text-xl [&_h2]:font-bold [&_h3]:mb-2 [&_h3]:mt-3 [&_h3]:text-lg [&_h3]:font-semibold"
           style={{ minHeight, fontSize }}
           onInput={emitChange}
+          onMouseUp={saveSelection}
+          onKeyUp={saveSelection}
+          onBlur={saveSelection}
           onPaste={async (e) => {
             const items = Array.from(e.clipboardData.items || [])
             const imageFiles = items
