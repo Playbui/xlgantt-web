@@ -205,7 +205,7 @@ export function Header() {
 
   return (
     <>
-    <header className="flex h-12 items-center bg-slate-100 dark:bg-slate-800 border-b border-slate-300 dark:border-slate-700 px-4 gap-3 shadow-[0_2px_6px_rgba(0,0,0,0.08)] relative z-10">
+    <header className="flex h-12 items-center border-b border-border/40 bg-background px-4 gap-3 relative z-10">
       {/* Home + Logo + Project Switcher */}
       <div className="flex items-center gap-2 mr-2 flex-shrink-0">
         <button
