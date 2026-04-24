@@ -5,11 +5,13 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "tsc -b && vite build",
+    "build:api": "esbuild api-src/ai/command.ts api-src/ai/copilot.ts --bundle --platform=node --format=esm --target=node20 --outdir=api/ai --out-extension:.js=.mjs --packages=external --tsconfig=tsconfig.json --log-level=warning",
+    "build": "npm run build:api && tsc -b && vite build",
     "lint": "eslint .",
     "preview": "vite preview"
   },
   "dependencies": {
+    "@ai-sdk/gateway": "^3.0.104",
     "@ai-sdk/openai-compatible": "^2.0.41",
     "@ai-sdk/react": "^3.0.170",
     "@ariakit/react": "^0.4.26",
@@ -104,6 +106,7 @@
     "@types/react": "^19.2.14",
     "@types/react-dom": "^19.2.3",
     "@vitejs/plugin-react": "^6.0.1",
+    "esbuild": "^0.27.7",
     "eslint": "^9.39.4",
     "eslint-plugin-react-hooks": "^7.0.1",
     "eslint-plugin-react-refresh": "^0.5.2",

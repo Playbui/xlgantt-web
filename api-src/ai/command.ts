@@ -56,6 +56,8 @@ const DEFAULT_REASONING_MODEL = 'google/gemini-2.5-flash';
 const DEFAULT_NVIDIA_BASE_URL = 'https://integrate.api.nvidia.com/v1';
 const DEFAULT_NVIDIA_MODEL = 'nvidia/llama-3.1-nemotron-ultra-253b-v1';
 
+export const config = { maxDuration: 60 };
+
 export default async function handler(req: any, res: any) {
   if (req.method !== 'POST') {
     res.setHeader('Allow', 'POST');

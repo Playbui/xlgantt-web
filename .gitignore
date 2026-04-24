@@ -29,3 +29,6 @@ dist-ssr
 *.sw?
 
 .vercel
+
+# bundled serverless functions (built from api-src/ via `npm run build:api`)
+api/ai/*.mjs
