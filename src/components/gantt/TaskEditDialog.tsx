@@ -302,7 +302,7 @@ export function TaskEditDialog({ taskId, open, onClose }: TaskEditDialogProps) {
 
   return (
     <Dialog open={open} onOpenChange={(v) => !v && onClose()}>
-      <DialogContent className="max-w-[1360px] w-[96vw] max-h-[92vh] overflow-y-auto p-0">
+      <DialogContent className="max-w-[1800px] w-[98vw] max-h-[94vh] overflow-y-auto p-0">
         {/* ─── 헤더 ─── */}
         <div className="sticky top-0 z-10 bg-background border-b px-5 py-3 flex items-center justify-between">
           <div className="flex items-center gap-3">

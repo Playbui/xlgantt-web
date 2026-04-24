@@ -573,7 +573,7 @@ export function WorkspaceView() {
   }
 
   return (
-    <div className="grid h-full min-h-0 grid-cols-[300px_minmax(0,1fr)_300px] bg-background">
+    <div className="grid h-full min-h-0 min-w-[1520px] grid-cols-[300px_minmax(960px,1fr)_260px] bg-background">
       <aside className="flex min-h-0 flex-col border-r border-slate-300 bg-slate-50/80">
         <div className="border-b border-slate-300 px-4 py-3">
           <div className="flex items-center justify-between gap-2">
@@ -699,7 +699,7 @@ export function WorkspaceView() {
             </div>
           </div>
         ) : selectedItem && draft && !selectedLocked ? (
-          <div className="mx-auto max-w-5xl px-8 py-6">
+          <div className="w-full px-8 py-6 2xl:px-10">
             <div className="rounded-2xl border border-slate-300 bg-[linear-gradient(135deg,#f8fbff_0%,#eef7f4_58%,#f7f8fb_100%)] p-5 shadow-sm">
               <div className="flex items-start justify-between gap-4">
                 <div className="min-w-0 flex-1">

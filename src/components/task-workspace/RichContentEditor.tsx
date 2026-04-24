@@ -79,6 +79,7 @@ export function RichContentEditor({
   const normalizedValue = normalizeRichTextHtml(value)
   const lastSyncedValueRef = useRef(normalizedValue)
   const syncLockRef = useRef(false)
+  const serializeVersionRef = useRef(0)
   const fileInputRef = useRef<HTMLInputElement | null>(null)
 
   const plugins = useMemo(() => EDITOR_PLUGINS, [])
@@ -103,16 +104,24 @@ export function RichContentEditor({
     lastSyncedValueRef.current = nextValue
   }, [editor, value])
 
-  const handleValueChange = ({ editor: currentEditor }: { editor: typeof editor }) => {
+  const handleValueChange = (change?: { editor?: typeof editor }) => {
+    const currentEditor = change?.editor ?? editor
+    if (!currentEditor) return
+    const version = ++serializeVersionRef.current
+
     void (async () => {
       const html = await serializeHtml(currentEditor)
+      if (version !== serializeVersionRef.current) return
+
       const nextValue = isRichTextEmpty(html) ? '' : normalizeRichTextHtml(html)
       if (nextValue === lastSyncedValueRef.current) return
 
       syncLockRef.current = true
       lastSyncedValueRef.current = nextValue
       onChange(nextValue)
-    })()
+    })().catch((error) => {
+      console.error('Failed to serialize rich editor content', error)
+    })
   }
 
   const handleImageInsert = async (files: File[]) => {
@@ -183,6 +192,9 @@ export function RichContentEditor({
               '[&_.slate-placeholder]:pointer-events-none [&_.slate-placeholder]:absolute [&_.slate-placeholder]:text-slate-400',
             )}
             style={{ minHeight, fontSize }}
+            onInput={() => {
+              window.setTimeout(() => handleValueChange({ editor }), 0)
+            }}
             onPaste={(event) => {
               const files = Array.from(event.clipboardData?.files || []).filter((file) => file.type.startsWith('image/'))
               if (files.length === 0) return
