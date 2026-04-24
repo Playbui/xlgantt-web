@@ -50,7 +50,7 @@ export function FixedToolbarButtons() {
   const readOnly = useEditorReadOnly();
 
   return (
-    <div className="flex w-full">
+    <div className="flex w-full min-w-0 flex-wrap items-center gap-y-1">
       {!readOnly && (
         <>
           <ToolbarGroup>
@@ -151,7 +151,7 @@ export function FixedToolbarButtons() {
         </>
       )}
 
-      <div className="grow" />
+      <div className="hidden grow xl:block" />
 
       <ToolbarGroup>
         <MarkToolbarButton nodeType={KEYS.highlight} tooltip="Highlight">
