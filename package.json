@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build:api": "esbuild api-src/ai/command.ts api-src/ai/copilot.ts --bundle --platform=node --format=esm --target=node20 --outdir=api/ai --out-extension:.js=.mjs --packages=external --tsconfig=tsconfig.json --log-level=warning",
+    "build:api": "node scripts/build-api.mjs",
     "build": "npm run build:api && tsc -b && vite build",
     "lint": "eslint .",
     "preview": "vite preview"
