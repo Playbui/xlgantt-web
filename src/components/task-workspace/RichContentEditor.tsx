@@ -104,13 +104,18 @@ export function RichContentEditor({
     lastSyncedValueRef.current = nextValue
   }, [editor, value])
 
-  const handleValueChange = (change?: { editor?: typeof editor }) => {
-    const currentEditor = change?.editor ?? editor
+  const handleValueChange = (change?: { editor?: unknown; value?: unknown }) => {
+    const currentEditor = (change?.editor ?? editor) as any
     if (!currentEditor) return
     const version = ++serializeVersionRef.current
 
     void (async () => {
-      const html = await serializeHtml(currentEditor)
+      const valueToSerialize = (change?.value as Value | undefined) ?? currentEditor.children
+      const staticEditor = createPlateEditor({
+        plugins: EDITOR_PLUGINS,
+        value: valueToSerialize,
+      })
+      const html = await serializeHtml(staticEditor)
       if (version !== serializeVersionRef.current) return
 
       const nextValue = isRichTextEmpty(html) ? '' : normalizeRichTextHtml(html)
