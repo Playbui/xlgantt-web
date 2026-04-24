@@ -1,60 +1,19 @@
 import { createGateway } from '@ai-sdk/gateway';
 import { createOpenAICompatible } from '@ai-sdk/openai-compatible';
-import {
-  type LanguageModel,
-  type UIMessage,
-  type UIMessageStreamWriter,
-  createUIMessageStream,
-  createUIMessageStreamResponse,
-  generateText,
-  Output,
-  streamText,
-  tool,
-} from 'ai';
-import { type SlateEditor, createSlateEditor, nanoid } from 'platejs';
-import { z } from 'zod';
-
-import { BaseEditorKit } from '../../src/components/editor-base-kit';
-import { markdownJoinerTransform } from '../../src/lib/markdown-joiner-transform';
-import {
-  buildEditTableMultiCellPrompt,
-  getChooseToolPrompt,
-  getCommentPrompt,
-  getEditPrompt,
-  getGeneratePrompt,
-} from '../../src/app/api/ai/command/prompt';
+import { type LanguageModel, generateText } from 'ai';
 
 type ToolName = 'comment' | 'edit' | 'generate';
 
-type TComment = {
-  comment: {
-    blockId: string;
-    comment: string;
-    content: string;
-  } | null;
-  status: 'finished' | 'streaming';
+type ModelProviderResolver = ((modelId?: string) => LanguageModel) & {
+  defaultModel: string;
+  reasoningModel: string;
 };
-
-type TTableCellUpdate = {
-  cellUpdate: {
-    content: string;
-    id: string;
-  } | null;
-  status: 'finished' | 'streaming';
-};
-
-type MessageDataPart = {
-  toolName: ToolName;
-  comment?: TComment;
-  table?: TTableCellUpdate;
-};
-
-type ChatMessage = UIMessage<{}, MessageDataPart>;
 
 const DEFAULT_MODEL = 'openai/gpt-4o-mini';
 const DEFAULT_REASONING_MODEL = 'google/gemini-2.5-flash';
 const DEFAULT_NVIDIA_BASE_URL = 'https://integrate.api.nvidia.com/v1';
 const DEFAULT_NVIDIA_MODEL = 'nvidia/llama-3.1-nemotron-ultra-253b-v1';
+const MAX_CONTEXT_CHARS = 12000;
 
 export const config = { maxDuration: 60 };
 
@@ -79,7 +38,6 @@ export default async function handler(req: any, res: any) {
       return sendJson(res, 400, { error: 'Missing editor context.' });
     }
 
-    const { children, selection, toolName: toolNameParam } = ctx;
     const modelProvider = resolveModelProvider({
       apiKey: key,
       model,
@@ -94,118 +52,220 @@ export default async function handler(req: any, res: any) {
       });
     }
 
-    const editor = createSlateEditor({
-      plugins: BaseEditorKit,
-      selection,
-      value: children,
-    });
-    const isSelecting = editor.api.isExpanded();
-
-    const stream = createUIMessageStream<ChatMessage>({
-      execute: async ({ writer }) => {
-        let toolName = toolNameParam as ToolName | undefined;
-
-        if (!toolName) {
-          const prompt = getChooseToolPrompt({
-            isSelecting,
-            messages: messagesRaw,
-          });
-          const enumOptions = isSelecting
-            ? ['generate', 'edit', 'comment']
-            : ['generate', 'comment'];
-          const { output: aiToolName } = await generateText({
-            model: modelProvider(modelProvider.reasoningModel),
-            output: Output.choice({ options: enumOptions }),
-            prompt,
-          });
-
-          writer.write({
-            data: aiToolName as ToolName,
-            type: 'data-toolName',
-          });
-
-          toolName = aiToolName as ToolName;
-        }
-
-        const textStream = streamText({
-          experimental_transform: markdownJoinerTransform(),
-          model: modelProvider(modelProvider.defaultModel),
-          prompt: '',
-          tools: {
-            comment: getCommentTool(editor, {
-              messagesRaw,
-              model: modelProvider(modelProvider.reasoningModel),
-              writer,
-            }),
-            table: getTableTool(editor, {
-              messagesRaw,
-              model: modelProvider(modelProvider.reasoningModel),
-              writer,
-            }),
-          },
-          prepareStep: async (step) => {
-            if (toolName === 'comment') {
-              return {
-                ...step,
-                toolChoice: { toolName: 'comment', type: 'tool' },
-              };
-            }
-
-            if (toolName === 'edit') {
-              const [editPrompt, editType] = getEditPrompt(editor, {
-                isSelecting,
-                messages: messagesRaw,
-              });
-
-              if (editType === 'table') {
-                return {
-                  ...step,
-                  toolChoice: { toolName: 'table', type: 'tool' },
-                };
-              }
-
-              return {
-                ...step,
-                activeTools: [],
-                messages: [{ content: editPrompt, role: 'user' }],
-                model:
-                  editType === 'selection'
-                    ? modelProvider(modelProvider.reasoningModel)
-                    : modelProvider(modelProvider.defaultModel),
-              };
-            }
-
-            if (toolName === 'generate') {
-              const generatePrompt = getGeneratePrompt(editor, {
-                isSelecting,
-                messages: messagesRaw,
-              });
-
-              return {
-                ...step,
-                activeTools: [],
-                messages: [{ content: generatePrompt, role: 'user' }],
-                model: modelProvider(modelProvider.defaultModel),
-              };
-            }
-          },
-        });
-
-        writer.merge(textStream.toUIMessageStream({ sendFinish: false }));
-      },
+    const toolName = normalizeToolName(ctx.toolName, messagesRaw);
+    const prompt = buildPrompt({
+      documentText: extractDocumentText(ctx.children),
+      instruction: extractLatestUserText(messagesRaw),
+      isSelecting: Boolean(ctx.selection),
+      toolName,
     });
 
-    return sendWebResponse(res, createUIMessageStreamResponse({ stream }));
+    const { text } = await generateText({
+      model: modelProvider(toolName === 'edit' ? modelProvider.reasoningModel : modelProvider.defaultModel),
+      prompt,
+      temperature: toolName === 'edit' ? 0.2 : 0.5,
+    });
+
+    return sendUiTextStream(res, text, toolName);
   } catch (error) {
     console.error('AI command failed:', error);
-    return sendJson(res, 500, { error: 'Failed to process AI request' });
+    return sendJson(res, 500, {
+      error: error instanceof Error ? error.message : 'Failed to process AI request',
+    });
   }
 }
 
-type ModelProviderResolver = ((modelId?: string) => LanguageModel) & {
-  defaultModel: string;
-  reasoningModel: string;
-};
+function buildPrompt({
+  documentText,
+  instruction,
+  isSelecting,
+  toolName,
+}: {
+  documentText: string;
+  instruction: string;
+  isSelecting: boolean;
+  toolName: ToolName;
+}) {
+  const scope = isSelecting ? '선택된 영역 또는 현재 문맥' : '현재 문서 전체 문맥';
+  const userInstruction = instruction || defaultInstruction(toolName);
+
+  if (toolName === 'edit') {
+    return [
+      '당신은 한국어 업무 문서를 다듬는 편집자입니다.',
+      `${scope}을 사용자의 요청에 맞게 수정하세요.`,
+      '결과만 마크다운으로 반환하고, 설명/머리말/따옴표는 붙이지 마세요.',
+      '',
+      `사용자 요청:\n${userInstruction}`,
+      '',
+      `문서 내용:\n${documentText || '(비어 있음)'}`,
+    ].join('\n');
+  }
+
+  if (toolName === 'comment') {
+    return [
+      '당신은 공공/제조 업무 문서를 검토하는 리뷰어입니다.',
+      `${scope}에서 보완할 점, 확인할 점, 다음 액션을 짧고 실무적으로 제안하세요.`,
+      '한국어로 작성하고, 필요하면 bullet list를 사용하세요.',
+      '',
+      `사용자 요청:\n${userInstruction}`,
+      '',
+      `문서 내용:\n${documentText || '(비어 있음)'}`,
+    ].join('\n');
+  }
+
+  return [
+    '당신은 한국어 업무 문서를 작성하는 어시스턴트입니다.',
+    `${scope}을 바탕으로 사용자가 바로 붙여 넣어 쓸 수 있는 내용을 작성하세요.`,
+    '결과만 마크다운으로 반환하고 불필요한 설명은 줄이세요.',
+    '',
+    `사용자 요청:\n${userInstruction}`,
+    '',
+    `문서 내용:\n${documentText || '(비어 있음)'}`,
+  ].join('\n');
+}
+
+function defaultInstruction(toolName: ToolName) {
+  if (toolName === 'edit') return '문장을 자연스럽고 명확한 업무 문서 톤으로 다듬어 주세요.';
+  if (toolName === 'comment') return '문서에서 보완할 점을 검토해 주세요.';
+  return '이어서 작성해 주세요.';
+}
+
+function extractDocumentText(children: unknown) {
+  return normalizeWhitespace(extractText(children)).slice(0, MAX_CONTEXT_CHARS);
+}
+
+function extractText(value: unknown): string {
+  if (value == null) return '';
+  if (typeof value === 'string') return value;
+  if (typeof value === 'number' || typeof value === 'boolean') return String(value);
+
+  if (Array.isArray(value)) {
+    return value.map(extractText).filter(Boolean).join('\n');
+  }
+
+  if (typeof value === 'object') {
+    const node = value as { children?: unknown; text?: unknown; type?: unknown; url?: unknown };
+
+    if (typeof node.text === 'string') return node.text;
+
+    const childText = extractText(node.children);
+
+    if (typeof node.url === 'string' && childText) {
+      return `${childText} (${node.url})`;
+    }
+
+    return childText;
+  }
+
+  return '';
+}
+
+function normalizeWhitespace(text: string) {
+  return text
+    .replace(/\r\n/g, '\n')
+    .replace(/\n{3,}/g, '\n\n')
+    .trim();
+}
+
+function extractLatestUserText(messages: unknown) {
+  if (!Array.isArray(messages)) return '';
+
+  for (const message of [...messages].reverse()) {
+    const text = extractMessageText(message);
+    if (text) return text;
+  }
+
+  return '';
+}
+
+function extractMessageText(message: unknown): string {
+  if (!message || typeof message !== 'object') return '';
+
+  const data = message as {
+    content?: unknown;
+    parts?: unknown;
+  };
+
+  if (typeof data.content === 'string') return data.content.trim();
+
+  if (Array.isArray(data.content)) {
+    return data.content.map(extractMessageText).filter(Boolean).join('\n').trim();
+  }
+
+  if (Array.isArray(data.parts)) {
+    return data.parts
+      .map((part) => {
+        if (!part || typeof part !== 'object') return '';
+        const typedPart = part as { text?: unknown; type?: unknown };
+        return typedPart.type === 'text' && typeof typedPart.text === 'string' ? typedPart.text : '';
+      })
+      .filter(Boolean)
+      .join('\n')
+      .trim();
+  }
+
+  return '';
+}
+
+function normalizeToolName(rawToolName: unknown, messages: unknown): ToolName {
+  if (rawToolName === 'comment' || rawToolName === 'edit' || rawToolName === 'generate') {
+    return rawToolName;
+  }
+
+  const instruction = extractLatestUserText(messages).toLowerCase();
+
+  if (/(수정|다듬|고쳐|rewrite|edit|change)/i.test(instruction)) return 'edit';
+  if (/(검토|의견|코멘트|comment|review)/i.test(instruction)) return 'comment';
+
+  return 'generate';
+}
+
+function sendUiTextStream(res: any, text: string, toolName: ToolName) {
+  const messageId = `msg_${Date.now().toString(36)}${Math.random().toString(36).slice(2)}`;
+  const chunks = [
+    { type: 'start' },
+    { type: 'start-step' },
+    { data: toolName, type: 'data-toolName' },
+    {
+      id: messageId,
+      providerMetadata: { openai: { itemId: messageId } },
+      type: 'text-start',
+    },
+    ...splitForStream(text || '').map((delta) => ({
+      delta,
+      id: messageId,
+      type: 'text-delta',
+    })),
+    { id: messageId, type: 'text-end' },
+    { type: 'finish-step' },
+    { type: 'finish' },
+  ];
+
+  res.statusCode = 200;
+  res.setHeader('Content-Type', 'text/event-stream; charset=utf-8');
+  res.setHeader('Cache-Control', 'no-cache, no-transform');
+  res.setHeader('Connection', 'keep-alive');
+  res.setHeader('X-Vercel-AI-UI-Message-Stream', 'v1');
+
+  for (const chunk of chunks) {
+    res.write(`data: ${JSON.stringify(chunk)}\n\n`);
+  }
+
+  res.end('data: [DONE]\n\n');
+}
+
+function splitForStream(text: string) {
+  if (!text) return [''];
+
+  const chunks: string[] = [];
+  const size = 120;
+
+  for (let index = 0; index < text.length; index += size) {
+    chunks.push(text.slice(index, index + size));
+  }
+
+  return chunks;
+}
 
 function resolveModelProvider({
   apiKey,
@@ -249,135 +309,6 @@ function resolveModelProvider({
   return resolver;
 }
 
-const getCommentTool = (
-  editor: SlateEditor,
-  {
-    messagesRaw,
-    model,
-    writer,
-  }: {
-    messagesRaw: ChatMessage[];
-    model: LanguageModel;
-    writer: UIMessageStreamWriter<ChatMessage>;
-  }
-) =>
-  tool({
-    description: 'Comment on the content',
-    inputSchema: z.object({}),
-    strict: true,
-    execute: async () => {
-      const commentSchema = z.object({
-        blockId: z
-          .string()
-          .describe(
-            'The id of the starting block. If the comment spans multiple blocks, use the id of the first block.'
-          ),
-        comment: z
-          .string()
-          .describe('A brief comment or explanation for this fragment.'),
-        content: z
-          .string()
-          .describe(
-            String.raw`The original document fragment to be commented on.It can be the entire block, a small part within a block, or span multiple blocks. If spanning multiple blocks, separate them with two \n\n.`
-          ),
-      });
-
-      const { partialOutputStream } = streamText({
-        model,
-        output: Output.array({ element: commentSchema }),
-        prompt: getCommentPrompt(editor, {
-          messages: messagesRaw,
-        }),
-      });
-
-      let lastLength = 0;
-
-      for await (const partialArray of partialOutputStream) {
-        for (let i = lastLength; i < partialArray.length; i++) {
-          writer.write({
-            id: nanoid(),
-            data: {
-              comment: partialArray[i],
-              status: 'streaming',
-            },
-            type: 'data-comment',
-          });
-        }
-
-        lastLength = partialArray.length;
-      }
-
-      writer.write({
-        id: nanoid(),
-        data: {
-          comment: null,
-          status: 'finished',
-        },
-        type: 'data-comment',
-      });
-    },
-  });
-
-const getTableTool = (
-  editor: SlateEditor,
-  {
-    messagesRaw,
-    model,
-    writer,
-  }: {
-    messagesRaw: ChatMessage[];
-    model: LanguageModel;
-    writer: UIMessageStreamWriter<ChatMessage>;
-  }
-) =>
-  tool({
-    description: 'Edit table cells',
-    inputSchema: z.object({}),
-    strict: true,
-    execute: async () => {
-      const cellUpdateSchema = z.object({
-        content: z
-          .string()
-          .describe(
-            String.raw`The new content for the cell. Can contain multiple paragraphs separated by \n\n.`
-          ),
-        id: z.string().describe('The id of the table cell to update.'),
-      });
-
-      const { partialOutputStream } = streamText({
-        model,
-        output: Output.array({ element: cellUpdateSchema }),
-        prompt: buildEditTableMultiCellPrompt(editor, messagesRaw),
-      });
-
-      let lastLength = 0;
-
-      for await (const partialArray of partialOutputStream) {
-        for (let i = lastLength; i < partialArray.length; i++) {
-          writer.write({
-            id: nanoid(),
-            data: {
-              cellUpdate: partialArray[i],
-              status: 'streaming',
-            },
-            type: 'data-table',
-          });
-        }
-
-        lastLength = partialArray.length;
-      }
-
-      writer.write({
-        id: nanoid(),
-        data: {
-          cellUpdate: null,
-          status: 'finished',
-        },
-        type: 'data-table',
-      });
-    },
-  });
-
 async function readJson(req: any) {
   if (req.body && typeof req.body === 'object' && !Buffer.isBuffer(req.body)) {
     return req.body;
@@ -397,28 +328,4 @@ function sendJson(res: any, statusCode: number, body: unknown) {
   res.statusCode = statusCode;
   res.setHeader('Content-Type', 'application/json; charset=utf-8');
   res.end(JSON.stringify(body));
-}
-
-async function sendWebResponse(res: any, response: Response) {
-  res.statusCode = response.status;
-  response.headers.forEach((value, key) => res.setHeader(key, value));
-
-  if (!response.body) {
-    res.end();
-    return;
-  }
-
-  const reader = response.body.getReader();
-
-  try {
-    while (true) {
-      const { done, value } = await reader.read();
-
-      if (done) break;
-
-      res.write(Buffer.from(value));
-    }
-  } finally {
-    res.end();
-  }
 }
