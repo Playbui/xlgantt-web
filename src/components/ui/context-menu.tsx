@@ -4,7 +4,7 @@ import { ContextMenu as ContextMenuPrimitive } from "@base-ui/react/context-menu
 import { cn } from "@/lib/utils"
 import { ChevronRightIcon, CheckIcon } from "lucide-react"
 
-function ContextMenu({ ...props }: ContextMenuPrimitive.Root.Props) {
+function ContextMenu({ modal: _modal, ...props }: ContextMenuPrimitive.Root.Props & { modal?: boolean }) {
   return <ContextMenuPrimitive.Root data-slot="context-menu" {...props} />
 }
 
@@ -34,7 +34,7 @@ function ContextMenuContent({
   side = "right",
   sideOffset = 0,
   ...props
-}: ContextMenuPrimitive.Popup.Props &
+}: any &
   Pick<
     ContextMenuPrimitive.Positioner.Props,
     "align" | "alignOffset" | "side" | "sideOffset"

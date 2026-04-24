@@ -4,7 +4,7 @@ import { Menu as MenuPrimitive } from "@base-ui/react/menu"
 import { cn } from "@/lib/utils"
 import { ChevronRightIcon, CheckIcon } from "lucide-react"
 
-function DropdownMenu({ ...props }: MenuPrimitive.Root.Props) {
+function DropdownMenu({ modal: _modal, ...props }: MenuPrimitive.Root.Props & { modal?: boolean }) {
   return <MenuPrimitive.Root data-slot="dropdown-menu" {...props} />
 }
 
@@ -23,7 +23,7 @@ function DropdownMenuContent({
   sideOffset = 4,
   className,
   ...props
-}: MenuPrimitive.Popup.Props &
+}: any &
   Pick<
     MenuPrimitive.Positioner.Props,
     "align" | "alignOffset" | "side" | "sideOffset"
@@ -76,7 +76,7 @@ function DropdownMenuItem({
   inset,
   variant = "default",
   ...props
-}: MenuPrimitive.Item.Props & {
+}: any & {
   inset?: boolean
   variant?: "default" | "destructive"
 }) {

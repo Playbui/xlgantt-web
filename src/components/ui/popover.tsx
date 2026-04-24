@@ -1,5 +1,3 @@
-"use client"
-
 import * as React from "react"
 import { Popover as PopoverPrimitive } from "@base-ui/react/popover"
 
@@ -13,6 +11,10 @@ function PopoverTrigger({ ...props }: PopoverPrimitive.Trigger.Props) {
   return <PopoverPrimitive.Trigger data-slot="popover-trigger" {...props} />
 }
 
+function PopoverAnchor({ virtualRef: _virtualRef, asChild: _asChild, ...props }: any) {
+  return <span data-slot="popover-anchor" {...props} />
+}
+
 function PopoverContent({
   className,
   align = "center",
@@ -20,7 +22,7 @@ function PopoverContent({
   side = "bottom",
   sideOffset = 4,
   ...props
-}: PopoverPrimitive.Popup.Props &
+}: any &
   Pick<
     PopoverPrimitive.Positioner.Props,
     "align" | "alignOffset" | "side" | "sideOffset"
@@ -61,7 +63,7 @@ function PopoverTitle({ className, ...props }: PopoverPrimitive.Title.Props) {
   return (
     <PopoverPrimitive.Title
       data-slot="popover-title"
-      className={cn("font-heading font-medium", className)}
+      className={cn("font-medium", className)}
       {...props}
     />
   )
@@ -86,5 +88,6 @@ export {
   PopoverDescription,
   PopoverHeader,
   PopoverTitle,
+  PopoverAnchor,
   PopoverTrigger,
 }
