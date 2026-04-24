@@ -54,20 +54,10 @@ export const useChat = () => {
   const editor = useEditorRef();
   const options = usePluginOption(aiChatPlugin, 'chatOptions');
 
-  // remove when you implement the route /api/ai/command
-  const abortControllerRef = React.useRef<AbortController | null>(null);
-  const _abortFakeStream = () => {
-    if (abortControllerRef.current) {
-      abortControllerRef.current.abort();
-      abortControllerRef.current = null;
-    }
-  };
-
   const baseChat = useBaseChat<ChatMessage>({
     id: 'editor',
     transport: new DefaultChatTransport({
       api: options.api || '/api/ai/command',
-      // Mock the API response. Remove it when you implement the route /api/ai/command
       fetch: (async (input, init) => {
         const bodyOptions = editor.getOptions(aiChatPlugin).chatOptions?.body;
 
@@ -82,80 +72,6 @@ export const useChat = () => {
           ...init,
           body: JSON.stringify(body),
         });
-
-        if (!res.ok) {
-          let sample: 'comment' | 'markdown' | 'mdx' | 'table' | null = null;
-
-          try {
-            const body = JSON.parse(init?.body as string);
-            const content = body.messages
-              .at(-1)
-              .parts.find((p: any) => p.type === 'text')?.text;
-
-            if (content.includes('Generate a markdown sample')) {
-              sample = 'markdown';
-            } else if (content.includes('Generate a mdx sample')) {
-              sample = 'mdx';
-            } else if (content.includes('comment')) {
-              sample = 'comment';
-            }
-
-            // Detect table editing by checking if multiple table cells are selected
-            // Single cell selection should use normal edit flow, only multi-cell uses table tool
-            if (!sample) {
-              // First check: selectedCells from TablePlugin (cell selection mode)
-              const selectedCells =
-                editor.getOption({ key: KEYS.table }, 'selectedCells') || [];
-
-              if (selectedCells.length > 1) {
-                sample = 'table';
-              }
-              // Second check: selection range spans multiple cells
-              else if (body.ctx?.children && body.ctx?.selection) {
-                const { selection, children } = body.ctx;
-                const anchorPath = selection.anchor?.path;
-                const focusPath = selection.focus?.path;
-
-                if (anchorPath && anchorPath.length >= 3) {
-                  const rootIndex = anchorPath[0];
-                  const rootNode = children[rootIndex];
-
-                  if (rootNode?.type === 'table') {
-                    // Cell path is at index 2 (table -> row -> cell)
-                    const anchorCellPath = anchorPath.slice(0, 3).join(',');
-                    const focusCellPath = focusPath?.slice(0, 3).join(',');
-
-                    // Only use table mock if anchor and focus are in different cells
-                    if (focusCellPath && anchorCellPath !== focusCellPath) {
-                      sample = 'table';
-                    }
-                  }
-                }
-              }
-            }
-          } catch {
-            sample = null;
-          }
-
-          abortControllerRef.current = new AbortController();
-
-          await new Promise((resolve) => setTimeout(resolve, 400));
-
-          const stream = fakeStreamText({
-            editor,
-            sample,
-            signal: abortControllerRef.current.signal,
-          });
-
-          const response = new Response(stream, {
-            headers: {
-              Connection: 'keep-alive',
-              'Content-Type': 'text/plain',
-            },
-          });
-
-          return response;
-        }
 
         return res;
       }) as typeof fetch,
@@ -254,7 +170,7 @@ export const useChat = () => {
 
   const chat = {
     ...baseChat,
-    _abortFakeStream,
+    _abortFakeStream: () => baseChat.stop(),
   };
 
   React.useEffect(() => {
