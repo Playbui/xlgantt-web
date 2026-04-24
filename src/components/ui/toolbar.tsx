@@ -13,7 +13,6 @@ import {
   DropdownMenuSeparator,
 } from '@/components/ui/dropdown-menu';
 import { Separator } from '@/components/ui/separator';
-import { Tooltip, TooltipTrigger } from '@/components/ui/tooltip';
 import { cn } from '@/lib/utils';
 
 export function Toolbar({
@@ -290,10 +289,12 @@ type TooltipProps<T extends React.ElementType> = {
     'children'
   >;
   tooltipProps?: Omit<
-    React.ComponentPropsWithoutRef<typeof Tooltip>,
+    React.ComponentPropsWithoutRef<typeof TooltipPrimitive.Root>,
     'children'
   >;
-  tooltipTriggerProps?: React.ComponentPropsWithoutRef<typeof TooltipTrigger>;
+  tooltipTriggerProps?: React.ComponentPropsWithoutRef<
+    typeof TooltipPrimitive.Trigger
+  >;
 } & React.ComponentProps<T>;
 
 function withTooltip<T extends React.ElementType>(Component: T) {
@@ -314,13 +315,15 @@ function withTooltip<T extends React.ElementType>(Component: T) {
 
     if (tooltip && mounted) {
       return (
-        <Tooltip {...tooltipProps}>
-          <TooltipTrigger {...tooltipTriggerProps}>
+        <TooltipPrimitive.Provider delayDuration={150}>
+          <TooltipPrimitive.Root {...tooltipProps}>
+            <TooltipPrimitive.Trigger asChild {...tooltipTriggerProps}>
             {component}
-          </TooltipTrigger>
+            </TooltipPrimitive.Trigger>
 
-          <TooltipContent {...tooltipContentProps}>{tooltip}</TooltipContent>
-        </Tooltip>
+            <TooltipContent {...tooltipContentProps}>{tooltip}</TooltipContent>
+          </TooltipPrimitive.Root>
+        </TooltipPrimitive.Provider>
       );
     }
 
