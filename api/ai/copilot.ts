@@ -91,12 +91,16 @@ function resolveModel({
   if (provider === 'nvidia' || process.env.AI_PROVIDER === 'nvidia') {
     const key = nvidiaApiKey || process.env.NVIDIA_API_KEY;
     if (!key) return null;
+    const modelId =
+      provider === 'nvidia' || model?.startsWith('nvidia/')
+        ? model || process.env.NVIDIA_MODEL || DEFAULT_NVIDIA_MODEL
+        : process.env.NVIDIA_MODEL || DEFAULT_NVIDIA_MODEL;
 
     return createOpenAICompatible({
       apiKey: key,
       baseURL: nvidiaBaseURL || process.env.NVIDIA_BASE_URL || DEFAULT_NVIDIA_BASE_URL,
       name: 'nvidia',
-    }).chatModel(model || process.env.NVIDIA_MODEL || DEFAULT_NVIDIA_MODEL);
+    }).chatModel(modelId);
   }
 
   const key = apiKey || process.env.AI_GATEWAY_API_KEY;

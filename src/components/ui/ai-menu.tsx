@@ -70,7 +70,6 @@ export function AIMenu() {
   const streaming = usePluginOption(AIChatPlugin, 'streaming');
   const isSelecting = useIsSelecting();
   const isFocusedLast = useFocusedLast();
-  const open = usePluginOption(AIChatPlugin, 'open') && isFocusedLast;
   const [value, setValue] = React.useState('');
 
   const [input, setInput] = React.useState('');
@@ -81,6 +80,8 @@ export function AIMenu() {
   const [anchorElement, setAnchorElement] = React.useState<HTMLElement | null>(
     null
   );
+  const rawOpen = usePluginOption(AIChatPlugin, 'open');
+  const open = rawOpen && (isFocusedLast || !!anchorElement);
 
   const content = useLastAssistantMessage()?.parts.find(
     (part) => part.type === 'text'
@@ -115,6 +116,22 @@ export function AIMenu() {
     setAnchorElement(anchorElement);
     setOpen(true);
   };
+
+  React.useEffect(() => {
+    if (!rawOpen || anchorElement) return;
+
+    window.setTimeout(() => {
+      const currentBlock = editor.api.block({ highest: true });
+      const anchorNode = currentBlock?.[0] ?? editor.children[0];
+
+      if (!anchorNode) return;
+
+      const domNode = editor.api.toDOMNode(anchorNode);
+      if (domNode instanceof HTMLElement) {
+        setAnchorElement(domNode);
+      }
+    }, 0);
+  }, [anchorElement, editor, rawOpen]);
 
   useEditorChat({
     onOpenBlockSelection: (blocks: NodeEntry[]) => {

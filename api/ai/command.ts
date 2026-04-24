@@ -227,7 +227,10 @@ function resolveModelProvider({
       baseURL: nvidiaBaseURL || process.env.NVIDIA_BASE_URL || DEFAULT_NVIDIA_BASE_URL,
       name: 'nvidia',
     });
-    const defaultModel = model || process.env.NVIDIA_MODEL || DEFAULT_NVIDIA_MODEL;
+    const defaultModel =
+      provider === 'nvidia' || model?.startsWith('nvidia/')
+        ? model || process.env.NVIDIA_MODEL || DEFAULT_NVIDIA_MODEL
+        : process.env.NVIDIA_MODEL || DEFAULT_NVIDIA_MODEL;
     const resolver = ((modelId?: string) => nvidia.chatModel(modelId || defaultModel)) as ModelProviderResolver;
     resolver.defaultModel = defaultModel;
     resolver.reasoningModel = defaultModel;

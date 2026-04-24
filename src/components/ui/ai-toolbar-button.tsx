@@ -10,12 +10,13 @@ import { ToolbarButton } from './toolbar';
 export function AIToolbarButton(
   props: React.ComponentProps<typeof ToolbarButton>
 ) {
-  const { api } = useEditorPlugin(AIChatPlugin);
+  const { api, editor } = useEditorPlugin(AIChatPlugin);
 
   return (
     <ToolbarButton
       {...props}
       onClick={() => {
+        editor.tf.focus();
         api.aiChat.show();
       }}
       onMouseDown={(e) => {
