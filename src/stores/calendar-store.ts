@@ -281,8 +281,7 @@ export const useCalendarStore = create<CalendarState>((set, get) => ({
 
   addHoliday: async (calType, holiday) => {
     const projectId = get().loadedProjectId
-    const calendarId = get().calendarMeta[calType].id
-    if (!projectId || !calendarId) return
+    let calendarId = get().calendarMeta[calType].id
 
     const optimistic: Holiday = {
       id: crypto.randomUUID(),
@@ -296,6 +295,38 @@ export const useCalendarStore = create<CalendarState>((set, get) => ({
         [calType]: sortHolidayRows([...state.holidays[calType], optimistic]),
       },
     }))
+
+    if (!projectId) return
+
+    if (!calendarId) {
+      const { data: calendarRow, error: calendarError } = await supabase
+        .from('calendars')
+        .upsert({
+          project_id: projectId,
+          calendar_type: calType,
+          name: get().calendarMeta[calType].name || calType,
+          working_days: get().workingDays[calType],
+        }, { onConflict: 'project_id,calendar_type' })
+        .select('id, calendar_type, name, working_days')
+        .single()
+
+      if (calendarError || !calendarRow) {
+        console.error('달력 생성 실패:', calendarError?.message)
+        await get().loadCalendars(projectId)
+        return
+      }
+
+      calendarId = (calendarRow as CalendarRow).id
+      set((state) => ({
+        calendarMeta: {
+          ...state.calendarMeta,
+          [calType]: {
+            ...state.calendarMeta[calType],
+            id: calendarId,
+          },
+        },
+      }))
+    }
 
     const { data, error } = await supabase
       .from('holidays')

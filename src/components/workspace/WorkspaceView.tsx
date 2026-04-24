@@ -849,11 +849,11 @@ export function WorkspaceView() {
             <div className="max-h-80 space-y-2 overflow-y-auto px-4 py-4">
               {visibleRevisions.length > 0 ? visibleRevisions.map((revision) => (
                 <div key={revision.id} className="rounded-lg border border-slate-300 bg-background px-3 py-2">
-                  <div className="flex items-center justify-between gap-2">
-                    <span className="text-xs font-semibold">{REVISION_LABELS[revision.change_type] || '변경 저장'}</span>
-                    <span className="text-[10px] text-muted-foreground">{new Date(revision.created_at).toLocaleString('ko-KR')}</span>
+                  <div className="flex items-center gap-2">
+                    <span className="min-w-0 flex-1 truncate text-xs font-semibold">{REVISION_LABELS[revision.change_type] || '변경 저장'}</span>
+                    <span className="shrink-0 whitespace-nowrap text-[10px] text-muted-foreground">{new Date(revision.created_at).toLocaleString('ko-KR')}</span>
                   </div>
-                  <div className="mt-1 text-[11px] text-muted-foreground">{revision.changed_by_name || '사용자'}</div>
+                  <div className="mt-1 truncate text-[11px] text-muted-foreground">{revision.changed_by_name || '사용자'}</div>
                 </div>
               )) : (
                 <div className="text-xs text-muted-foreground">아직 표시할 이력이 없습니다.</div>
