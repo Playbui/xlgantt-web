@@ -16,6 +16,7 @@ function PopoverAnchor({ virtualRef: _virtualRef, asChild: _asChild, ...props }:
 }
 
 function PopoverContent({
+  anchor,
   className,
   align = "center",
   alignOffset = 0,
@@ -32,6 +33,7 @@ function PopoverContent({
       <PopoverPrimitive.Positioner
         align={align}
         alignOffset={alignOffset}
+        anchor={anchor}
         side={side}
         sideOffset={sideOffset}
         className="isolate z-50"

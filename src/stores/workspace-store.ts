@@ -120,6 +120,16 @@ function isMissingSpecificColumn(message: string | undefined, column: string) {
   return Boolean(message && (message.includes(column) || message.includes('schema cache')))
 }
 
+function logSupabaseError(label: string, error: { message?: string; code?: string; details?: string; hint?: string } | null) {
+  if (!error) return
+  console.error(label, {
+    code: error.code,
+    message: error.message,
+    details: error.details,
+    hint: error.hint,
+  })
+}
+
 export const useWorkspaceStore = create<WorkspaceState>((set, get) => ({
   items: [],
   revisions: [],
@@ -242,8 +252,27 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => ({
       error = legacyResult.error
     }
 
+    if (error) {
+      const minimalResult = await supabase
+        .from('workspace_items')
+        .insert({
+          project_id: projectId,
+          title: payload.title,
+          summary: payload.summary,
+          body: payload.body,
+          status: payload.status,
+          links: payload.links,
+          created_by: payload.created_by,
+          updated_by: payload.updated_by,
+        })
+        .select('*')
+        .single()
+      data = minimalResult.data
+      error = minimalResult.error
+    }
+
     if (error || !data) {
-      console.error('업무노트 생성 실패:', error?.message)
+      logSupabaseError('업무노트 생성 실패:', error)
       return null
     }
 
@@ -325,7 +354,25 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => ({
     }
 
     if (error) {
-      console.error('업무노트 저장 실패:', error.message)
+      const minimalResult = await supabase
+        .from('workspace_items')
+        .update({
+          title: optimistic.title,
+          summary: optimistic.summary || null,
+          body: optimistic.body || null,
+          status: optimistic.status,
+          links: optimistic.links || [],
+          updated_by: currentUserId || null,
+        })
+        .eq('id', id)
+      error = minimalResult.error
+    }
+
+    if (error) {
+      logSupabaseError('업무노트 저장 실패:', error)
+      set((state) => ({
+        items: state.items.map((item) => (item.id === id ? prev : item)),
+      }))
       return
     }
 

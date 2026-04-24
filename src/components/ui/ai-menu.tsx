@@ -81,7 +81,7 @@ export function AIMenu() {
     null
   );
   const rawOpen = usePluginOption(AIChatPlugin, 'open');
-  const open = rawOpen && (isFocusedLast || !!anchorElement);
+  const open = !!rawOpen;
 
   const content = useLastAssistantMessage()?.parts.find(
     (part) => part.type === 'text'
@@ -106,11 +106,21 @@ export function AIMenu() {
 
   const setOpen = (open: boolean) => {
     if (open) {
+      setAnchorElement(getCurrentAnchor());
       api.aiChat.show();
     } else {
       api.aiChat.hide();
     }
   };
+
+  const getCurrentAnchor = React.useCallback(() => {
+    const currentBlock = editor.api.block({ highest: true });
+    const anchorNode = currentBlock?.[0] ?? editor.children[0];
+    if (!anchorNode) return null;
+
+    const domNode = editor.api.toDOMNode(anchorNode);
+    return domNode instanceof HTMLElement ? domNode : null;
+  }, [editor]);
 
   const show = (anchorElement: HTMLElement) => {
     setAnchorElement(anchorElement);
@@ -121,17 +131,9 @@ export function AIMenu() {
     if (!rawOpen || anchorElement) return;
 
     window.setTimeout(() => {
-      const currentBlock = editor.api.block({ highest: true });
-      const anchorNode = currentBlock?.[0] ?? editor.children[0];
-
-      if (!anchorNode) return;
-
-      const domNode = editor.api.toDOMNode(anchorNode);
-      if (domNode instanceof HTMLElement) {
-        setAnchorElement(domNode);
-      }
+      setAnchorElement(getCurrentAnchor());
     }, 0);
-  }, [anchorElement, editor, rawOpen]);
+  }, [anchorElement, getCurrentAnchor, rawOpen]);
 
   useEditorChat({
     onOpenBlockSelection: (blocks: NodeEntry[]) => {
@@ -199,12 +201,13 @@ export function AIMenu() {
 
   return (
     <Popover open={open} onOpenChange={setOpen} modal={false}>
-      <PopoverAnchor virtualRef={{ current: anchorElement! }} />
+      <PopoverAnchor />
 
       <PopoverContent
+        anchor={anchorElement ?? getCurrentAnchor}
         className="border-none bg-transparent p-0 shadow-none"
         style={{
-          width: anchorElement?.offsetWidth,
+          width: Math.max(anchorElement?.offsetWidth ?? 0, 420),
         }}
         onEscapeKeyDown={(e) => {
           e.preventDefault();
@@ -228,6 +231,25 @@ export function AIMenu() {
             <div className="flex grow select-none items-center gap-2 p-2 text-muted-foreground text-sm">
               <Loader2Icon className="size-4 animate-spin" />
               {messages.length > 1 ? 'Editing...' : 'Thinking...'}
+            </div>
+          ) : chat.error ? (
+            <div className="space-y-2 p-3">
+              <div className="text-sm font-semibold text-destructive">
+                AI 요청이 실패했습니다.
+              </div>
+              <div className="break-words text-muted-foreground text-xs">
+                {chat.error.message || 'API 키, 모델명, 배포 보호 설정을 확인해주세요.'}
+              </div>
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => {
+                  setInput('');
+                  api.aiChat.hide();
+                }}
+              >
+                닫기
+              </Button>
             </div>
           ) : (
             <CommandPrimitive.Input
