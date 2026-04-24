@@ -31,7 +31,7 @@ import { useTaskStore } from '@/stores/task-store'
 import { useProjectStore } from '@/stores/project-store'
 import { useAuthStore } from '@/stores/auth-store'
 import { supabase } from '@/lib/supabase'
-import { richTextToPlainText } from '@/lib/rich-text'
+import { richTextToPlainText, richTextToPreview } from '@/lib/rich-text'
 import { cn } from '@/lib/utils'
 import type { WorkspaceItem } from '@/lib/types'
 
@@ -82,6 +82,27 @@ const REVISION_LABELS = {
   attachment: '첨부 변경',
   structure: '설정 변경',
 } as const
+
+function formatRevisionDate(value: string) {
+  return new Date(value).toLocaleString('ko-KR')
+}
+
+function getRevisionContent(revision: {
+  change_type: keyof typeof REVISION_LABELS | string
+  snapshot_title?: string
+  snapshot_summary?: string
+  snapshot_body?: string
+}) {
+  const label = REVISION_LABELS[revision.change_type as keyof typeof REVISION_LABELS] || '변경 저장'
+  if (revision.change_type === 'title' && revision.snapshot_title) return `${label}: ${revision.snapshot_title}`
+  if (revision.change_type === 'summary' && revision.snapshot_summary) return `${label}: ${revision.snapshot_summary}`
+  if (revision.change_type === 'body') {
+    const preview = richTextToPreview(revision.snapshot_body, 90)
+    return preview ? `${label}: ${preview}` : label
+  }
+  if (revision.change_type === 'created' && revision.snapshot_title) return `${label}: ${revision.snapshot_title}`
+  return label
+}
 
 async function hashText(text: string) {
   const encoded = new TextEncoder().encode(text)
@@ -848,12 +869,21 @@ export function WorkspaceView() {
             </div>
             <div className="max-h-80 space-y-2 overflow-y-auto px-4 py-4">
               {visibleRevisions.length > 0 ? visibleRevisions.map((revision) => (
-                <div key={revision.id} className="rounded-lg border border-slate-300 bg-background px-3 py-2">
-                  <div className="flex items-center gap-2">
-                    <span className="min-w-0 flex-1 truncate text-xs font-semibold">{REVISION_LABELS[revision.change_type] || '변경 저장'}</span>
-                    <span className="shrink-0 whitespace-nowrap text-[10px] text-muted-foreground">{new Date(revision.created_at).toLocaleString('ko-KR')}</span>
+                <div key={revision.id} className="rounded-lg border border-slate-300 bg-background px-3 py-2.5">
+                  <div className="space-y-1.5 text-[11px] leading-4">
+                    <div className="grid grid-cols-[34px_minmax(0,1fr)] gap-2">
+                      <span className="font-semibold text-slate-500">일시</span>
+                      <span className="text-slate-700">{formatRevisionDate(revision.created_at)}</span>
+                    </div>
+                    <div className="grid grid-cols-[34px_minmax(0,1fr)] gap-2">
+                      <span className="font-semibold text-slate-500">내용</span>
+                      <span className="break-words font-semibold text-slate-900">{getRevisionContent(revision)}</span>
+                    </div>
+                    <div className="grid grid-cols-[34px_minmax(0,1fr)] gap-2">
+                      <span className="font-semibold text-slate-500">사람</span>
+                      <span className="text-slate-700">{revision.changed_by_name || '사용자'}</span>
+                    </div>
                   </div>
-                  <div className="mt-1 truncate text-[11px] text-muted-foreground">{revision.changed_by_name || '사용자'}</div>
                 </div>
               )) : (
                 <div className="text-xs text-muted-foreground">아직 표시할 이력이 없습니다.</div>

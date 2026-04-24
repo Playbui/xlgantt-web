@@ -2,7 +2,6 @@ import type { ReactNode } from 'react'
 import { useEffect, useMemo, useRef } from 'react'
 import { Plate, ParagraphPlugin, createPlateEditor, usePlateEditor } from 'platejs/react'
 import { deserializeHtml, type Value } from 'platejs'
-import { serializeHtml } from 'platejs/static'
 import { BlockquotePlugin, BoldPlugin, H1Plugin, H2Plugin, H3Plugin, HorizontalRulePlugin, ItalicPlugin, UnderlinePlugin } from '@platejs/basic-nodes/react'
 import { ListPlugin } from '@platejs/list/react'
 import { toggleList } from '@platejs/list'
@@ -17,7 +16,7 @@ import { BlockquoteElement } from '@/components/ui/blockquote-node'
 import { H1Element, H2Element, H3Element } from '@/components/ui/heading-node'
 import { HrElement } from '@/components/ui/hr-node'
 import { ParagraphElement } from '@/components/ui/paragraph-node'
-import { isRichTextEmpty, normalizeRichTextHtml } from '@/lib/rich-text'
+import { isRichTextEmpty, normalizeRichTextHtml, serializeRichTextValue } from '@/lib/rich-text'
 import { cn } from '@/lib/utils'
 
 interface RichContentEditorProps {
@@ -111,11 +110,7 @@ export function RichContentEditor({
 
     void (async () => {
       const valueToSerialize = (change?.value as Value | undefined) ?? currentEditor.children
-      const staticEditor = createPlateEditor({
-        plugins: EDITOR_PLUGINS,
-        value: valueToSerialize,
-      })
-      const html = await serializeHtml(staticEditor)
+      const html = serializeRichTextValue(valueToSerialize)
       if (version !== serializeVersionRef.current) return
 
       const nextValue = isRichTextEmpty(html) ? '' : normalizeRichTextHtml(html)
