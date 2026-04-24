@@ -1,6 +1,6 @@
 import type { ReactNode } from 'react'
 import { useEffect, useMemo, useRef } from 'react'
-import { Plate, PlateContent, createPlateEditor, usePlateEditor } from 'platejs/react'
+import { Plate, ParagraphPlugin, createPlateEditor, usePlateEditor } from 'platejs/react'
 import { deserializeHtml, type Value } from 'platejs'
 import { serializeHtml } from 'platejs/static'
 import { BlockquotePlugin, BoldPlugin, H1Plugin, H2Plugin, H3Plugin, HorizontalRulePlugin, ItalicPlugin, UnderlinePlugin } from '@platejs/basic-nodes/react'
@@ -11,6 +11,11 @@ import { ImagePlugin, insertMedia } from '@platejs/media/react'
 import { insertImage } from '@platejs/media'
 import { Bold, Heading1, Heading2, Heading3, ImagePlus, Italic, List, ListOrdered, Minus, Pilcrow, Quote, Table2, Underline as UnderlineIcon } from 'lucide-react'
 import { Button } from '@/components/ui/button'
+import { Editor, EditorContainer } from '@/components/ui/editor'
+import { BlockquoteElement } from '@/components/ui/blockquote-node'
+import { H1Element, H2Element, H3Element } from '@/components/ui/heading-node'
+import { HrElement } from '@/components/ui/hr-node'
+import { ParagraphElement } from '@/components/ui/paragraph-node'
 import { isRichTextEmpty, normalizeRichTextHtml } from '@/lib/rich-text'
 import { cn } from '@/lib/utils'
 
@@ -55,14 +60,35 @@ function ToolbarButton({ active = false, title, onClick, children, size = 'icon'
 }
 
 const EDITOR_PLUGINS = [
+  ParagraphPlugin.withComponent(ParagraphElement),
   BoldPlugin,
   ItalicPlugin,
   UnderlinePlugin,
-  H1Plugin,
-  H2Plugin,
-  H3Plugin,
-  BlockquotePlugin,
-  HorizontalRulePlugin,
+  H1Plugin.configure({
+    node: {
+      component: H1Element,
+    },
+  }),
+  H2Plugin.configure({
+    node: {
+      component: H2Element,
+    },
+  }),
+  H3Plugin.configure({
+    node: {
+      component: H3Element,
+    },
+  }),
+  BlockquotePlugin.configure({
+    node: {
+      component: BlockquoteElement,
+    },
+  }),
+  HorizontalRulePlugin.configure({
+    node: {
+      component: HrElement,
+    },
+  }),
   ListPlugin,
   TablePlugin,
   TableRowPlugin,
@@ -165,20 +191,23 @@ export function RichContentEditor({
   }
 
   return (
-    <div className={cn('overflow-hidden rounded-[20px] border border-slate-300 bg-[linear-gradient(180deg,#fdfefe_0%,#fafcff_100%)] shadow-[0_10px_30px_rgba(15,23,42,0.06)]', className)}>
-      <div className="flex flex-wrap items-center gap-1.5 border-b border-slate-200 bg-[linear-gradient(180deg,#f7f9fc_0%,#f2f5f9_100%)] px-3 py-2.5">
+    <div className={cn('overflow-hidden rounded-[20px] border border-slate-300 bg-white shadow-[0_10px_30px_rgba(15,23,42,0.06)]', className)}>
+      <div className="flex flex-wrap items-center gap-1.5 border-b border-slate-200 bg-white/95 px-3 py-2.5 backdrop-blur-sm">
         <ToolbarButton title="본문" size="sm" active={isBlockActive('p')} onClick={() => editor.tf.toggleBlock('p')}>
           <Pilcrow className="mr-1 h-3.5 w-3.5" />
           본문
         </ToolbarButton>
-        <ToolbarButton title="제목 1" active={isBlockActive('h1')} onClick={() => editor.tf.toggleBlock('h1')}>
-          <Heading1 className="h-4 w-4" />
+        <ToolbarButton title="제목 1" size="sm" active={isBlockActive('h1')} onClick={() => editor.tf.toggleBlock('h1')}>
+          <Heading1 className="mr-1 h-4 w-4" />
+          H1
         </ToolbarButton>
-        <ToolbarButton title="제목 2" active={isBlockActive('h2')} onClick={() => editor.tf.toggleBlock('h2')}>
-          <Heading2 className="h-4 w-4" />
+        <ToolbarButton title="제목 2" size="sm" active={isBlockActive('h2')} onClick={() => editor.tf.toggleBlock('h2')}>
+          <Heading2 className="mr-1 h-4 w-4" />
+          H2
         </ToolbarButton>
-        <ToolbarButton title="제목 3" active={isBlockActive('h3')} onClick={() => editor.tf.toggleBlock('h3')}>
-          <Heading3 className="h-4 w-4" />
+        <ToolbarButton title="제목 3" size="sm" active={isBlockActive('h3')} onClick={() => editor.tf.toggleBlock('h3')}>
+          <Heading3 className="mr-1 h-4 w-4" />
+          H3
         </ToolbarButton>
         <ToolbarButton title="인용" active={isBlockActive('blockquote')} onClick={() => editor.tf.toggleBlock('blockquote')}>
           <Quote className="h-4 w-4" />
@@ -228,27 +257,21 @@ export function RichContentEditor({
         </ToolbarButton>
 
         <div className="ml-auto flex items-center gap-2 text-[11px] text-slate-500">
-          <span className="hidden rounded-full border border-slate-200 bg-white/80 px-2.5 py-1 md:inline-flex">Plate 에디터</span>
+          <span className="hidden rounded-full border border-slate-200 bg-slate-50 px-2.5 py-1 md:inline-flex">Plate 문서 편집기</span>
           <span>이미지 드래그, 붙여넣기, 표 삽입 지원</span>
         </div>
       </div>
 
       <Plate editor={editor} onValueChange={handleValueChange}>
-        <div className="relative bg-[radial-gradient(circle_at_top,#ffffff_0%,#fbfcfe_40%,#f8fafc_100%)]">
-          <PlateContent
+        <EditorContainer className="relative bg-white">
+          <Editor
             placeholder={placeholder}
+            variant="fullWidth"
             className={cn(
-              'min-h-[inherit] cursor-text px-7 py-6 text-[15px] leading-7 text-slate-800 outline-none',
-              'prose prose-sm prose-slate max-w-none',
-              'prose-p:my-2.5 prose-p:text-[15px] prose-p:leading-7 prose-headings:font-semibold prose-headings:tracking-[-0.02em] prose-headings:text-slate-950',
-              'prose-h1:mt-7 prose-h1:mb-3 prose-h1:border-b prose-h1:border-slate-200 prose-h1:pb-2 prose-h1:text-[1.85rem]',
-              'prose-h2:mt-6 prose-h2:mb-2 prose-h2:text-[1.4rem]',
-              'prose-h3:mt-4 prose-h3:mb-2 prose-h3:text-[1.1rem] prose-h3:text-slate-800',
-              'prose-ul:my-3 prose-ul:list-disc prose-ul:pl-6 prose-ol:my-3 prose-ol:list-decimal prose-ol:pl-6 prose-li:my-1.5 prose-li:pl-1',
-              'prose-blockquote:my-4 prose-blockquote:border-l-4 prose-blockquote:border-slate-300 prose-blockquote:bg-slate-50 prose-blockquote:px-4 prose-blockquote:py-2 prose-blockquote:text-slate-700',
-              'prose-hr:my-6 prose-hr:border-slate-200',
-              'prose-table:my-5 prose-table:w-full prose-table:border-collapse prose-th:border prose-th:border-slate-200 prose-th:bg-slate-100 prose-th:px-3 prose-th:py-2 prose-td:border prose-td:border-slate-200 prose-td:px-3 prose-td:py-2',
-              'prose-img:my-4 prose-img:rounded-2xl prose-img:border prose-img:border-slate-200 prose-img:shadow-[0_10px_25px_rgba(15,23,42,0.08)]',
+              'min-h-[inherit] outline-none [&_[data-slate-placeholder]]:left-8 [&_[data-slate-placeholder]]:top-6',
+              '[&_ul]:my-3 [&_ul]:list-disc [&_ul]:pl-6 [&_ol]:my-3 [&_ol]:list-decimal [&_ol]:pl-6 [&_li]:my-1.5',
+              '[&_table]:my-5 [&_table]:w-full [&_table]:border-collapse [&_th]:border [&_th]:border-slate-200 [&_th]:bg-slate-100 [&_th]:px-3 [&_th]:py-2 [&_td]:border [&_td]:border-slate-200 [&_td]:px-3 [&_td]:py-2',
+              '[&_img]:my-4 [&_img]:rounded-2xl [&_img]:border [&_img]:border-slate-200 [&_img]:shadow-[0_10px_25px_rgba(15,23,42,0.08)]',
               '[&_.slate-placeholder]:pointer-events-none [&_.slate-placeholder]:absolute [&_.slate-placeholder]:text-slate-400',
             )}
             style={{ minHeight, fontSize }}
@@ -265,7 +288,7 @@ export function RichContentEditor({
               void handleImageInsert(files)
             }}
           />
-        </div>
+        </EditorContainer>
       </Plate>
     </div>
   )
