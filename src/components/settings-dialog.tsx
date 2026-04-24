@@ -48,6 +48,8 @@ type Model = {
   value: string;
 };
 
+type AiProvider = 'gateway' | 'nvidia';
+
 export const models: Model[] = [
   // OpenAI Models
   { label: 'GPT-3.5 Turbo', value: 'openai/gpt-3.5-turbo' },
@@ -218,9 +220,14 @@ export const models: Model[] = [
 export function SettingsDialog() {
   const editor = useEditorRef();
 
+  const [tempProvider, setTempProvider] = React.useState<AiProvider>('gateway');
   const [tempModel, setTempModel] = React.useState(models[7]);
+  const [tempNvidiaModel, setTempNvidiaModel] = React.useState(
+    'nvidia/llama-3.1-nemotron-ultra-253b-v1'
+  );
   const [tempKeys, setTempKeys] = React.useState<Record<string, string>>({
     aiGatewayApiKey: '',
+    nvidiaApiKey: '',
     uploadthing: '',
   });
   const [showKey, setShowKey] = React.useState<Record<string, boolean>>({});
@@ -237,8 +244,10 @@ export function SettingsDialog() {
       ...chatOptions,
       body: {
         ...chatOptions.body,
-        apiKey: tempKeys.aiGatewayApiKey,
-        model: tempModel.value,
+        apiKey: tempProvider === 'gateway' ? tempKeys.aiGatewayApiKey : '',
+        model: tempProvider === 'nvidia' ? tempNvidiaModel : tempModel.value,
+        nvidiaApiKey: tempProvider === 'nvidia' ? tempKeys.nvidiaApiKey : '',
+        provider: tempProvider,
       },
     });
 
@@ -251,8 +260,10 @@ export function SettingsDialog() {
       ...completeOptions,
       body: {
         ...completeOptions.body,
-        apiKey: tempKeys.aiGatewayApiKey,
-        model: tempModel.value,
+        apiKey: tempProvider === 'gateway' ? tempKeys.aiGatewayApiKey : '',
+        model: tempProvider === 'nvidia' ? tempNvidiaModel : tempModel.value,
+        nvidiaApiKey: tempProvider === 'nvidia' ? tempKeys.nvidiaApiKey : '',
+        provider: tempProvider,
       },
     });
   };
@@ -273,6 +284,8 @@ export function SettingsDialog() {
         <Button size="icon" variant="ghost" className="absolute top-0 right-[28px] h-full" render={<a className="flex items-center" href={
                             service === 'aiGatewayApiKey'
                               ? 'https://vercel.com/docs/ai-gateway'
+                              : service === 'nvidiaApiKey'
+                                ? 'https://build.nvidia.com/'
                               : 'https://uploadthing.com/dashboard'
                           } rel="noopener noreferrer" target="_blank" />} nativeButton={false}><ExternalLinkIcon className="size-4" /><span className="sr-only">Get {label}</span></Button>
       </div>
@@ -332,9 +345,49 @@ export function SettingsDialog() {
             </div>
 
             <div className="space-y-4">
-              {renderApiKeyInput('aiGatewayApiKey', 'AI Gateway API Key')}
+              <div className="grid grid-cols-2 gap-2 rounded-2xl border border-border bg-muted/30 p-1">
+                <Button
+                  type="button"
+                  variant={tempProvider === 'gateway' ? 'default' : 'ghost'}
+                  onClick={() => setTempProvider('gateway')}
+                >
+                  Vercel Gateway
+                </Button>
+                <Button
+                  type="button"
+                  variant={tempProvider === 'nvidia' ? 'default' : 'ghost'}
+                  onClick={() => setTempProvider('nvidia')}
+                >
+                  NVIDIA NIM
+                </Button>
+              </div>
 
-              <div className="group relative">
+              {tempProvider === 'gateway' ? (
+                renderApiKeyInput('aiGatewayApiKey', 'AI Gateway API Key')
+              ) : (
+                <>
+                  {renderApiKeyInput('nvidiaApiKey', 'NVIDIA NIM API Key')}
+                  <div className="group relative">
+                    <label
+                      className="-translate-y-1/2 absolute start-1 top-0 z-10 block bg-background px-2 font-medium text-foreground text-xs group-has-disabled:opacity-50"
+                      htmlFor="nvidia-model"
+                    >
+                      NVIDIA NIM Model
+                    </label>
+                    <Input
+                      id="nvidia-model"
+                      value={tempNvidiaModel}
+                      onChange={(e) => setTempNvidiaModel(e.target.value)}
+                      placeholder="nvidia/llama-3.1-nemotron-ultra-253b-v1"
+                    />
+                    <p className="mt-1.5 text-muted-foreground text-xs">
+                      build.nvidia.com의 모델 id를 그대로 입력하세요.
+                    </p>
+                  </div>
+                </>
+              )}
+
+              {tempProvider === 'gateway' && <div className="group relative">
                 <label
                   className="-translate-y-1/2 absolute start-1 top-0 z-10 block bg-background px-2 font-medium text-foreground text-xs group-has-disabled:opacity-50"
                   htmlFor="select-model"
@@ -374,7 +427,7 @@ export function SettingsDialog() {
                     </Command>
                   </PopoverContent>
                 </Popover>
-              </div>
+              </div>}
             </div>
           </div>
 

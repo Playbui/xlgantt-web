@@ -1,4 +1,5 @@
 import { createGateway } from '@ai-sdk/gateway';
+import { createOpenAICompatible } from '@ai-sdk/openai-compatible';
 import {
   type LanguageModel,
   type UIMessage,
@@ -52,6 +53,8 @@ type ChatMessage = UIMessage<{}, MessageDataPart>;
 
 const DEFAULT_MODEL = 'openai/gpt-4o-mini';
 const DEFAULT_REASONING_MODEL = 'google/gemini-2.5-flash';
+const DEFAULT_NVIDIA_BASE_URL = 'https://integrate.api.nvidia.com/v1';
+const DEFAULT_NVIDIA_MODEL = 'nvidia/llama-3.1-nemotron-ultra-253b-v1';
 
 export default async function handler(req: any, res: any) {
   if (req.method !== 'POST') {
@@ -65,6 +68,9 @@ export default async function handler(req: any, res: any) {
       ctx,
       messages: messagesRaw = [],
       model,
+      nvidiaApiKey,
+      nvidiaBaseURL,
+      provider,
     } = await readJson(req);
 
     if (!ctx?.children) {
@@ -72,10 +78,18 @@ export default async function handler(req: any, res: any) {
     }
 
     const { children, selection, toolName: toolNameParam } = ctx;
-    const apiKey = key || process.env.AI_GATEWAY_API_KEY;
+    const modelProvider = resolveModelProvider({
+      apiKey: key,
+      model,
+      nvidiaApiKey,
+      nvidiaBaseURL,
+      provider,
+    });
 
-    if (!apiKey) {
-      return sendJson(res, 401, { error: 'Missing AI Gateway API key.' });
+    if (!modelProvider) {
+      return sendJson(res, 401, {
+        error: provider === 'nvidia' ? 'Missing NVIDIA NIM API key.' : 'Missing AI Gateway API key.',
+      });
     }
 
     const editor = createSlateEditor({
@@ -84,7 +98,6 @@ export default async function handler(req: any, res: any) {
       value: children,
     });
     const isSelecting = editor.api.isExpanded();
-    const gatewayProvider = createGateway({ apiKey });
 
     const stream = createUIMessageStream<ChatMessage>({
       execute: async ({ writer }) => {
@@ -99,7 +112,7 @@ export default async function handler(req: any, res: any) {
             ? ['generate', 'edit', 'comment']
             : ['generate', 'comment'];
           const { output: aiToolName } = await generateText({
-            model: gatewayProvider(model || DEFAULT_REASONING_MODEL),
+            model: modelProvider(modelProvider.reasoningModel),
             output: Output.choice({ options: enumOptions }),
             prompt,
           });
@@ -114,17 +127,17 @@ export default async function handler(req: any, res: any) {
 
         const textStream = streamText({
           experimental_transform: markdownJoinerTransform(),
-          model: gatewayProvider(model || DEFAULT_MODEL),
+          model: modelProvider(modelProvider.defaultModel),
           prompt: '',
           tools: {
             comment: getCommentTool(editor, {
               messagesRaw,
-              model: gatewayProvider(model || DEFAULT_REASONING_MODEL),
+              model: modelProvider(modelProvider.reasoningModel),
               writer,
             }),
             table: getTableTool(editor, {
               messagesRaw,
-              model: gatewayProvider(model || DEFAULT_REASONING_MODEL),
+              model: modelProvider(modelProvider.reasoningModel),
               writer,
             }),
           },
@@ -155,8 +168,8 @@ export default async function handler(req: any, res: any) {
                 messages: [{ content: editPrompt, role: 'user' }],
                 model:
                   editType === 'selection'
-                    ? gatewayProvider(model || DEFAULT_REASONING_MODEL)
-                    : gatewayProvider(model || DEFAULT_MODEL),
+                    ? modelProvider(modelProvider.reasoningModel)
+                    : modelProvider(modelProvider.defaultModel),
               };
             }
 
@@ -170,7 +183,7 @@ export default async function handler(req: any, res: any) {
                 ...step,
                 activeTools: [],
                 messages: [{ content: generatePrompt, role: 'user' }],
-                model: gatewayProvider(model || DEFAULT_MODEL),
+                model: modelProvider(modelProvider.defaultModel),
               };
             }
           },
@@ -185,6 +198,50 @@ export default async function handler(req: any, res: any) {
     console.error('AI command failed:', error);
     return sendJson(res, 500, { error: 'Failed to process AI request' });
   }
+}
+
+type ModelProviderResolver = ((modelId?: string) => LanguageModel) & {
+  defaultModel: string;
+  reasoningModel: string;
+};
+
+function resolveModelProvider({
+  apiKey,
+  model,
+  nvidiaApiKey,
+  nvidiaBaseURL,
+  provider,
+}: {
+  apiKey?: string;
+  model?: string;
+  nvidiaApiKey?: string;
+  nvidiaBaseURL?: string;
+  provider?: string;
+}): ModelProviderResolver | null {
+  if (provider === 'nvidia' || process.env.AI_PROVIDER === 'nvidia') {
+    const key = nvidiaApiKey || process.env.NVIDIA_API_KEY;
+    if (!key) return null;
+
+    const nvidia = createOpenAICompatible({
+      apiKey: key,
+      baseURL: nvidiaBaseURL || process.env.NVIDIA_BASE_URL || DEFAULT_NVIDIA_BASE_URL,
+      name: 'nvidia',
+    });
+    const defaultModel = model || process.env.NVIDIA_MODEL || DEFAULT_NVIDIA_MODEL;
+    const resolver = ((modelId?: string) => nvidia.chatModel(modelId || defaultModel)) as ModelProviderResolver;
+    resolver.defaultModel = defaultModel;
+    resolver.reasoningModel = defaultModel;
+    return resolver;
+  }
+
+  const key = apiKey || process.env.AI_GATEWAY_API_KEY;
+  if (!key) return null;
+
+  const gatewayProvider = createGateway({ apiKey: key });
+  const resolver = ((modelId?: string) => gatewayProvider(modelId || DEFAULT_MODEL)) as ModelProviderResolver;
+  resolver.defaultModel = model || DEFAULT_MODEL;
+  resolver.reasoningModel = model || DEFAULT_REASONING_MODEL;
+  return resolver;
 }
 
 const getCommentTool = (
