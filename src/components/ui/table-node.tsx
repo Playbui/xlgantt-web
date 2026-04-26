@@ -82,7 +82,6 @@ import {
 } from '@/components/ui/dropdown-menu';
 import {
   Popover,
-  PopoverAnchor,
   PopoverContent,
 } from '@/components/ui/popover';
 import { cn } from '@/lib/utils';
@@ -751,6 +750,8 @@ function TableFloatingToolbar({
   children,
   ...props
 }: React.ComponentProps<typeof PopoverContent>) {
+  const anchorRef = React.useRef<HTMLSpanElement>(null);
+  const [isFocusWithinTable, setIsFocusWithinTable] = React.useState(false);
   const selectedCellCount = useEditorSelector(
     (editor) =>
       editor.getApi(TablePlugin).table.getSelectedCellIds()?.length ?? 0,
@@ -765,9 +766,13 @@ function TableFloatingToolbar({
   const [isExpandedSelectionToolbarReady, setIsExpandedSelectionToolbarReady] =
     React.useState(false);
   const isCollapsedToolbarOpen =
-    isFocusedLast && (collapsedInside || selectedCellCount === 1);
+    isFocusedLast &&
+    (isFocusWithinTable || collapsedInside || selectedCellCount === 1);
   const isExpandedSelectionPending =
-    isFocusedLast && !collapsedInside && selectedCellCount > 1;
+    isFocusedLast &&
+    !isFocusWithinTable &&
+    !collapsedInside &&
+    selectedCellCount > 1;
 
   React.useEffect(() => {
     if (!isExpandedSelectionPending) {
@@ -792,12 +797,40 @@ function TableFloatingToolbar({
 
   return (
     <Popover open={isToolbarOpen} modal={false}>
-      <PopoverAnchor>{children}</PopoverAnchor>
+      <span
+        ref={anchorRef}
+        className="inline-block align-top"
+        onBlurCapture={(event) => {
+          const nextTarget = event.relatedTarget;
+
+          if (
+            nextTarget instanceof Node &&
+            event.currentTarget.contains(nextTarget)
+          ) {
+            return;
+          }
+
+          setIsFocusWithinTable(false);
+        }}
+        onFocusCapture={() => {
+          setIsFocusWithinTable(true);
+        }}
+      >
+        {children}
+      </span>
       {isCollapsedToolbarOpen && (
-        <CollapsedTableFloatingToolbarContent {...props} />
+        <CollapsedTableFloatingToolbarContent
+          anchor={anchorRef}
+          sideOffset={8}
+          {...props}
+        />
       )}
       {shouldRenderExpandedSelectionToolbar && (
-        <ExpandedSelectionTableFloatingToolbarContent {...props} />
+        <ExpandedSelectionTableFloatingToolbarContent
+          anchor={anchorRef}
+          sideOffset={8}
+          {...props}
+        />
       )}
     </Popover>
   );
@@ -1272,19 +1305,17 @@ export function TableCellElement({
       {...props}
       as={isHeader ? 'th' : 'td'}
       className={cn(
-        'relative h-full overflow-visible border-none bg-white p-0',
-        element.background ? 'bg-(--cellBackground)' : 'bg-white',
+        'relative h-full overflow-visible border border-border/70 bg-transparent p-0 align-top',
+        element.background && 'bg-(--cellBackground)',
         isHeader && 'text-left *:m-0',
-        'before:size-full',
-        'data-[table-cell-selected=true]:before:z-10',
-        'data-[table-cell-selected=true]:before:ring-1',
-        'data-[table-cell-selected=true]:before:ring-brand/45',
-        "before:absolute before:box-border before:select-none before:content-['']",
-        'before:border-r before:border-b before:border-border/70',
-        borders.bottom?.size && 'before:border-b-border',
-        borders.right?.size && 'before:border-r-border',
-        borders.left?.size && 'before:border-l before:border-l-border',
-        borders.top?.size && 'before:border-t before:border-t-border'
+        'data-[table-cell-selected=true]:z-10',
+        'data-[table-cell-selected=true]:ring-1',
+        'data-[table-cell-selected=true]:ring-inset',
+        'data-[table-cell-selected=true]:ring-brand/45',
+        borders.bottom?.size && 'border-b-border',
+        borders.right?.size && 'border-r-border',
+        borders.left?.size && 'border-l-border',
+        borders.top?.size && 'border-t-border'
       )}
       style={
         {
