@@ -611,10 +611,10 @@ export const TableElement = withHOC(
       BlockSelectionPlugin,
       'isSelectionAreaVisible'
     );
-    const hasControls = !readOnly && !isSelectionAreaVisible;
+    const hasControls = false;
     const { marginLeft, props: tableProps } = useTableElement();
     const colSizes = useTableColSizes();
-    const controlColumnWidth = hasControls ? TABLE_CONTROL_COLUMN_WIDTH : 0;
+    const controlColumnWidth = 0;
     const dragIndicatorRef = React.useRef<HTMLDivElement>(null);
     const hoverIndicatorRef = React.useRef<HTMLDivElement>(null);
     const deferColumnResize =
@@ -701,7 +701,7 @@ export const TableElement = withHOC(
             <table
               ref={tableRef}
               className={cn(
-                'mr-0 ml-px table h-px table-fixed border-collapse',
+                'mr-0 ml-px table h-px table-fixed border-collapse border-t border-l border-border/70',
                 'data-[table-selecting=true]:[&_*::selection]:!bg-transparent',
                 'data-[table-selecting=true]:[&_*::selection]:!text-inherit',
                 'data-[table-selecting=true]:[&_*::-moz-selection]:!bg-transparent',
@@ -713,15 +713,6 @@ export const TableElement = withHOC(
             >
               {resolvedColSizes.length > 0 && (
                 <colgroup>
-                  {hasControls && (
-                    <col
-                      style={{
-                        maxWidth: TABLE_CONTROL_COLUMN_WIDTH,
-                        minWidth: TABLE_CONTROL_COLUMN_WIDTH,
-                        width: TABLE_CONTROL_COLUMN_WIDTH,
-                      }}
-                    />
-                  )}
                   {resolvedColSizes.map((colSize, index) => (
                     <col
                       key={index}
@@ -773,7 +764,8 @@ function TableFloatingToolbar({
   const isFocusedLast = useFocusedLast();
   const [isExpandedSelectionToolbarReady, setIsExpandedSelectionToolbarReady] =
     React.useState(false);
-  const isCollapsedToolbarOpen = isFocusedLast && collapsedInside;
+  const isCollapsedToolbarOpen =
+    isFocusedLast && (collapsedInside || selectedCellCount === 1);
   const isExpandedSelectionPending =
     isFocusedLast && !collapsedInside && selectedCellCount > 1;
 
@@ -1140,7 +1132,7 @@ export function TableRowElement({
     BlockSelectionPlugin,
     'isSelectionAreaVisible'
   );
-  const hasControls = !readOnly && !isSelectionAreaVisible;
+  const hasControls = false;
 
   const { isDragging, nodeRef, previewRef, handleRef } = useDraggable({
     element,
@@ -1288,8 +1280,9 @@ export function TableCellElement({
         'data-[table-cell-selected=true]:before:ring-1',
         'data-[table-cell-selected=true]:before:ring-brand/45',
         "before:absolute before:box-border before:select-none before:content-['']",
-        borders.bottom?.size && 'before:border-b before:border-b-border',
-        borders.right?.size && 'before:border-r before:border-r-border',
+        'before:border-r before:border-b before:border-border/70',
+        borders.bottom?.size && 'before:border-b-border',
+        borders.right?.size && 'before:border-r-border',
         borders.left?.size && 'before:border-l before:border-l-border',
         borders.top?.size && 'before:border-t before:border-t-border'
       )}
