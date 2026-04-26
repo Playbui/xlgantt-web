@@ -305,15 +305,14 @@ function useTableResizeController({
 
   const setResizePreview = React.useCallback(
     (
-      event: React.PointerEvent<HTMLDivElement>,
+      _event: React.PointerEvent<HTMLDivElement>,
       options: TableResizeStartOptions
     ) => {
       if (activeHandleKeyRef.current) return;
 
       previewHandleKeyRef.current = options.handleKey;
-      showResizeIndicator({ ...options, event });
     },
-    [showResizeIndicator]
+    []
   );
 
   const clearResizePreview = React.useCallback(
@@ -1281,12 +1280,13 @@ export function TableCellElement({
       {...props}
       as={isHeader ? 'th' : 'td'}
       className={cn(
-        'relative h-full overflow-visible border-none bg-background p-0',
-        element.background ? 'bg-(--cellBackground)' : 'bg-background',
+        'relative h-full overflow-visible border-none bg-white p-0',
+        element.background ? 'bg-(--cellBackground)' : 'bg-white',
         isHeader && 'text-left *:m-0',
         'before:size-full',
         'data-[table-cell-selected=true]:before:z-10',
-        'data-[table-cell-selected=true]:before:bg-brand/5',
+        'data-[table-cell-selected=true]:before:ring-1',
+        'data-[table-cell-selected=true]:before:ring-brand/45',
         "before:absolute before:box-border before:select-none before:content-['']",
         borders.bottom?.size && 'before:border-b before:border-b-border',
         borders.right?.size && 'before:border-r before:border-r-border',
