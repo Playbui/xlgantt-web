@@ -1318,12 +1318,8 @@ export function TableCellElement({
         {props.children}
       </div>
 
-      {!readOnly && !isSelectionAreaVisible && (
+      {!readOnly && !isSelectingRow && !isSelectionAreaVisible && (
         <TableCellResizeControls colIndex={colIndex} rowIndex={rowIndex} />
-      )}
-
-      {isSelectingRow && (
-        <div className={blockSelectionVariants()} contentEditable={false} />
       )}
     </PlateElement>
   );
