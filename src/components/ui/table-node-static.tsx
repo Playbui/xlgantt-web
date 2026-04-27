@@ -51,7 +51,7 @@ export function TableElementStatic({
   return (
     <SlateElement
       {...props}
-      className="overflow-x-auto py-5"
+      className="overflow-visible py-5"
       style={{ paddingLeft: marginLeft }}
     >
       <div className="group/table relative w-fit">
