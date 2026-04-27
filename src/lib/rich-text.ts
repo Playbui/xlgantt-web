@@ -45,10 +45,23 @@ type RichTextNode = {
   text?: string
   url?: string
   children?: RichTextNode[]
+  align?: string
+  attributes?: {
+    align?: string
+    [key: string]: unknown
+  }
   background?: string | null
   borders?: TableCellBorders
+  backgroundColor?: string
   bold?: boolean
+  color?: string
+  fontFamily?: string
+  fontSize?: string | number
+  highlight?: boolean
   italic?: boolean
+  kbd?: boolean
+  subscript?: boolean
+  superscript?: boolean
   underline?: boolean
   strikethrough?: boolean
   code?: boolean
@@ -65,6 +78,7 @@ type TableCellBorders = Partial<Record<TableBorderDirection, TableCellBorder>>
 
 const TABLE_CELL_TYPES = new Set(['td', 'th'])
 const TABLE_BORDER_DIRECTIONS: TableBorderDirection[] = ['top', 'right', 'bottom', 'left']
+const TEXT_ALIGN_VALUES = new Set(['start', 'left', 'center', 'right', 'end', 'justify'])
 
 const BLOCK_TAGS: Record<string, string> = {
   blockquote: 'blockquote',
@@ -118,6 +132,16 @@ function normalizeBorderStyle(value: unknown) {
   return /^(solid|dashed|dotted|double|none)$/i.test(style) ? style.toLowerCase() : undefined
 }
 
+function normalizeTextAlign(value: unknown) {
+  const align = safeCssValue(value)
+  if (!align) return undefined
+  return TEXT_ALIGN_VALUES.has(align) ? align : undefined
+}
+
+function buildStyleAttr(style: string[]) {
+  return style.length > 0 ? style.join(';') : undefined
+}
+
 function buildTableCellAttrs(node: RichTextNode) {
   if (!TABLE_CELL_TYPES.has(node.type || '')) return {}
 
@@ -143,19 +167,58 @@ function buildTableCellAttrs(node: RichTextNode) {
   return {
     'data-cell-background': background,
     'data-cell-borders': borders ? JSON.stringify(borders) : undefined,
-    style: style.length > 0 ? style.join(';') : undefined,
+    style: buildStyleAttr(style),
   }
+}
+
+function buildBlockAttrs(node: RichTextNode) {
+  const tableCellAttrs = buildTableCellAttrs(node)
+  const style = [tableCellAttrs.style].filter(Boolean) as string[]
+  const align = normalizeTextAlign(node.align ?? node.attributes?.align)
+
+  if (align) style.push(`text-align:${align}`)
+
+  return {
+    ...tableCellAttrs,
+    'data-align': align,
+    style: buildStyleAttr(style),
+  }
+}
+
+function serializeTextMarks(node: RichTextNode, text: string) {
+  let content = text
+  const style: string[] = []
+
+  const color = safeCssValue(node.color)
+  const backgroundColor = safeCssValue(node.backgroundColor)
+  const fontFamily = safeCssValue(node.fontFamily)
+  const fontSize =
+    typeof node.fontSize === 'number'
+      ? `${node.fontSize}px`
+      : safeCssValue(node.fontSize)
+
+  if (color) style.push(`color:${color}`)
+  if (backgroundColor) style.push(`background-color:${backgroundColor}`)
+  if (fontFamily) style.push(`font-family:${fontFamily}`)
+  if (fontSize) style.push(`font-size:${fontSize}`)
+
+  if (style.length > 0) content = `<span${attrs({ style: buildStyleAttr(style) })}>${content}</span>`
+  if (node.code) content = `<code>${content}</code>`
+  if (node.kbd) content = `<kbd>${content}</kbd>`
+  if (node.bold) content = `<strong>${content}</strong>`
+  if (node.italic) content = `<em>${content}</em>`
+  if (node.underline) content = `<u>${content}</u>`
+  if (node.strikethrough) content = `<s>${content}</s>`
+  if (node.subscript) content = `<sub>${content}</sub>`
+  if (node.superscript) content = `<sup>${content}</sup>`
+  if (node.highlight) content = `<mark>${content}</mark>`
+
+  return content
 }
 
 function serializeRichTextNode(node: RichTextNode): string {
   if (typeof node.text === 'string') {
-    let text = escapeHtml(node.text).replace(/\n/g, '<br>')
-    if (node.code) text = `<code>${text}</code>`
-    if (node.bold) text = `<strong>${text}</strong>`
-    if (node.italic) text = `<em>${text}</em>`
-    if (node.underline) text = `<u>${text}</u>`
-    if (node.strikethrough) text = `<s>${text}</s>`
-    return text
+    return serializeTextMarks(node, escapeHtml(node.text).replace(/\n/g, '<br>'))
   }
 
   const children = (node.children || []).map(serializeRichTextNode).join('')
@@ -173,7 +236,7 @@ function serializeRichTextNode(node: RichTextNode): string {
   if (type === 'hr') return '<hr>'
 
   const tag = BLOCK_TAGS[type] || 'p'
-  return `<${tag}${attrs(buildTableCellAttrs(node))}>${children}</${tag}>`
+  return `<${tag}${attrs(buildBlockAttrs(node))}>${children}</${tag}>`
 }
 
 export function serializeRichTextValue(value: unknown) {
@@ -223,6 +286,37 @@ function readTableCellPresentation(element: HTMLElement) {
   }
 }
 
+function readBlockPresentation(element: HTMLElement) {
+  return {
+    align: normalizeTextAlign(element.dataset.align || getStyleProperty(element, 'text-align')),
+  }
+}
+
+function hydrateRichTextBlockStyles(value: unknown, html?: string | null) {
+  if (!Array.isArray(value) || !html || typeof document === 'undefined') return value
+
+  const container = document.createElement('div')
+  container.innerHTML = html
+  const sourceBlocks = Array.from(
+    container.querySelectorAll('blockquote,h1,h2,h3,li,p,td,th,tr,ul,ol,table')
+  ).map((block) => readBlockPresentation(block as HTMLElement))
+
+  if (sourceBlocks.length === 0) return value
+
+  let blockIndex = 0
+  const visit = (node: RichTextNode) => {
+    if (node.type && typeof node.text !== 'string') {
+      const source = sourceBlocks[blockIndex++]
+      if (source?.align) node.align = source.align
+    }
+
+    node.children?.forEach(visit)
+  }
+
+  value.forEach((node) => visit(node as RichTextNode))
+  return value
+}
+
 export function hydrateRichTextTableCellStyles(value: unknown, html?: string | null) {
   if (!Array.isArray(value) || !html || typeof document === 'undefined') return value
 
@@ -232,7 +326,7 @@ export function hydrateRichTextTableCellStyles(value: unknown, html?: string | n
     readTableCellPresentation(cell as HTMLElement)
   )
 
-  if (sourceCells.length === 0) return value
+  if (sourceCells.length === 0) return hydrateRichTextBlockStyles(value, html)
 
   let cellIndex = 0
   const visit = (node: RichTextNode) => {
@@ -246,5 +340,5 @@ export function hydrateRichTextTableCellStyles(value: unknown, html?: string | n
   }
 
   value.forEach((node) => visit(node as RichTextNode))
-  return value
+  return hydrateRichTextBlockStyles(value, html)
 }
