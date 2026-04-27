@@ -260,10 +260,7 @@ function resolveModelProvider({
       name: 'nvidia',
       supportsStructuredOutputs: true,
     });
-    const defaultModel =
-      provider === 'nvidia' || model?.startsWith('nvidia/')
-        ? model || process.env.NVIDIA_MODEL || DEFAULT_NVIDIA_MODEL
-        : process.env.NVIDIA_MODEL || DEFAULT_NVIDIA_MODEL;
+    const defaultModel = resolveNvidiaModel(model);
     const resolver = ((modelId?: string) => nvidia.chatModel(modelId || defaultModel)) as ModelProviderResolver;
     resolver.defaultModel = defaultModel;
     resolver.reasoningModel = defaultModel;
@@ -278,6 +275,12 @@ function resolveModelProvider({
   resolver.defaultModel = model || DEFAULT_MODEL;
   resolver.reasoningModel = model || DEFAULT_REASONING_MODEL;
   return resolver;
+}
+
+function resolveNvidiaModel(requestedModel?: string) {
+  const candidates = [requestedModel, process.env.NVIDIA_MODEL, DEFAULT_NVIDIA_MODEL];
+
+  return candidates.find((candidate) => candidate?.startsWith('nvidia/')) || DEFAULT_NVIDIA_MODEL;
 }
 
 const getCommentTool = (

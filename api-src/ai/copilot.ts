@@ -93,10 +93,7 @@ function resolveModel({
   if (provider === 'nvidia' || process.env.AI_PROVIDER === 'nvidia') {
     const key = nvidiaApiKey || process.env.NVIDIA_API_KEY;
     if (!key) return null;
-    const modelId =
-      provider === 'nvidia' || model?.startsWith('nvidia/')
-        ? model || process.env.NVIDIA_MODEL || DEFAULT_NVIDIA_MODEL
-        : process.env.NVIDIA_MODEL || DEFAULT_NVIDIA_MODEL;
+    const modelId = resolveNvidiaModel(model);
 
     return createOpenAICompatible({
       apiKey: key,
@@ -109,4 +106,10 @@ function resolveModel({
   if (!key) return null;
 
   return createGateway({ apiKey: key })(normalizeGatewayModel(model));
+}
+
+function resolveNvidiaModel(requestedModel?: string) {
+  const candidates = [requestedModel, process.env.NVIDIA_MODEL, DEFAULT_NVIDIA_MODEL];
+
+  return candidates.find((candidate) => candidate?.startsWith('nvidia/')) || DEFAULT_NVIDIA_MODEL;
 }

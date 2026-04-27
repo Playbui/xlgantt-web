@@ -50,6 +50,14 @@ type Model = {
 
 type AiProvider = 'gateway' | 'nvidia';
 
+const DEFAULT_NVIDIA_MODEL = 'nvidia/llama-3.1-nemotron-ultra-253b-v1';
+
+function normalizeNvidiaModel(model: string) {
+  const trimmed = model.trim();
+
+  return trimmed.startsWith('nvidia/') ? trimmed : DEFAULT_NVIDIA_MODEL;
+}
+
 export const models: Model[] = [
   // OpenAI Models
   { label: 'GPT-3.5 Turbo', value: 'openai/gpt-3.5-turbo' },
@@ -223,7 +231,7 @@ export function SettingsDialog() {
   const [tempProvider, setTempProvider] = React.useState<AiProvider>('gateway');
   const [tempModel, setTempModel] = React.useState(models[7]);
   const [tempNvidiaModel, setTempNvidiaModel] = React.useState(
-    'nvidia/llama-3.1-nemotron-ultra-253b-v1'
+    DEFAULT_NVIDIA_MODEL
   );
   const [tempKeys, setTempKeys] = React.useState<Record<string, string>>({
     aiGatewayApiKey: '',
@@ -239,13 +247,14 @@ export function SettingsDialog() {
 
     // Update AI chat options
     const chatOptions = editor.getOptions(aiChatPlugin).chatOptions ?? {};
+    const nvidiaModel = normalizeNvidiaModel(tempNvidiaModel);
 
     editor.setOption(aiChatPlugin, 'chatOptions', {
       ...chatOptions,
       body: {
         ...chatOptions.body,
         apiKey: tempProvider === 'gateway' ? tempKeys.aiGatewayApiKey : '',
-        model: tempProvider === 'nvidia' ? tempNvidiaModel : tempModel.value,
+        model: tempProvider === 'nvidia' ? nvidiaModel : tempModel.value,
         nvidiaApiKey: tempProvider === 'nvidia' ? tempKeys.nvidiaApiKey : '',
         provider: tempProvider,
       },
@@ -261,11 +270,15 @@ export function SettingsDialog() {
       body: {
         ...completeOptions.body,
         apiKey: tempProvider === 'gateway' ? tempKeys.aiGatewayApiKey : '',
-        model: tempProvider === 'nvidia' ? tempNvidiaModel : tempModel.value,
+        model: tempProvider === 'nvidia' ? nvidiaModel : tempModel.value,
         nvidiaApiKey: tempProvider === 'nvidia' ? tempKeys.nvidiaApiKey : '',
         provider: tempProvider,
       },
     });
+
+    if (tempProvider === 'nvidia') {
+      setTempNvidiaModel(nvidiaModel);
+    }
   };
 
   const toggleKeyVisibility = (key: string) => {
