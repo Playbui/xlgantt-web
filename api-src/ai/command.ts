@@ -258,6 +258,7 @@ function resolveModelProvider({
       apiKey: key,
       baseURL: nvidiaBaseURL || process.env.NVIDIA_BASE_URL || DEFAULT_NVIDIA_BASE_URL,
       name: 'nvidia',
+      supportsStructuredOutputs: true,
     });
     const defaultModel =
       provider === 'nvidia' || model?.startsWith('nvidia/')
