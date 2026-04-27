@@ -6,7 +6,6 @@ import {
   type UIMessageStreamWriter,
   createUIMessageStream,
   createUIMessageStreamResponse,
-  generateText,
   Output,
   streamText,
   tool,
@@ -18,7 +17,6 @@ import { BaseEditorKit } from '../../src/components/editor-base-kit';
 import { markdownJoinerTransform } from '../../src/lib/markdown-joiner-transform';
 import {
   buildEditTableMultiCellPrompt,
-  getChooseToolPrompt,
   getCommentPrompt,
   getEditPrompt,
   getGeneratePrompt,
@@ -106,25 +104,17 @@ export default async function handler(req: any, res: any) {
         let toolName = toolNameParam as ToolName | undefined;
 
         if (!toolName) {
-          const prompt = getChooseToolPrompt({
+          const aiToolName = chooseToolNameLocally({
             isSelecting,
             messages: messagesRaw,
           });
-          const enumOptions = isSelecting
-            ? ['generate', 'edit', 'comment']
-            : ['generate', 'comment'];
-          const { output: aiToolName } = await generateText({
-            model: modelProvider(modelProvider.reasoningModel),
-            output: Output.choice({ options: enumOptions }),
-            prompt,
-          });
 
           writer.write({
-            data: aiToolName as ToolName,
+            data: aiToolName,
             type: 'data-toolName',
           });
 
-          toolName = aiToolName as ToolName;
+          toolName = aiToolName;
         }
 
         const textStream = streamText({
@@ -200,6 +190,46 @@ export default async function handler(req: any, res: any) {
     console.error('AI command failed:', error);
     return sendJson(res, 500, { error: 'Failed to process AI request' });
   }
+}
+
+function chooseToolNameLocally({
+  isSelecting,
+  messages,
+}: {
+  isSelecting: boolean;
+  messages: ChatMessage[];
+}): ToolName {
+  const instruction = getLastUserText(messages).toLowerCase();
+
+  if (
+    /\b(comment|comments|feedback|review|annotate|annotation)\b/.test(instruction) ||
+    /(댓글|코멘트|피드백|검토|리뷰|첨삭)/.test(instruction)
+  ) {
+    return 'comment';
+  }
+
+  if (
+    isSelecting &&
+    (/\b(fix|rewrite|improve|shorten|expand|translate|simplify|correct|polish|grammar|spelling)\b/.test(
+      instruction
+    ) ||
+      /(고쳐|수정|교정|개선|다듬|번역|짧게|줄여|늘려|확장|간단히|맞춤법|문법)/.test(instruction))
+  ) {
+    return 'edit';
+  }
+
+  return 'generate';
+}
+
+function getLastUserText(messages: ChatMessage[]) {
+  const message = [...messages].reverse().find((item) => item.role === 'user');
+
+  return (
+    message?.parts
+      .filter((part) => part.type === 'text')
+      .map((part) => part.text)
+      .join(' ') || ''
+  );
 }
 
 type ModelProviderResolver = ((modelId?: string) => LanguageModel) & {

@@ -10,7 +10,6 @@ import {
   type UIMessageStreamWriter,
   createUIMessageStream,
   createUIMessageStreamResponse,
-  generateText,
   Output,
   streamText,
   tool,
@@ -24,7 +23,6 @@ import { markdownJoinerTransform } from '@/lib/markdown-joiner-transform';
 
 import {
   buildEditTableMultiCellPrompt,
-  getChooseToolPrompt,
   getCommentPrompt,
   getEditPrompt,
   getGeneratePrompt,
@@ -62,20 +60,9 @@ export async function POST(req: NextRequest) {
         let toolName = toolNameParam;
 
         if (!toolName) {
-          const prompt = getChooseToolPrompt({
+          const AIToolName = chooseToolNameLocally({
             isSelecting,
             messages: messagesRaw,
-          });
-
-          const enumOptions = isSelecting
-            ? ['generate', 'edit', 'comment']
-            : ['generate', 'comment'];
-          const modelId = model || 'google/gemini-2.5-flash';
-
-          const { output: AIToolName } = await generateText({
-            model: gatewayProvider(modelId),
-            output: Output.choice({ options: enumOptions }),
-            prompt,
           });
 
           writer.write({
@@ -174,6 +161,46 @@ export async function POST(req: NextRequest) {
       { status: 500 }
     );
   }
+}
+
+function chooseToolNameLocally({
+  isSelecting,
+  messages,
+}: {
+  isSelecting: boolean;
+  messages: ChatMessage[];
+}): ToolName {
+  const instruction = getLastUserText(messages).toLowerCase();
+
+  if (
+    /\b(comment|comments|feedback|review|annotate|annotation)\b/.test(instruction) ||
+    /(댓글|코멘트|피드백|검토|리뷰|첨삭)/.test(instruction)
+  ) {
+    return 'comment';
+  }
+
+  if (
+    isSelecting &&
+    (/\b(fix|rewrite|improve|shorten|expand|translate|simplify|correct|polish|grammar|spelling)\b/.test(
+      instruction
+    ) ||
+      /(고쳐|수정|교정|개선|다듬|번역|짧게|줄여|늘려|확장|간단히|맞춤법|문법)/.test(instruction))
+  ) {
+    return 'edit';
+  }
+
+  return 'generate';
+}
+
+function getLastUserText(messages: ChatMessage[]) {
+  const message = [...messages].reverse().find((item) => item.role === 'user');
+
+  return (
+    message?.parts
+      .filter((part) => part.type === 'text')
+      .map((part) => part.text)
+      .join(' ') || ''
+  );
 }
 
 const getCommentTool = (
