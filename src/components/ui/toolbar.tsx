@@ -269,7 +269,7 @@ export function ToolbarGroup({
     <div
       className={cn(
         'group/toolbar-group',
-        'relative hidden has-[button]:flex',
+        'relative hidden shrink-0 has-[button]:flex',
         className
       )}
     >
