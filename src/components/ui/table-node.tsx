@@ -9,6 +9,7 @@ import {
 } from '@platejs/selection/react';
 import { resizeLengthClampStatic } from '@platejs/resizable';
 import {
+  getSelectedCellEntries,
   getTableColumnCount,
   setCellBackground,
   setTableColSize,
@@ -1114,89 +1115,73 @@ function ColorDropdownMenu({
 
   const editor = useEditorRef();
   const selectionRef = React.useRef(editor.selection);
-  const selectedCellIdsRef = React.useRef<string[]>([]);
+  const selectedCellPathsRef = React.useRef<number[][]>([]);
 
-  const getSelectedCellIds = React.useCallback(() => {
-    const optionSelectedCells =
-      editor.getOption({ key: KEYS.table }, 'selectedCells') ?? [];
-    const apiSelectedCells =
-      editor.getApi(TablePlugin).table.getSelectedCells() ?? [];
-    const domSelectedCellIds = Array.from(
-      document.querySelectorAll<HTMLElement>(
-        '[data-table-cell-selected="true"][data-table-cell-id]'
-      )
-    )
-      .map((cell) => cell.dataset.tableCellId)
-      .filter(Boolean) as string[];
-    const selectionCellIds = Array.from(
+  const getSelectedCellPaths = React.useCallback(() => {
+    const selectedCellEntries = getSelectedCellEntries(editor) ?? [];
+
+    if (selectedCellEntries.length > 0) {
+      return selectedCellEntries.map(([, path]) => path);
+    }
+
+    const selectionCellEntries = Array.from(
       editor.api.nodes({
         at: editor.selection ?? undefined,
         match: (node) =>
           (node as { type?: string }).type === KEYS.td ||
           (node as { type?: string }).type === KEYS.th,
       })
-    )
-      .map(([node]) => (node as { id?: string }).id)
-      .filter(Boolean) as string[];
-    const selectedCellIds = [
-      ...optionSelectedCells,
-      ...apiSelectedCells,
-    ]
-      .map((cell) => (cell as { id?: string }).id)
-      .filter(Boolean) as string[];
+    );
 
-    if (
-      selectedCellIds.length > 0 ||
-      domSelectedCellIds.length > 0 ||
-      selectionCellIds.length > 0
-    ) {
-      return Array.from(
-        new Set([...selectedCellIds, ...domSelectedCellIds, ...selectionCellIds])
-      );
+    if (selectionCellEntries.length > 0) {
+      return selectionCellEntries.map(([, path]) => path);
     }
 
     if (selectionRef.current) {
       editor.tf.select(selectionRef.current);
     }
 
-    const restoredSelectedCells =
-      editor.getApi(TablePlugin).table.getSelectedCells() ?? [];
+    const restoredSelectedCellEntries = getSelectedCellEntries(editor) ?? [];
 
-    return restoredSelectedCells
-      .map((cell) => (cell as { id?: string }).id)
-      .filter(Boolean) as string[];
+    if (restoredSelectedCellEntries.length > 0) {
+      return restoredSelectedCellEntries.map(([, path]) => path);
+    }
+
+    const restoredSelectionCellEntries = Array.from(
+      editor.api.nodes({
+        at: editor.selection ?? undefined,
+        match: (node) =>
+          (node as { type?: string }).type === KEYS.td ||
+          (node as { type?: string }).type === KEYS.th,
+      })
+    );
+
+    return restoredSelectionCellEntries.map(([, path]) => path);
   }, [editor]);
 
   const updateCellBackground = React.useCallback(
     (color: string | null) => {
-      const currentSelectedCellIds = getSelectedCellIds();
-      const selectedCellIds =
-        currentSelectedCellIds.length > 0
-          ? currentSelectedCellIds
-          : selectedCellIdsRef.current;
-      const selectedCellIdSet = new Set(selectedCellIds);
-      let updated = false;
+      const currentSelectedCellPaths = getSelectedCellPaths();
+      const selectedCellPaths =
+        currentSelectedCellPaths.length > 0
+          ? currentSelectedCellPaths
+          : selectedCellPathsRef.current;
+      const uniquePaths = Array.from(
+        new Map(selectedCellPaths.map((path) => [path.join(','), path])).values()
+      );
 
-      if (selectedCellIdSet.size > 0) {
-        Array.from(
-          editor.api.nodes({
-            at: [],
-            match: (node) =>
-              selectedCellIdSet.has((node as { id?: string }).id ?? ''),
-          })
-        ).forEach(([, path]) => {
+      if (uniquePaths.length > 0) {
+        uniquePaths.forEach((path) => {
           editor.tf.setNodes({ background: color }, { at: path });
-          updated = true;
         });
+      } else {
+        setCellBackground(editor, { color });
       }
 
       setOpen(false);
-      if (!updated) {
-        setCellBackground(editor, { color });
-      }
       editor.tf.focus();
     },
-    [editor, getSelectedCellIds]
+    [editor, getSelectedCellPaths]
   );
 
   return (
@@ -1205,7 +1190,7 @@ function ColorDropdownMenu({
       onOpenChange={(value) => {
         if (value) {
           selectionRef.current = editor.selection;
-          selectedCellIdsRef.current = getSelectedCellIds();
+          selectedCellPathsRef.current = getSelectedCellPaths();
         }
 
         setOpen(value);
