@@ -9,8 +9,10 @@ import {
 } from '@platejs/selection/react';
 import { resizeLengthClampStatic } from '@platejs/resizable';
 import {
+  type BorderDirection,
   getSelectedCellEntries,
   getTableColumnCount,
+  setBorderSize,
   setCellBackground,
   setTableColSize,
   setTableMarginLeft,
@@ -108,6 +110,12 @@ import {
 } from './toolbar';
 
 type TableResizeDirection = 'bottom' | 'left' | 'right';
+type TableBorderCommand = BorderDirection | 'none' | 'outer';
+type TableCellBorder = {
+  color?: string;
+  size?: number;
+  style?: string;
+};
 
 type TableResizeStartOptions = {
   colIndex: number;
@@ -137,6 +145,33 @@ type TableResizeContextValue = {
     options: TableResizeStartOptions
   ) => void;
 };
+
+function getCellBorderStyle(
+  borders?: Partial<Record<BorderDirection, TableCellBorder>>
+): React.CSSProperties {
+  const getBorder = (direction: BorderDirection) => borders?.[direction];
+  const getSize = (direction: BorderDirection) =>
+    `${getBorder(direction)?.size ?? 1}px`;
+  const getStyle = (direction: BorderDirection) =>
+    getBorder(direction)?.style ?? 'solid';
+  const getColor = (direction: BorderDirection) =>
+    getBorder(direction)?.color;
+
+  return {
+    borderBottomColor: getColor('bottom'),
+    borderBottomStyle: getStyle('bottom'),
+    borderBottomWidth: getSize('bottom'),
+    borderLeftColor: getColor('left'),
+    borderLeftStyle: getStyle('left'),
+    borderLeftWidth: getSize('left'),
+    borderRightColor: getColor('right'),
+    borderRightStyle: getStyle('right'),
+    borderRightWidth: getSize('right'),
+    borderTopColor: getColor('top'),
+    borderTopStyle: getStyle('top'),
+    borderTopWidth: getSize('top'),
+  } as React.CSSProperties;
+}
 
 const TABLE_CONTROL_COLUMN_WIDTH = 8;
 const TABLE_DEFAULT_COLUMN_WIDTH = 120;
@@ -1031,8 +1066,9 @@ function TableBordersDropdownMenuContent(
   props: React.ComponentProps<typeof DropdownMenuContent>
 ) {
   const editor = useEditorRef();
+  const selectionRef = React.useRef(editor.selection);
+  const selectedCellPathsRef = React.useRef<number[][]>([]);
   const {
-    getOnSelectTableBorder,
     hasBottomBorder,
     hasLeftBorder,
     hasNoBorders,
@@ -1040,10 +1076,113 @@ function TableBordersDropdownMenuContent(
     hasRightBorder,
     hasTopBorder,
   } = useTableBordersDropdownMenuContentState();
+  const getSelectedCellPaths = React.useCallback(() => {
+    const selectedCellEntries = getSelectedCellEntries(editor) ?? [];
+
+    if (selectedCellEntries.length > 0) {
+      return selectedCellEntries.map(([, path]) => path);
+    }
+
+    const selectionCellEntries = Array.from(
+      editor.api.nodes({
+        at: editor.selection ?? undefined,
+        match: (node) =>
+          (node as { type?: string }).type === KEYS.td ||
+          (node as { type?: string }).type === KEYS.th,
+      })
+    );
+
+    if (selectionCellEntries.length > 0) {
+      return selectionCellEntries.map(([, path]) => path);
+    }
+
+    if (selectionRef.current) {
+      editor.tf.select(selectionRef.current);
+    }
+
+    const restoredSelectedCellEntries = getSelectedCellEntries(editor) ?? [];
+
+    if (restoredSelectedCellEntries.length > 0) {
+      return restoredSelectedCellEntries.map(([, path]) => path);
+    }
+
+    return Array.from(
+      editor.api.nodes({
+        at: editor.selection ?? undefined,
+        match: (node) =>
+          (node as { type?: string }).type === KEYS.td ||
+          (node as { type?: string }).type === KEYS.th,
+      })
+    ).map(([, path]) => path);
+  }, [editor]);
+  const getActiveCellPaths = React.useCallback(() => {
+    const currentSelectedCellPaths = getSelectedCellPaths();
+    const selectedCellPaths =
+      currentSelectedCellPaths.length > 0
+        ? currentSelectedCellPaths
+        : selectedCellPathsRef.current;
+
+    return Array.from(
+      new Map(selectedCellPaths.map((path) => [path.join(','), path])).values()
+    );
+  }, [getSelectedCellPaths]);
+  const updateCellBorders = React.useCallback(
+    (border: TableBorderCommand, checked: boolean) => {
+      const paths = getActiveCellPaths();
+
+      if (paths.length === 0) {
+        return;
+      }
+
+      const size = border === 'none' ? (checked ? 0 : 1) : checked ? 1 : 0;
+
+      if (border === 'none') {
+        paths.forEach((path) => {
+          setBorderSize(editor, size, { at: path, border: 'all' });
+        });
+      } else if (border === 'outer') {
+        const rowIndexes = paths.map((path) => path.at(-2) ?? 0);
+        const cellIndexes = paths.map((path) => path.at(-1) ?? 0);
+        const minRow = Math.min(...rowIndexes);
+        const maxRow = Math.max(...rowIndexes);
+        const minCell = Math.min(...cellIndexes);
+        const maxCell = Math.max(...cellIndexes);
+
+        paths.forEach((path) => {
+          const rowIndex = path.at(-2) ?? 0;
+          const cellIndex = path.at(-1) ?? 0;
+
+          if (rowIndex === minRow) {
+            setBorderSize(editor, size, { at: path, border: 'top' });
+          }
+          if (rowIndex === maxRow) {
+            setBorderSize(editor, size, { at: path, border: 'bottom' });
+          }
+          if (cellIndex === minCell) {
+            setBorderSize(editor, size, { at: path, border: 'left' });
+          }
+          if (cellIndex === maxCell) {
+            setBorderSize(editor, size, { at: path, border: 'right' });
+          }
+        });
+      } else {
+        paths.forEach((path) => {
+          setBorderSize(editor, size, { at: path, border });
+        });
+      }
+
+      editor.tf.focus();
+    },
+    [editor, getActiveCellPaths]
+  );
 
   return (
     <DropdownMenuContent
       className="min-w-[220px]"
+      onOpenAutoFocus={() => {
+        selectionRef.current = editor.selection;
+        selectedCellPathsRef.current = getSelectedCellPaths();
+      }}
       onCloseAutoFocus={(e) => {
         e.preventDefault();
         editor.tf.focus();
@@ -1056,28 +1195,36 @@ function TableBordersDropdownMenuContent(
       <DropdownMenuGroup>
         <DropdownMenuCheckboxItem
           checked={hasTopBorder}
-          onCheckedChange={getOnSelectTableBorder('top')}
+          onCheckedChange={(checked) => {
+            updateCellBorders('top', checked);
+          }}
         >
           <BorderTopIcon />
           <div>Top Border</div>
         </DropdownMenuCheckboxItem>
         <DropdownMenuCheckboxItem
           checked={hasRightBorder}
-          onCheckedChange={getOnSelectTableBorder('right')}
+          onCheckedChange={(checked) => {
+            updateCellBorders('right', checked);
+          }}
         >
           <BorderRightIcon />
           <div>Right Border</div>
         </DropdownMenuCheckboxItem>
         <DropdownMenuCheckboxItem
           checked={hasBottomBorder}
-          onCheckedChange={getOnSelectTableBorder('bottom')}
+          onCheckedChange={(checked) => {
+            updateCellBorders('bottom', checked);
+          }}
         >
           <BorderBottomIcon />
           <div>Bottom Border</div>
         </DropdownMenuCheckboxItem>
         <DropdownMenuCheckboxItem
           checked={hasLeftBorder}
-          onCheckedChange={getOnSelectTableBorder('left')}
+          onCheckedChange={(checked) => {
+            updateCellBorders('left', checked);
+          }}
         >
           <BorderLeftIcon />
           <div>Left Border</div>
@@ -1087,14 +1234,18 @@ function TableBordersDropdownMenuContent(
       <DropdownMenuGroup>
         <DropdownMenuCheckboxItem
           checked={hasNoBorders}
-          onCheckedChange={getOnSelectTableBorder('none')}
+          onCheckedChange={(checked) => {
+            updateCellBorders('none', checked);
+          }}
         >
           <BorderNoneIcon />
           <div>No Border</div>
         </DropdownMenuCheckboxItem>
         <DropdownMenuCheckboxItem
           checked={hasOuterBorders}
-          onCheckedChange={getOnSelectTableBorder('outer')}
+          onCheckedChange={(checked) => {
+            updateCellBorders('outer', checked);
+          }}
         >
           <BorderAllIcon />
           <div>Outside Borders</div>
@@ -1406,6 +1557,7 @@ export function TableCellElement({
         {
           '--cellBackground': element.background,
           backgroundColor: element.background,
+          ...getCellBorderStyle(borders),
           maxWidth: width,
           minWidth: width,
         } as React.CSSProperties

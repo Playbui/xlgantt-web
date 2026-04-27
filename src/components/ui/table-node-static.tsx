@@ -3,10 +3,43 @@ import * as React from 'react';
 import type { TTableCellElement, TTableElement } from 'platejs';
 import type { SlateElementProps } from 'platejs/static';
 
-import { BaseTablePlugin } from '@platejs/table';
+import { BaseTablePlugin, type BorderDirection } from '@platejs/table';
 import { SlateElement } from 'platejs/static';
 
 import { cn } from '@/lib/utils';
+
+type TableCellBorder = {
+  color?: string;
+  size?: number;
+  style?: string;
+};
+
+function getCellBorderStyle(
+  borders?: Partial<Record<BorderDirection, TableCellBorder>>
+): React.CSSProperties {
+  const getBorder = (direction: BorderDirection) => borders?.[direction];
+  const getSize = (direction: BorderDirection) =>
+    `${getBorder(direction)?.size ?? 1}px`;
+  const getStyle = (direction: BorderDirection) =>
+    getBorder(direction)?.style ?? 'solid';
+  const getColor = (direction: BorderDirection) =>
+    getBorder(direction)?.color;
+
+  return {
+    borderBottomColor: getColor('bottom'),
+    borderBottomStyle: getStyle('bottom'),
+    borderBottomWidth: getSize('bottom'),
+    borderLeftColor: getColor('left'),
+    borderLeftStyle: getStyle('left'),
+    borderLeftWidth: getSize('left'),
+    borderRightColor: getColor('right'),
+    borderRightStyle: getStyle('right'),
+    borderRightWidth: getSize('right'),
+    borderTopColor: getColor('top'),
+    borderTopStyle: getStyle('top'),
+    borderTopWidth: getSize('top'),
+  } as React.CSSProperties;
+}
 
 export function TableElementStatic({
   children,
@@ -73,6 +106,7 @@ export function TableCellElementStatic({
         {
           '--cellBackground': element.background,
           backgroundColor: element.background,
+          ...getCellBorderStyle(borders),
           maxWidth: width || 240,
           minWidth: width || 120,
         } as React.CSSProperties
