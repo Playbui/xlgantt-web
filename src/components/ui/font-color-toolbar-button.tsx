@@ -191,7 +191,10 @@ export function FontColorToolbarButton({
     <DropdownMenu modal onOpenChange={onToggle} open={open}>
       <DropdownMenuTrigger render={<ToolbarButton pressed={open} tooltip={tooltip} />}>{children}</DropdownMenuTrigger>
 
-      <DropdownMenuContent align="start">
+      <DropdownMenuContent
+        align="start"
+        className="w-[320px] min-w-[320px] max-w-[calc(100vw-16px)] p-2"
+      >
         <ColorPicker
           clearColor={clearColor}
           color={selectedColor || color}
@@ -475,7 +478,7 @@ function ColorDropdownMenuItem({
           size: 'icon',
           variant: 'outline',
         }),
-        'my-1 flex size-6 items-center justify-center rounded-full border border-muted border-solid p-0 transition-all hover:scale-125',
+        'my-0.5 flex size-6 items-center justify-center rounded-full border border-muted border-solid p-0 transition-all hover:scale-110',
         !isBrightColor && 'border-transparent text-white',
         className
       )}
@@ -514,7 +517,7 @@ export function ColorDropdownMenuItems({
   return (
     <div
       className={cn(
-        'grid grid-cols-[repeat(10,1fr)] place-items-center gap-x-1',
+        'grid grid-cols-[repeat(10,1fr)] place-items-center gap-x-1 gap-y-1',
         className
       )}
       {...props}

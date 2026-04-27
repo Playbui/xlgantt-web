@@ -921,93 +921,108 @@ function TableFloatingToolbarContent({
   onSplit?: () => void;
 }) {
   return (
-    <PopoverContent onOpenAutoFocus={(e) => e.preventDefault()} contentEditable={false} {...props} render={<Toolbar className="scrollbar-hide flex w-auto max-w-[80vw] flex-row overflow-x-auto rounded-md border bg-popover p-1 shadow-md print:hidden" contentEditable={false} />}><ToolbarGroup>
-                <ColorDropdownMenu tooltip="Background color">
-                  <PaintBucketIcon />
-                </ColorDropdownMenu>
-                {canMerge && onMerge && (
-                  <ToolbarButton
-                    onClick={onMerge}
-                    onMouseDown={(e) => e.preventDefault()}
-                    tooltip="Merge cells"
-                  >
-                    <CombineIcon />
-                  </ToolbarButton>
-                )}
-                {canSplit && onSplit && (
-                  <ToolbarButton
-                    onClick={onSplit}
-                    onMouseDown={(e) => e.preventDefault()}
-                    tooltip="Split cell"
-                  >
-                    <SquareSplitHorizontalIcon />
-                  </ToolbarButton>
-                )}
+    <PopoverContent
+      className="scrollbar-hide flex w-auto max-w-[calc(100vw-24px)] flex-row items-center gap-0 overflow-x-auto rounded-md border bg-popover p-1 shadow-md print:hidden"
+      contentEditable={false}
+      onOpenAutoFocus={(e) => e.preventDefault()}
+      {...props}
+    >
+      <Toolbar className="flex-row items-center">
+        <ToolbarGroup>
+          <ColorDropdownMenu tooltip="Background color">
+            <PaintBucketIcon />
+          </ColorDropdownMenu>
+          {canMerge && onMerge && (
+            <ToolbarButton
+              onClick={onMerge}
+              onMouseDown={(e) => e.preventDefault()}
+              tooltip="Merge cells"
+            >
+              <CombineIcon />
+            </ToolbarButton>
+          )}
+          {canSplit && onSplit && (
+            <ToolbarButton
+              onClick={onSplit}
+              onMouseDown={(e) => e.preventDefault()}
+              tooltip="Split cell"
+            >
+              <SquareSplitHorizontalIcon />
+            </ToolbarButton>
+          )}
 
-                <DropdownMenu modal={false}>
-                  <DropdownMenuTrigger render={<ToolbarButton tooltip="Cell borders" />}><Grid2X2Icon /></DropdownMenuTrigger>
+          <DropdownMenu modal={false}>
+            <DropdownMenuTrigger
+              render={<ToolbarButton tooltip="Cell borders" />}
+            >
+              <Grid2X2Icon />
+            </DropdownMenuTrigger>
 
-                  <DropdownMenuPortal>
-                    <TableBordersDropdownMenuContent />
-                  </DropdownMenuPortal>
-                </DropdownMenu>
+            <DropdownMenuPortal>
+              <TableBordersDropdownMenuContent />
+            </DropdownMenuPortal>
+          </DropdownMenu>
 
-                {collapsedInside && (
-                  <ToolbarGroup>
-                    <ToolbarButton tooltip="Delete table" {...buttonProps}>
-                      <Trash2Icon />
-                    </ToolbarButton>
-                  </ToolbarGroup>
-                )}
-              </ToolbarGroup>{collapsedInside && (
-                <ToolbarGroup>
-                  <ToolbarButton
-                    onClick={onInsertRowBefore}
-                    onMouseDown={(e) => e.preventDefault()}
-                    tooltip="Insert row before"
-                  >
-                    <ArrowUp />
-                  </ToolbarButton>
-                  <ToolbarButton
-                    onClick={onInsertRowAfter}
-                    onMouseDown={(e) => e.preventDefault()}
-                    tooltip="Insert row after"
-                  >
-                    <ArrowDown />
-                  </ToolbarButton>
-                  <ToolbarButton
-                    onClick={onDeleteRow}
-                    onMouseDown={(e) => e.preventDefault()}
-                    tooltip="Delete row"
-                  >
-                    <XIcon />
-                  </ToolbarButton>
-                </ToolbarGroup>
-              )}{collapsedInside && (
-                <ToolbarGroup>
-                  <ToolbarButton
-                    onClick={onInsertColumnBefore}
-                    onMouseDown={(e) => e.preventDefault()}
-                    tooltip="Insert column before"
-                  >
-                    <ArrowLeft />
-                  </ToolbarButton>
-                  <ToolbarButton
-                    onClick={onInsertColumnAfter}
-                    onMouseDown={(e) => e.preventDefault()}
-                    tooltip="Insert column after"
-                  >
-                    <ArrowRight />
-                  </ToolbarButton>
-                  <ToolbarButton
-                    onClick={onDeleteColumn}
-                    onMouseDown={(e) => e.preventDefault()}
-                    tooltip="Delete column"
-                  >
-                    <XIcon />
-                  </ToolbarButton>
-                </ToolbarGroup>
-              )}</PopoverContent>
+          {collapsedInside && (
+            <ToolbarButton tooltip="Delete table" {...buttonProps}>
+              <Trash2Icon />
+            </ToolbarButton>
+          )}
+        </ToolbarGroup>
+
+        {collapsedInside && (
+          <ToolbarGroup>
+            <ToolbarButton
+              onClick={onInsertRowBefore}
+              onMouseDown={(e) => e.preventDefault()}
+              tooltip="Insert row before"
+            >
+              <ArrowUp />
+            </ToolbarButton>
+            <ToolbarButton
+              onClick={onInsertRowAfter}
+              onMouseDown={(e) => e.preventDefault()}
+              tooltip="Insert row after"
+            >
+              <ArrowDown />
+            </ToolbarButton>
+            <ToolbarButton
+              onClick={onDeleteRow}
+              onMouseDown={(e) => e.preventDefault()}
+              tooltip="Delete row"
+            >
+              <XIcon />
+            </ToolbarButton>
+          </ToolbarGroup>
+        )}
+
+        {collapsedInside && (
+          <ToolbarGroup>
+            <ToolbarButton
+              onClick={onInsertColumnBefore}
+              onMouseDown={(e) => e.preventDefault()}
+              tooltip="Insert column before"
+            >
+              <ArrowLeft />
+            </ToolbarButton>
+            <ToolbarButton
+              onClick={onInsertColumnAfter}
+              onMouseDown={(e) => e.preventDefault()}
+              tooltip="Insert column after"
+            >
+              <ArrowRight />
+            </ToolbarButton>
+            <ToolbarButton
+              onClick={onDeleteColumn}
+              onMouseDown={(e) => e.preventDefault()}
+              tooltip="Delete column"
+            >
+              <XIcon />
+            </ToolbarButton>
+          </ToolbarGroup>
+        )}
+      </Toolbar>
+    </PopoverContent>
   );
 }
 
@@ -1098,32 +1113,66 @@ function ColorDropdownMenu({
   const [open, setOpen] = React.useState(false);
 
   const editor = useEditorRef();
+  const selectionRef = React.useRef(editor.selection);
+
+  const getSelectedCells = React.useCallback(() => {
+    const currentSelectedCells =
+      editor.getApi(TablePlugin).table.getSelectedCells() ?? [];
+
+    if (currentSelectedCells.length > 0) {
+      return currentSelectedCells;
+    }
+
+    if (selectionRef.current) {
+      editor.tf.select(selectionRef.current);
+    }
+
+    return editor.getApi(TablePlugin).table.getSelectedCells() ?? [];
+  }, [editor]);
 
   const onUpdateColor = React.useCallback(
     (color: string) => {
+      const selectedCells = getSelectedCells();
+
       setOpen(false);
       setCellBackground(editor, {
         color,
-        selectedCells:
-          editor.getApi(TablePlugin).table.getSelectedCells() ?? [],
+        selectedCells,
       });
+      editor.tf.focus();
     },
-    [editor]
+    [editor, getSelectedCells]
   );
 
   const onClearColor = React.useCallback(() => {
+    const selectedCells = getSelectedCells();
+
     setOpen(false);
     setCellBackground(editor, {
       color: null,
-      selectedCells: editor.getApi(TablePlugin).table.getSelectedCells() ?? [],
+      selectedCells,
     });
-  }, [editor]);
+    editor.tf.focus();
+  }, [editor, getSelectedCells]);
 
   return (
-    <DropdownMenu open={open} onOpenChange={setOpen} modal={false}>
+    <DropdownMenu
+      open={open}
+      onOpenChange={(value) => {
+        if (value) {
+          selectionRef.current = editor.selection;
+        }
+
+        setOpen(value);
+      }}
+      modal={false}
+    >
       <DropdownMenuTrigger render={<ToolbarButton tooltip={tooltip} />}>{children}</DropdownMenuTrigger>
 
-      <DropdownMenuContent align="start">
+      <DropdownMenuContent
+        align="start"
+        className="w-[320px] min-w-[320px] max-w-[calc(100vw-16px)] p-2"
+      >
         <ToolbarMenuGroup label="Colors">
           <ColorDropdownMenuItems
             className="px-2"
@@ -1320,6 +1369,7 @@ export function TableCellElement({
       style={
         {
           '--cellBackground': element.background,
+          backgroundColor: element.background,
           maxWidth: width,
           minWidth: width,
         } as React.CSSProperties
