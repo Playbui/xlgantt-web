@@ -2,9 +2,8 @@ import { createOpenAICompatible } from '@ai-sdk/openai-compatible';
 import { generateText } from 'ai';
 
 const DEFAULT_NVIDIA_BASE_URL = 'https://integrate.api.nvidia.com/v1';
-const DEFAULT_NVIDIA_MODEL = 'qwen/qwen3.5-397b-a17b';
+const DEFAULT_NVIDIA_MODEL = 'mistralai/mistral-large-3-675b-instruct-2512';
 const KOREAN_CHAT_SYSTEM_PROMPT = [
-  '/no_think',
   'You are a Korean inline autocomplete engine for a document editor.',
   'Return only the next few Korean words that naturally continue the current unfinished sentence.',
   'Do not introduce a new topic, goal, strategy, mission, opinion, summary, or explanation.',

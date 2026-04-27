@@ -366,8 +366,17 @@ const aiChatItems = {
           ? `<Document>
 {editor}
 </Document>
-Start writing a new paragraph AFTER <Document> ONLY ONE SENTENCE`
-          : 'Continue writing AFTER <Block> ONLY ONE SENTENCE. DONT REPEAT THE TEXT.',
+다음 규칙에 따라 <Document> 뒤에 이어질 한국어 문단을 한 문장만 작성하세요.
+- 기존 글의 장르, 화자, 문체, 주제를 유지하세요.
+- 비전, 미션, 전략, 실행 방안, 보고서식 결론을 새로 만들지 마세요.
+- 기존 내용을 반복하지 마세요.`
+          : `<Block>
+{block}
+</Block>
+다음 규칙에 따라 <Block> 뒤에 바로 이어질 한국어 문장을 한 문장만 작성하세요.
+- 기존 문장의 장르, 화자, 문체, 주제를 유지하세요.
+- 비전, 미션, 전략, 실행 방안, 보고서식 결론을 새로 만들지 마세요.
+- 기존 내용을 반복하지 마세요.`,
         toolName: 'generate',
       });
     },

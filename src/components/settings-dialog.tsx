@@ -28,7 +28,7 @@ import { cn } from '@/lib/utils';
 
 import { aiChatPlugin } from './ai-kit';
 
-const DEFAULT_NVIDIA_MODEL = 'qwen/qwen3.5-397b-a17b';
+const DEFAULT_NVIDIA_MODEL = 'mistralai/mistral-large-3-675b-instruct-2512';
 
 export function SettingsDialog() {
   const editor = useEditorRef();

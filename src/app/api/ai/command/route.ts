@@ -29,13 +29,13 @@ import {
 } from './prompt';
 
 const DEFAULT_NVIDIA_BASE_URL = 'https://integrate.api.nvidia.com/v1';
-const DEFAULT_NVIDIA_MODEL = 'qwen/qwen3.5-397b-a17b';
+const DEFAULT_NVIDIA_MODEL = 'mistralai/mistral-large-3-675b-instruct-2512';
 const KOREAN_CHAT_SYSTEM_PROMPT = [
-  '/no_think',
   'You are a fluent Korean writing and editing assistant for a Korean business document editor.',
   'Respond in natural Korean unless the user explicitly asks for another language.',
   'Keep Korean source text in Korean. Do not translate Korean requests into English.',
   'For writing tasks, produce polished Korean with clear, professional phrasing.',
+  'Preserve the genre, voice, and subject of the existing document. Do not suddenly switch to business strategy, mission, vision, or report language unless the user asks.',
 ].join('\n');
 
 export async function POST(req: NextRequest) {
@@ -98,6 +98,8 @@ export async function POST(req: NextRequest) {
           // Not used
           prompt: '',
           system: KOREAN_CHAT_SYSTEM_PROMPT,
+          temperature: 0.35,
+          topP: 0.9,
           tools: {
             comment: getCommentTool(editor, {
               messagesRaw,
