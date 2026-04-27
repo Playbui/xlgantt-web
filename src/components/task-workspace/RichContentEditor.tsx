@@ -16,7 +16,7 @@ import { BlockquoteElement } from '@/components/ui/blockquote-node'
 import { H1Element, H2Element, H3Element } from '@/components/ui/heading-node'
 import { HrElement } from '@/components/ui/hr-node'
 import { ParagraphElement } from '@/components/ui/paragraph-node'
-import { isRichTextEmpty, normalizeRichTextHtml, serializeRichTextValue } from '@/lib/rich-text'
+import { hydrateRichTextTableCellStyles, isRichTextEmpty, normalizeRichTextHtml, serializeRichTextValue } from '@/lib/rich-text'
 import { cn } from '@/lib/utils'
 
 interface RichContentEditorProps {
@@ -63,7 +63,11 @@ const EDITOR_PLUGINS = EditorKit as any
 
 function createEditorValue(html: string) {
   const editor = createPlateEditor({ plugins: EDITOR_PLUGINS })
-  return deserializeHtml(editor, { element: html || '<p></p>' }) as Value
+  const sourceHtml = html || '<p></p>'
+  return hydrateRichTextTableCellStyles(
+    deserializeHtml(editor, { element: sourceHtml }) as Value,
+    sourceHtml,
+  ) as Value
 }
 
 export function RichContentEditor({

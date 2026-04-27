@@ -45,6 +45,8 @@ type RichTextNode = {
   text?: string
   url?: string
   children?: RichTextNode[]
+  background?: string | null
+  borders?: TableCellBorders
   bold?: boolean
   italic?: boolean
   underline?: boolean
@@ -52,6 +54,17 @@ type RichTextNode = {
   code?: boolean
   [key: string]: unknown
 }
+
+type TableBorderDirection = 'top' | 'right' | 'bottom' | 'left'
+type TableCellBorder = {
+  color?: string
+  size?: number
+  style?: string
+}
+type TableCellBorders = Partial<Record<TableBorderDirection, TableCellBorder>>
+
+const TABLE_CELL_TYPES = new Set(['td', 'th'])
+const TABLE_BORDER_DIRECTIONS: TableBorderDirection[] = ['top', 'right', 'bottom', 'left']
 
 const BLOCK_TAGS: Record<string, string> = {
   blockquote: 'blockquote',
@@ -86,6 +99,54 @@ function attrs(attributes: Record<string, string | undefined>) {
     .join('')
 }
 
+function safeCssValue(value: unknown) {
+  if (typeof value !== 'string') return undefined
+  const trimmed = value.trim()
+  if (!trimmed || /[<>"'`;{}]/.test(trimmed)) return undefined
+  return trimmed
+}
+
+function normalizeBorderSize(value: unknown) {
+  const size = typeof value === 'number' ? value : Number.parseFloat(String(value ?? ''))
+  if (!Number.isFinite(size)) return undefined
+  return Math.max(0, Math.min(20, size))
+}
+
+function normalizeBorderStyle(value: unknown) {
+  const style = safeCssValue(value)
+  if (!style) return undefined
+  return /^(solid|dashed|dotted|double|none)$/i.test(style) ? style.toLowerCase() : undefined
+}
+
+function buildTableCellAttrs(node: RichTextNode) {
+  if (!TABLE_CELL_TYPES.has(node.type || '')) return {}
+
+  const style: string[] = []
+  const background = safeCssValue(node.background)
+  const borders = node.borders && typeof node.borders === 'object' ? node.borders : undefined
+
+  if (background) style.push(`background-color:${background}`)
+
+  for (const direction of TABLE_BORDER_DIRECTIONS) {
+    const border = borders?.[direction]
+    if (!border) continue
+
+    const size = normalizeBorderSize(border.size)
+    const borderStyle = normalizeBorderStyle(border.style) || 'solid'
+    const color = safeCssValue(border.color)
+
+    if (typeof size === 'number') style.push(`border-${direction}-width:${size}px`)
+    if (borderStyle) style.push(`border-${direction}-style:${borderStyle}`)
+    if (color) style.push(`border-${direction}-color:${color}`)
+  }
+
+  return {
+    'data-cell-background': background,
+    'data-cell-borders': borders ? JSON.stringify(borders) : undefined,
+    style: style.length > 0 ? style.join(';') : undefined,
+  }
+}
+
 function serializeRichTextNode(node: RichTextNode): string {
   if (typeof node.text === 'string') {
     let text = escapeHtml(node.text).replace(/\n/g, '<br>')
@@ -112,10 +173,78 @@ function serializeRichTextNode(node: RichTextNode): string {
   if (type === 'hr') return '<hr>'
 
   const tag = BLOCK_TAGS[type] || 'p'
-  return `<${tag}>${children}</${tag}>`
+  return `<${tag}${attrs(buildTableCellAttrs(node))}>${children}</${tag}>`
 }
 
 export function serializeRichTextValue(value: unknown) {
   if (!Array.isArray(value)) return ''
   return normalizeRichTextHtml(value.map((node) => serializeRichTextNode(node as RichTextNode)).join(''))
+}
+
+function parseBordersJson(value?: string | null): TableCellBorders | undefined {
+  if (!value) return undefined
+  try {
+    const parsed = JSON.parse(value) as TableCellBorders
+    return parsed && typeof parsed === 'object' ? parsed : undefined
+  } catch {
+    return undefined
+  }
+}
+
+function getStyleProperty(element: HTMLElement, property: string) {
+  return element.style.getPropertyValue(property).trim() || undefined
+}
+
+function readTableCellPresentation(element: HTMLElement) {
+  const background =
+    element.dataset.cellBackground ||
+    getStyleProperty(element, 'background-color') ||
+    undefined
+  const borders = parseBordersJson(element.dataset.cellBorders) || {}
+
+  for (const direction of TABLE_BORDER_DIRECTIONS) {
+    const size = normalizeBorderSize(getStyleProperty(element, `border-${direction}-width`))
+    const style = normalizeBorderStyle(getStyleProperty(element, `border-${direction}-style`))
+    const color = safeCssValue(getStyleProperty(element, `border-${direction}-color`))
+
+    if (typeof size === 'number' || style || color) {
+      borders[direction] = {
+        ...borders[direction],
+        ...(typeof size === 'number' ? { size } : {}),
+        ...(style ? { style } : {}),
+        ...(color ? { color } : {}),
+      }
+    }
+  }
+
+  return {
+    background: safeCssValue(background),
+    borders: Object.keys(borders).length > 0 ? borders : undefined,
+  }
+}
+
+export function hydrateRichTextTableCellStyles(value: unknown, html?: string | null) {
+  if (!Array.isArray(value) || !html || typeof document === 'undefined') return value
+
+  const container = document.createElement('div')
+  container.innerHTML = html
+  const sourceCells = Array.from(container.querySelectorAll('td,th')).map((cell) =>
+    readTableCellPresentation(cell as HTMLElement)
+  )
+
+  if (sourceCells.length === 0) return value
+
+  let cellIndex = 0
+  const visit = (node: RichTextNode) => {
+    if (TABLE_CELL_TYPES.has(node.type || '')) {
+      const source = sourceCells[cellIndex++]
+      if (source?.background) node.background = source.background
+      if (source?.borders) node.borders = source.borders
+    }
+
+    node.children?.forEach(visit)
+  }
+
+  value.forEach((node) => visit(node as RichTextNode))
+  return value
 }
