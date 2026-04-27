@@ -594,7 +594,7 @@ export function WorkspaceView() {
   }
 
   return (
-    <div className="grid h-full min-h-0 min-w-[1520px] grid-cols-[300px_minmax(960px,1fr)_260px] bg-background">
+    <div className="grid h-full min-h-0 min-w-[1540px] grid-cols-[300px_minmax(900px,1fr)_340px] bg-background">
       <aside className="flex min-h-0 flex-col border-r border-slate-300 bg-slate-50/80">
         <div className="border-b border-slate-300 px-4 py-3">
           <div className="flex items-center justify-between gap-2">
