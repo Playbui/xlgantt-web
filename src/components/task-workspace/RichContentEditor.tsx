@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react'
-import { useEffect, useMemo, useRef } from 'react'
+import { useCallback, useEffect, useMemo, useRef } from 'react'
 import { Plate, ParagraphPlugin, createPlateEditor, usePlateEditor } from 'platejs/react'
 import { deserializeHtml, type Value } from 'platejs'
 import { BlockquotePlugin, BoldPlugin, H1Plugin, H2Plugin, H3Plugin, HorizontalRulePlugin, ItalicPlugin, UnderlinePlugin } from '@platejs/basic-nodes/react'
@@ -93,21 +93,7 @@ export function RichContentEditor({
   })
   const plateEditor = editor as any
 
-  useEffect(() => {
-    if (!editor) return
-    if (syncLockRef.current) {
-      syncLockRef.current = false
-      return
-    }
-
-    const nextValue = normalizeRichTextHtml(value)
-    if (nextValue === lastSyncedValueRef.current) return
-
-    plateEditor.tf.setValue(createEditorValue(value || '<p></p>'))
-    lastSyncedValueRef.current = nextValue
-  }, [editor, value])
-
-  const handleValueChange = (change?: { editor?: unknown; value?: unknown }) => {
+  const handleValueChange = useCallback((change?: { editor?: unknown; value?: unknown }) => {
     const currentEditor = (change?.editor ?? editor) as any
     if (!currentEditor) return
     const version = ++serializeVersionRef.current
@@ -126,7 +112,46 @@ export function RichContentEditor({
     })().catch((error) => {
       console.error('Failed to serialize rich editor content', error)
     })
-  }
+  }, [editor, onChange])
+
+  useEffect(() => {
+    if (!editor) return
+    if (syncLockRef.current) {
+      syncLockRef.current = false
+      return
+    }
+
+    const nextValue = normalizeRichTextHtml(value)
+    if (nextValue === lastSyncedValueRef.current) return
+
+    plateEditor.tf.setValue(createEditorValue(value || '<p></p>'))
+    lastSyncedValueRef.current = nextValue
+  }, [editor, plateEditor, value])
+
+  useEffect(() => {
+    if (!editor || typeof window === 'undefined') return
+
+    let timeoutId: number | undefined
+    const scheduleValueCheck = () => {
+      window.clearTimeout(timeoutId)
+      timeoutId = window.setTimeout(() => handleValueChange({ editor }), 0)
+    }
+
+    window.addEventListener('input', scheduleValueCheck, true)
+    window.addEventListener('keyup', scheduleValueCheck, true)
+    window.addEventListener('pointerup', scheduleValueCheck, true)
+    window.addEventListener('paste', scheduleValueCheck, true)
+    window.addEventListener('drop', scheduleValueCheck, true)
+
+    return () => {
+      window.clearTimeout(timeoutId)
+      window.removeEventListener('input', scheduleValueCheck, true)
+      window.removeEventListener('keyup', scheduleValueCheck, true)
+      window.removeEventListener('pointerup', scheduleValueCheck, true)
+      window.removeEventListener('paste', scheduleValueCheck, true)
+      window.removeEventListener('drop', scheduleValueCheck, true)
+    }
+  }, [editor, handleValueChange])
 
   const handleImageInsert = async (files: File[]) => {
     if (!editor || files.length === 0) return
