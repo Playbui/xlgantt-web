@@ -29,7 +29,14 @@ import {
 } from './prompt';
 
 const DEFAULT_NVIDIA_BASE_URL = 'https://integrate.api.nvidia.com/v1';
-const DEFAULT_NVIDIA_MODEL = 'nvidia/llama-3.3-nemotron-super-49b-v1.5';
+const DEFAULT_NVIDIA_MODEL = 'qwen/qwen3.5-397b-a17b';
+const KOREAN_CHAT_SYSTEM_PROMPT = [
+  '/no_think',
+  'You are a fluent Korean writing and editing assistant for a Korean business document editor.',
+  'Respond in natural Korean unless the user explicitly asks for another language.',
+  'Keep Korean source text in Korean. Do not translate Korean requests into English.',
+  'For writing tasks, produce polished Korean with clear, professional phrasing.',
+].join('\n');
 
 export async function POST(req: NextRequest) {
   const {
@@ -91,6 +98,7 @@ export async function POST(req: NextRequest) {
           model: nvidiaProvider.chatModel(nvidiaModel),
           // Not used
           prompt: '',
+          system: KOREAN_CHAT_SYSTEM_PROMPT,
           tools: {
             comment: getCommentTool(editor, {
               messagesRaw,
@@ -178,7 +186,13 @@ export async function POST(req: NextRequest) {
 function resolveNvidiaModel(requestedModel?: string) {
   const candidates = [requestedModel, process.env.NVIDIA_MODEL, DEFAULT_NVIDIA_MODEL];
 
-  return candidates.find((candidate) => candidate?.startsWith('nvidia/')) || DEFAULT_NVIDIA_MODEL;
+  return candidates.find(isAllowedNimChatModel) || DEFAULT_NVIDIA_MODEL;
+}
+
+function isAllowedNimChatModel(candidate?: string) {
+  if (!candidate) return false;
+
+  return /^(nvidia|qwen|meta|mistral|mistralai|deepseek)\//.test(candidate);
 }
 
 function chooseToolNameLocally({

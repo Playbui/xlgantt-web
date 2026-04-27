@@ -28,12 +28,14 @@ import { cn } from '@/lib/utils';
 
 import { aiChatPlugin } from './ai-kit';
 
-const DEFAULT_NVIDIA_MODEL = 'nvidia/llama-3.3-nemotron-super-49b-v1.5';
+const DEFAULT_NVIDIA_MODEL = 'qwen/qwen3.5-397b-a17b';
 
 function normalizeNvidiaModel(model: string) {
   const trimmed = model.trim();
 
-  return trimmed.startsWith('nvidia/') ? trimmed : DEFAULT_NVIDIA_MODEL;
+  return /^(nvidia|qwen|meta|mistral|mistralai|deepseek)\//.test(trimmed)
+    ? trimmed
+    : DEFAULT_NVIDIA_MODEL;
 }
 
 export function SettingsDialog() {
@@ -180,7 +182,7 @@ export function SettingsDialog() {
                   id="nvidia-model"
                   value={tempNvidiaModel}
                   onChange={(e) => setTempNvidiaModel(e.target.value)}
-                  placeholder="nvidia/llama-3.3-nemotron-super-49b-v1.5"
+                  placeholder="qwen/qwen3.5-397b-a17b"
                 />
                 <p className="mt-1.5 text-muted-foreground text-xs">
                   build.nvidia.com의 모델 id를 그대로 입력하세요.
