@@ -58,22 +58,21 @@ export function TableCellElementStatic({
       {...props}
       as={isHeader ? 'th' : 'td'}
       className={cn(
-        'h-full overflow-visible border-none bg-background p-0',
-        element.background ? 'bg-(--cellBackground)' : 'bg-background',
+        'h-full overflow-visible border border-border/70 bg-background p-0',
+        element.background && 'bg-(--cellBackground)',
         isHeader && 'text-left font-normal *:m-0',
-        'before:size-full',
-        "before:absolute before:box-border before:select-none before:content-['']",
         borders &&
           cn(
-            borders.bottom?.size && 'before:border-b before:border-b-border',
-            borders.right?.size && 'before:border-r before:border-r-border',
-            borders.left?.size && 'before:border-l before:border-l-border',
-            borders.top?.size && 'before:border-t before:border-t-border'
+            borders.bottom?.size && 'border-b-border',
+            borders.right?.size && 'border-r-border',
+            borders.left?.size && 'border-l-border',
+            borders.top?.size && 'border-t-border'
           )
       )}
       style={
         {
           '--cellBackground': element.background,
+          backgroundColor: element.background,
           maxWidth: width || 240,
           minWidth: width || 120,
         } as React.CSSProperties

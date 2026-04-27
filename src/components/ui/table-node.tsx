@@ -1114,46 +1114,90 @@ function ColorDropdownMenu({
 
   const editor = useEditorRef();
   const selectionRef = React.useRef(editor.selection);
+  const selectedCellIdsRef = React.useRef<string[]>([]);
 
-  const getSelectedCells = React.useCallback(() => {
-    const currentSelectedCells =
+  const getSelectedCellIds = React.useCallback(() => {
+    const optionSelectedCells =
+      editor.getOption({ key: KEYS.table }, 'selectedCells') ?? [];
+    const apiSelectedCells =
       editor.getApi(TablePlugin).table.getSelectedCells() ?? [];
+    const domSelectedCellIds = Array.from(
+      document.querySelectorAll<HTMLElement>(
+        '[data-table-cell-selected="true"][data-table-cell-id]'
+      )
+    )
+      .map((cell) => cell.dataset.tableCellId)
+      .filter(Boolean) as string[];
+    const selectionCellIds = Array.from(
+      editor.api.nodes({
+        at: editor.selection ?? undefined,
+        match: (node) =>
+          (node as { type?: string }).type === KEYS.td ||
+          (node as { type?: string }).type === KEYS.th,
+      })
+    )
+      .map(([node]) => (node as { id?: string }).id)
+      .filter(Boolean) as string[];
+    const selectedCellIds = [
+      ...optionSelectedCells,
+      ...apiSelectedCells,
+    ]
+      .map((cell) => (cell as { id?: string }).id)
+      .filter(Boolean) as string[];
 
-    if (currentSelectedCells.length > 0) {
-      return currentSelectedCells;
+    if (
+      selectedCellIds.length > 0 ||
+      domSelectedCellIds.length > 0 ||
+      selectionCellIds.length > 0
+    ) {
+      return Array.from(
+        new Set([...selectedCellIds, ...domSelectedCellIds, ...selectionCellIds])
+      );
     }
 
     if (selectionRef.current) {
       editor.tf.select(selectionRef.current);
     }
 
-    return editor.getApi(TablePlugin).table.getSelectedCells() ?? [];
+    const restoredSelectedCells =
+      editor.getApi(TablePlugin).table.getSelectedCells() ?? [];
+
+    return restoredSelectedCells
+      .map((cell) => (cell as { id?: string }).id)
+      .filter(Boolean) as string[];
   }, [editor]);
 
-  const onUpdateColor = React.useCallback(
-    (color: string) => {
-      const selectedCells = getSelectedCells();
+  const updateCellBackground = React.useCallback(
+    (color: string | null) => {
+      const currentSelectedCellIds = getSelectedCellIds();
+      const selectedCellIds =
+        currentSelectedCellIds.length > 0
+          ? currentSelectedCellIds
+          : selectedCellIdsRef.current;
+      const selectedCellIdSet = new Set(selectedCellIds);
+      let updated = false;
+
+      if (selectedCellIdSet.size > 0) {
+        Array.from(
+          editor.api.nodes({
+            at: [],
+            match: (node) =>
+              selectedCellIdSet.has((node as { id?: string }).id ?? ''),
+          })
+        ).forEach(([, path]) => {
+          editor.tf.setNodes({ background: color }, { at: path });
+          updated = true;
+        });
+      }
 
       setOpen(false);
-      setCellBackground(editor, {
-        color,
-        selectedCells,
-      });
+      if (!updated) {
+        setCellBackground(editor, { color });
+      }
       editor.tf.focus();
     },
-    [editor, getSelectedCells]
+    [editor, getSelectedCellIds]
   );
-
-  const onClearColor = React.useCallback(() => {
-    const selectedCells = getSelectedCells();
-
-    setOpen(false);
-    setCellBackground(editor, {
-      color: null,
-      selectedCells,
-    });
-    editor.tf.focus();
-  }, [editor, getSelectedCells]);
 
   return (
     <DropdownMenu
@@ -1161,6 +1205,7 @@ function ColorDropdownMenu({
       onOpenChange={(value) => {
         if (value) {
           selectionRef.current = editor.selection;
+          selectedCellIdsRef.current = getSelectedCellIds();
         }
 
         setOpen(value);
@@ -1177,11 +1222,17 @@ function ColorDropdownMenu({
           <ColorDropdownMenuItems
             className="px-2"
             colors={DEFAULT_COLORS}
-            updateColor={onUpdateColor}
+            updateColor={updateCellBackground}
           />
         </ToolbarMenuGroup>
         <DropdownMenuGroup>
-          <DropdownMenuItem className="p-2" onClick={onClearColor}>
+          <DropdownMenuItem
+            className="p-2"
+            onSelect={(e) => {
+              e.preventDefault();
+              updateCellBackground(null);
+            }}
+          >
             <EraserIcon />
             <span>Clear</span>
           </DropdownMenuItem>
