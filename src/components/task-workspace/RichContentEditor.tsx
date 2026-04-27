@@ -16,7 +16,7 @@ import { BlockquoteElement } from '@/components/ui/blockquote-node'
 import { H1Element, H2Element, H3Element } from '@/components/ui/heading-node'
 import { HrElement } from '@/components/ui/hr-node'
 import { ParagraphElement } from '@/components/ui/paragraph-node'
-import { hydrateRichTextTableCellStyles, isRichTextEmpty, normalizeRichTextHtml, serializeRichTextValue } from '@/lib/rich-text'
+import { deserializeRichTextState, hydrateRichTextTableCellStyles, isRichTextEmpty, normalizeRichTextHtml, serializeRichTextValue, stripRichTextState } from '@/lib/rich-text'
 import { cn } from '@/lib/utils'
 
 interface RichContentEditorProps {
@@ -64,9 +64,13 @@ const EDITOR_PLUGINS = EditorKit as any
 function createEditorValue(html: string) {
   const editor = createPlateEditor({ plugins: EDITOR_PLUGINS })
   const sourceHtml = html || '<p></p>'
+  const savedState = deserializeRichTextState(sourceHtml)
+  if (savedState) return savedState as Value
+
+  const visibleHtml = stripRichTextState(sourceHtml)
   return hydrateRichTextTableCellStyles(
-    deserializeHtml(editor, { element: sourceHtml }) as Value,
-    sourceHtml,
+    deserializeHtml(editor, { element: visibleHtml }) as Value,
+    visibleHtml,
   ) as Value
 }
 
@@ -142,9 +146,11 @@ export function RichContentEditor({
     window.addEventListener('pointerup', scheduleValueCheck, true)
     window.addEventListener('paste', scheduleValueCheck, true)
     window.addEventListener('drop', scheduleValueCheck, true)
+    const intervalId = window.setInterval(scheduleValueCheck, 500)
 
     return () => {
       window.clearTimeout(timeoutId)
+      window.clearInterval(intervalId)
       window.removeEventListener('input', scheduleValueCheck, true)
       window.removeEventListener('keyup', scheduleValueCheck, true)
       window.removeEventListener('pointerup', scheduleValueCheck, true)

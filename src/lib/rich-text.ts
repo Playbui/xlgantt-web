@@ -6,10 +6,47 @@ export function normalizeRichTextHtml(html?: string | null) {
     .trim()
 }
 
-export function richTextToPlainText(html?: string | null) {
-  if (!html) return ''
+const RICH_TEXT_STATE_PREFIX = '<!--xlgantt-plate-json:'
+const RICH_TEXT_STATE_SUFFIX = '-->'
+const RICH_TEXT_STATE_PATTERN = /<!--xlgantt-plate-json:([A-Za-z0-9+/=]+)-->/g
 
-  return html
+function encodeRichTextState(value: unknown) {
+  try {
+    const json = JSON.stringify(value)
+    const bytes = new TextEncoder().encode(json)
+    let binary = ''
+    bytes.forEach((byte) => {
+      binary += String.fromCharCode(byte)
+    })
+    return `${RICH_TEXT_STATE_PREFIX}${btoa(binary)}${RICH_TEXT_STATE_SUFFIX}`
+  } catch {
+    return ''
+  }
+}
+
+export function deserializeRichTextState(html?: string | null) {
+  const match = (html || '').match(/<!--xlgantt-plate-json:([A-Za-z0-9+/=]+)-->/)
+  if (!match) return null
+
+  try {
+    const binary = atob(match[1])
+    const bytes = Uint8Array.from(binary, (char) => char.charCodeAt(0))
+    const parsed = JSON.parse(new TextDecoder().decode(bytes))
+    return Array.isArray(parsed) ? parsed : null
+  } catch {
+    return null
+  }
+}
+
+export function stripRichTextState(html?: string | null) {
+  return (html || '').replace(RICH_TEXT_STATE_PATTERN, '')
+}
+
+export function richTextToPlainText(html?: string | null) {
+  const visibleHtml = stripRichTextState(html)
+  if (!visibleHtml) return ''
+
+  return visibleHtml
     .replace(/<style[\s\S]*?<\/style>/gi, ' ')
     .replace(/<script[\s\S]*?<\/script>/gi, ' ')
     .replace(/<br\s*\/?>/gi, '\n')
@@ -241,7 +278,8 @@ function serializeRichTextNode(node: RichTextNode): string {
 
 export function serializeRichTextValue(value: unknown) {
   if (!Array.isArray(value)) return ''
-  return normalizeRichTextHtml(value.map((node) => serializeRichTextNode(node as RichTextNode)).join(''))
+  const visibleHtml = value.map((node) => serializeRichTextNode(node as RichTextNode)).join('')
+  return normalizeRichTextHtml(`${encodeRichTextState(value)}${visibleHtml}`)
 }
 
 function parseBordersJson(value?: string | null): TableCellBorders | undefined {
