@@ -4,7 +4,7 @@ import type {
 } from '@/components/use-chat';
 import type { NextRequest } from 'next/server';
 
-import { createGateway } from '@ai-sdk/gateway';
+import { createOpenAICompatible } from '@ai-sdk/openai-compatible';
 import {
   type LanguageModel,
   type UIMessageStreamWriter,
@@ -28,8 +28,17 @@ import {
   getGeneratePrompt,
 } from './prompt';
 
+const DEFAULT_NVIDIA_BASE_URL = 'https://integrate.api.nvidia.com/v1';
+const DEFAULT_NVIDIA_MODEL = 'nvidia/llama-3.3-nemotron-super-49b-v1.5';
+
 export async function POST(req: NextRequest) {
-  const { apiKey: key, ctx, messages: messagesRaw, model } = await req.json();
+  const {
+    ctx,
+    messages: messagesRaw,
+    model,
+    nvidiaApiKey,
+    nvidiaBaseURL,
+  } = await req.json();
 
   const { children, selection, toolName: toolNameParam } = ctx;
 
@@ -39,20 +48,24 @@ export async function POST(req: NextRequest) {
     value: children,
   });
 
-  const apiKey = key || process.env.AI_GATEWAY_API_KEY;
+  const apiKey = nvidiaApiKey || process.env.NVIDIA_API_KEY;
 
   if (!apiKey) {
     return NextResponse.json(
-      { error: 'Missing AI Gateway API key.' },
+      { error: 'Missing NVIDIA NIM API key.' },
       { status: 401 }
     );
   }
 
   const isSelecting = editor.api.isExpanded();
 
-  const gatewayProvider = createGateway({
+  const nvidiaProvider = createOpenAICompatible({
     apiKey,
+    baseURL: nvidiaBaseURL || process.env.NVIDIA_BASE_URL || DEFAULT_NVIDIA_BASE_URL,
+    name: 'nvidia',
+    supportsStructuredOutputs: true,
   });
+  const nvidiaModel = resolveNvidiaModel(model);
 
   try {
     const stream = createUIMessageStream<ChatMessage>({
@@ -75,18 +88,18 @@ export async function POST(req: NextRequest) {
 
         const stream = streamText({
           experimental_transform: markdownJoinerTransform(),
-          model: gatewayProvider(model || 'openai/gpt-4o-mini'),
+          model: nvidiaProvider.chatModel(nvidiaModel),
           // Not used
           prompt: '',
           tools: {
             comment: getCommentTool(editor, {
               messagesRaw,
-              model: gatewayProvider(model || 'google/gemini-2.5-flash'),
+              model: nvidiaProvider.chatModel(nvidiaModel),
               writer,
             }),
             table: getTableTool(editor, {
               messagesRaw,
-              model: gatewayProvider(model || 'google/gemini-2.5-flash'),
+              model: nvidiaProvider.chatModel(nvidiaModel),
               writer,
             }),
           },
@@ -117,9 +130,8 @@ export async function POST(req: NextRequest) {
                 activeTools: [],
                 model:
                   editType === 'selection'
-                    ? //The selection task is more challenging, so we chose to use Gemini 2.5 Flash.
-                      gatewayProvider(model || 'google/gemini-2.5-flash')
-                    : gatewayProvider(model || 'openai/gpt-4o-mini'),
+                    ? nvidiaProvider.chatModel(nvidiaModel)
+                    : nvidiaProvider.chatModel(nvidiaModel),
                 messages: [
                   {
                     content: editPrompt,
@@ -144,7 +156,7 @@ export async function POST(req: NextRequest) {
                     role: 'user',
                   },
                 ],
-                model: gatewayProvider(model || 'openai/gpt-4o-mini'),
+                model: nvidiaProvider.chatModel(nvidiaModel),
               };
             }
           },
@@ -161,6 +173,12 @@ export async function POST(req: NextRequest) {
       { status: 500 }
     );
   }
+}
+
+function resolveNvidiaModel(requestedModel?: string) {
+  const candidates = [requestedModel, process.env.NVIDIA_MODEL, DEFAULT_NVIDIA_MODEL];
+
+  return candidates.find((candidate) => candidate?.startsWith('nvidia/')) || DEFAULT_NVIDIA_MODEL;
 }
 
 function chooseToolNameLocally({

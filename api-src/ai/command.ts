@@ -1,4 +1,3 @@
-import { createGateway } from '@ai-sdk/gateway';
 import { createOpenAICompatible } from '@ai-sdk/openai-compatible';
 import {
   type LanguageModel,
@@ -49,10 +48,8 @@ type MessageDataPart = {
 
 type ChatMessage = UIMessage<{}, MessageDataPart>;
 
-const DEFAULT_MODEL = 'openai/gpt-4o-mini';
-const DEFAULT_REASONING_MODEL = 'google/gemini-2.5-flash';
 const DEFAULT_NVIDIA_BASE_URL = 'https://integrate.api.nvidia.com/v1';
-const DEFAULT_NVIDIA_MODEL = 'nvidia/llama-3.1-nemotron-ultra-253b-v1';
+const DEFAULT_NVIDIA_MODEL = 'nvidia/llama-3.3-nemotron-super-49b-v1.5';
 
 export const config = { maxDuration: 60 };
 
@@ -64,13 +61,11 @@ export default async function handler(req: any, res: any) {
 
   try {
     const {
-      apiKey: key,
       ctx,
       messages: messagesRaw = [],
       model,
       nvidiaApiKey,
       nvidiaBaseURL,
-      provider,
     } = await readJson(req);
 
     if (!ctx?.children) {
@@ -79,16 +74,14 @@ export default async function handler(req: any, res: any) {
 
     const { children, selection, toolName: toolNameParam } = ctx;
     const modelProvider = resolveModelProvider({
-      apiKey: key,
       model,
       nvidiaApiKey,
       nvidiaBaseURL,
-      provider,
     });
 
     if (!modelProvider) {
       return sendJson(res, 401, {
-        error: provider === 'nvidia' ? 'Missing NVIDIA NIM API key.' : 'Missing AI Gateway API key.',
+        error: 'Missing NVIDIA NIM API key.',
       });
     }
 
@@ -238,42 +231,27 @@ type ModelProviderResolver = ((modelId?: string) => LanguageModel) & {
 };
 
 function resolveModelProvider({
-  apiKey,
   model,
   nvidiaApiKey,
   nvidiaBaseURL,
-  provider,
 }: {
-  apiKey?: string;
   model?: string;
   nvidiaApiKey?: string;
   nvidiaBaseURL?: string;
-  provider?: string;
 }): ModelProviderResolver | null {
-  if (provider === 'nvidia' || process.env.AI_PROVIDER === 'nvidia') {
-    const key = nvidiaApiKey || process.env.NVIDIA_API_KEY;
-    if (!key) return null;
-
-    const nvidia = createOpenAICompatible({
-      apiKey: key,
-      baseURL: nvidiaBaseURL || process.env.NVIDIA_BASE_URL || DEFAULT_NVIDIA_BASE_URL,
-      name: 'nvidia',
-      supportsStructuredOutputs: true,
-    });
-    const defaultModel = resolveNvidiaModel(model);
-    const resolver = ((modelId?: string) => nvidia.chatModel(modelId || defaultModel)) as ModelProviderResolver;
-    resolver.defaultModel = defaultModel;
-    resolver.reasoningModel = defaultModel;
-    return resolver;
-  }
-
-  const key = apiKey || process.env.AI_GATEWAY_API_KEY;
+  const key = nvidiaApiKey || process.env.NVIDIA_API_KEY;
   if (!key) return null;
 
-  const gatewayProvider = createGateway({ apiKey: key });
-  const resolver = ((modelId?: string) => gatewayProvider(modelId || DEFAULT_MODEL)) as ModelProviderResolver;
-  resolver.defaultModel = model || DEFAULT_MODEL;
-  resolver.reasoningModel = model || DEFAULT_REASONING_MODEL;
+  const nvidia = createOpenAICompatible({
+    apiKey: key,
+    baseURL: nvidiaBaseURL || process.env.NVIDIA_BASE_URL || DEFAULT_NVIDIA_BASE_URL,
+    name: 'nvidia',
+    supportsStructuredOutputs: true,
+  });
+  const defaultModel = resolveNvidiaModel(model);
+  const resolver = ((modelId?: string) => nvidia.chatModel(modelId || defaultModel)) as ModelProviderResolver;
+  resolver.defaultModel = defaultModel;
+  resolver.reasoningModel = defaultModel;
   return resolver;
 }
 
