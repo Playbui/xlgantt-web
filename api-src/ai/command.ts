@@ -70,7 +70,6 @@ export default async function handler(req: any, res: any) {
     const {
       ctx,
       messages: messagesRaw = [],
-      model,
       nvidiaApiKey,
       nvidiaBaseURL,
     } = await readJson(req);
@@ -81,7 +80,6 @@ export default async function handler(req: any, res: any) {
 
     const { children, selection, toolName: toolNameParam } = ctx;
     const modelProvider = resolveModelProvider({
-      model,
       nvidiaApiKey,
       nvidiaBaseURL,
     });
@@ -239,11 +237,9 @@ type ModelProviderResolver = ((modelId?: string) => LanguageModel) & {
 };
 
 function resolveModelProvider({
-  model,
   nvidiaApiKey,
   nvidiaBaseURL,
 }: {
-  model?: string;
   nvidiaApiKey?: string;
   nvidiaBaseURL?: string;
 }): ModelProviderResolver | null {
@@ -256,23 +252,11 @@ function resolveModelProvider({
     name: 'nvidia',
     supportsStructuredOutputs: true,
   });
-  const defaultModel = resolveNvidiaModel(model);
+  const defaultModel = DEFAULT_NVIDIA_MODEL;
   const resolver = ((modelId?: string) => nvidia.chatModel(modelId || defaultModel)) as ModelProviderResolver;
   resolver.defaultModel = defaultModel;
   resolver.reasoningModel = defaultModel;
   return resolver;
-}
-
-function resolveNvidiaModel(requestedModel?: string) {
-  const candidates = [requestedModel, process.env.NVIDIA_MODEL, DEFAULT_NVIDIA_MODEL];
-
-  return candidates.find(isAllowedNimChatModel) || DEFAULT_NVIDIA_MODEL;
-}
-
-function isAllowedNimChatModel(candidate?: string) {
-  if (!candidate) return false;
-
-  return /^(nvidia|qwen|meta|mistral|mistralai|deepseek)\//.test(candidate);
 }
 
 const getCommentTool = (

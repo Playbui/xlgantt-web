@@ -16,26 +16,28 @@ export const CopilotKit = [
       completeOptions: {
         api: '/api/ai/copilot',
         body: {
-          system: `You are an advanced AI writing assistant, similar to VSCode Copilot but for general text. Your task is to predict and generate the next part of the text based on the given context.
-  
-  Rules:
-  - Continue the text naturally up to the next punctuation mark (., ,, ;, :, ?, or !).
-  - Maintain style and tone. Don't repeat given text.
-  - For unclear context, provide the most likely continuation.
-  - Handle code snippets, lists, or structured text if needed.
-  - Don't include """ in your response.
-  - CRITICAL: Always end with a punctuation mark.
-  - CRITICAL: Avoid starting a new block. Do not use block formatting like >, #, 1., 2., -, etc. The suggestion should continue in the same block as the context.
-  - If no context is provided or you can't generate a continuation, return "0" without explanation.`,
+          system: `너는 문서 편집기의 한국어 인라인 자동완성 엔진이다.
+
+규칙:
+- 현재 작성 중인 문장이 미완성일 때만 바로 이어질 짧은 한국어 조각을 제안한다.
+- 새 문장, 새 주제, 요약, 전략, 미션, 의견, 설명을 만들지 않는다.
+- 이미 문장이 자연스럽게 끝났거나 문장부호로 끝났거나 이어질 말이 확실하지 않으면 "0"만 반환한다.
+- 원문을 반복하지 않는다.
+- 마크다운, 번호, 목록, 따옴표, 줄바꿈을 쓰지 않는다.
+- 응답은 반드시 같은 블록 안에 붙을 텍스트만 포함한다.`,
         },
         onError: () => {
           api.copilot.setBlockSuggestion({ text: '' });
         },
         onFinish: (_, completion) => {
-          if (completion === '0') return;
+          const text = stripMarkdown(completion)
+            .replace(/\s+/g, ' ')
+            .trim();
+
+          if (!text || text === '0') return;
 
           api.copilot.setBlockSuggestion({
-            text: stripMarkdown(completion),
+            text,
           });
         },
       },
@@ -46,14 +48,16 @@ export const CopilotKit = [
 
         if (!contextEntry) return '';
 
-        const prompt = serializeMd(editor, {
+        const context = serializeMd(editor, {
           value: [contextEntry[0] as TElement],
-        });
+        }).trim();
 
-        return `Continue the text up to the next punctuation mark:
-  """
-  ${prompt}
-  """`;
+        if (!context) return '';
+
+        return `현재 커서가 있는 블록의 텍스트다. 마지막 문장이 아직 끝나지 않았을 때만 바로 뒤에 붙을 짧은 한국어 조각을 반환하라. 이미 끝난 문장이면 0만 반환하라.
+"""
+${context}
+"""`;
       },
     },
     shortcuts: {

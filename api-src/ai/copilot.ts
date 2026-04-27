@@ -5,9 +5,11 @@ const DEFAULT_NVIDIA_BASE_URL = 'https://integrate.api.nvidia.com/v1';
 const DEFAULT_NVIDIA_MODEL = 'qwen/qwen3.5-397b-a17b';
 const KOREAN_CHAT_SYSTEM_PROMPT = [
   '/no_think',
-  'You are a fluent Korean writing and editing assistant for a Korean business document editor.',
-  'Respond in natural Korean unless the user explicitly asks for another language.',
-  'Keep Korean source text in Korean. Do not translate Korean requests into English.',
+  'You are a Korean inline autocomplete engine for a document editor.',
+  'Return only the next few Korean words that naturally continue the current unfinished sentence.',
+  'Do not introduce a new topic, goal, strategy, mission, opinion, summary, or explanation.',
+  'If the current text already ends naturally, ends with punctuation, or the next words are uncertain, return exactly "0".',
+  'Never translate Korean text into English.',
 ].join('\n');
 
 export const config = { maxDuration: 30 };
@@ -20,14 +22,12 @@ export default async function handler(req: any, res: any) {
 
   try {
     const {
-      model = DEFAULT_NVIDIA_MODEL,
       nvidiaApiKey,
       nvidiaBaseURL,
       prompt,
       system,
     } = await readJson(req);
     const resolvedModel = resolveModel({
-      model,
       nvidiaApiKey,
       nvidiaBaseURL,
     });
@@ -39,11 +39,13 @@ export default async function handler(req: any, res: any) {
     }
 
     const result = await generateText({
-      maxOutputTokens: 50,
+      maxOutputTokens: 24,
       model: resolvedModel,
       prompt,
       system: [KOREAN_CHAT_SYSTEM_PROMPT, system].filter(Boolean).join('\n\n'),
-      temperature: 0.7,
+      stopSequences: ['\n'],
+      temperature: 0.2,
+      topP: 0.75,
     });
 
     return sendJson(res, 200, result);
@@ -75,33 +77,18 @@ function sendJson(res: any, statusCode: number, body: unknown) {
 }
 
 function resolveModel({
-  model,
   nvidiaApiKey,
   nvidiaBaseURL,
 }: {
-  model: string;
   nvidiaApiKey?: string;
   nvidiaBaseURL?: string;
 }) {
   const key = nvidiaApiKey || process.env.NVIDIA_API_KEY;
   if (!key) return null;
-  const modelId = resolveNvidiaModel(model);
 
   return createOpenAICompatible({
     apiKey: key,
     baseURL: nvidiaBaseURL || process.env.NVIDIA_BASE_URL || DEFAULT_NVIDIA_BASE_URL,
     name: 'nvidia',
-  }).chatModel(modelId);
-}
-
-function resolveNvidiaModel(requestedModel?: string) {
-  const candidates = [requestedModel, process.env.NVIDIA_MODEL, DEFAULT_NVIDIA_MODEL];
-
-  return candidates.find(isAllowedNimChatModel) || DEFAULT_NVIDIA_MODEL;
-}
-
-function isAllowedNimChatModel(candidate?: string) {
-  if (!candidate) return false;
-
-  return /^(nvidia|qwen|meta|mistral|mistralai|deepseek)\//.test(candidate);
+  }).chatModel(DEFAULT_NVIDIA_MODEL);
 }

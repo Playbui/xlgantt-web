@@ -42,7 +42,6 @@ export async function POST(req: NextRequest) {
   const {
     ctx,
     messages: messagesRaw,
-    model,
     nvidiaApiKey,
     nvidiaBaseURL,
   } = await req.json();
@@ -72,7 +71,7 @@ export async function POST(req: NextRequest) {
     name: 'nvidia',
     supportsStructuredOutputs: true,
   });
-  const nvidiaModel = resolveNvidiaModel(model);
+  const nvidiaModel = DEFAULT_NVIDIA_MODEL;
 
   try {
     const stream = createUIMessageStream<ChatMessage>({
@@ -181,18 +180,6 @@ export async function POST(req: NextRequest) {
       { status: 500 }
     );
   }
-}
-
-function resolveNvidiaModel(requestedModel?: string) {
-  const candidates = [requestedModel, process.env.NVIDIA_MODEL, DEFAULT_NVIDIA_MODEL];
-
-  return candidates.find(isAllowedNimChatModel) || DEFAULT_NVIDIA_MODEL;
-}
-
-function isAllowedNimChatModel(candidate?: string) {
-  if (!candidate) return false;
-
-  return /^(nvidia|qwen|meta|mistral|mistralai|deepseek)\//.test(candidate);
 }
 
 function chooseToolNameLocally({

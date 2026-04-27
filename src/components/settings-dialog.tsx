@@ -30,20 +30,9 @@ import { aiChatPlugin } from './ai-kit';
 
 const DEFAULT_NVIDIA_MODEL = 'qwen/qwen3.5-397b-a17b';
 
-function normalizeNvidiaModel(model: string) {
-  const trimmed = model.trim();
-
-  return /^(nvidia|qwen|meta|mistral|mistralai|deepseek)\//.test(trimmed)
-    ? trimmed
-    : DEFAULT_NVIDIA_MODEL;
-}
-
 export function SettingsDialog() {
   const editor = useEditorRef();
 
-  const [tempNvidiaModel, setTempNvidiaModel] = React.useState(
-    DEFAULT_NVIDIA_MODEL
-  );
   const [tempKeys, setTempKeys] = React.useState<Record<string, string>>({
     aiGatewayApiKey: '',
     nvidiaApiKey: '',
@@ -57,14 +46,13 @@ export function SettingsDialog() {
 
     // Update AI chat options
     const chatOptions = editor.getOptions(aiChatPlugin).chatOptions ?? {};
-    const nvidiaModel = normalizeNvidiaModel(tempNvidiaModel);
 
     editor.setOption(aiChatPlugin, 'chatOptions', {
       ...chatOptions,
       body: {
         ...chatOptions.body,
         apiKey: '',
-        model: nvidiaModel,
+        model: DEFAULT_NVIDIA_MODEL,
         nvidiaApiKey: tempKeys.nvidiaApiKey,
         provider: 'nvidia',
       },
@@ -80,13 +68,11 @@ export function SettingsDialog() {
       body: {
         ...completeOptions.body,
         apiKey: '',
-        model: nvidiaModel,
+        model: DEFAULT_NVIDIA_MODEL,
         nvidiaApiKey: tempKeys.nvidiaApiKey,
         provider: 'nvidia',
       },
     });
-
-    setTempNvidiaModel(nvidiaModel);
   };
 
   const toggleKeyVisibility = (key: string) => {
@@ -171,23 +157,9 @@ export function SettingsDialog() {
               </div>
 
               {renderApiKeyInput('nvidiaApiKey', 'NVIDIA NIM API Key')}
-              <div className="group relative">
-                <label
-                  className="-translate-y-1/2 absolute start-1 top-0 z-10 block bg-background px-2 font-medium text-foreground text-xs group-has-disabled:opacity-50"
-                  htmlFor="nvidia-model"
-                >
-                  NVIDIA NIM Model
-                </label>
-                <Input
-                  id="nvidia-model"
-                  value={tempNvidiaModel}
-                  onChange={(e) => setTempNvidiaModel(e.target.value)}
-                  placeholder="qwen/qwen3.5-397b-a17b"
-                />
-                <p className="mt-1.5 text-muted-foreground text-xs">
-                  build.nvidia.com의 모델 id를 그대로 입력하세요.
-                </p>
-              </div>
+              <p className="text-muted-foreground text-xs">
+                Model: {DEFAULT_NVIDIA_MODEL}
+              </p>
             </div>
           </div>
 
