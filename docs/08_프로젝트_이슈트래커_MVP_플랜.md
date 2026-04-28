@@ -275,6 +275,40 @@ project_module_permissions
 
 ## 9. CSV 매핑 초안
 
+### 확인된 원본 시트
+
+- 문서명: `수협통합유지보수(투입관리대장)`
+- 탭: `업무관리대장`
+- Google Sheet gid: `828773738`
+- CSV export 확인: `export?format=csv&gid=828773738`
+- 확인 시점: 2026-04-29
+- 정규식 기준 고유 Task ID 약 198건 확인
+
+실제 시트는 상단 1행 제목, 2행 요약값, 3행 헤더, 4행부터 데이터 구조다. CSV 가져오기에서는 1~2행을 건너뛰고 3행을 헤더로 사용한다.
+
+확인된 헤더:
+
+| 컬럼 | 시트 헤더 | 용도 |
+|---|---|---|
+| A | NO | import_sequence |
+| B | 사업명 | system_name |
+| C | Task ID | issue_no |
+| D | Task 내용 | title + description |
+| E | 관련 자료 | source_url 또는 attachment note |
+| F | 요청자 | requester_name |
+| G | 등록일자 | received_at |
+| H | 마감요청 일자 | due_date |
+| I | 예상투입 공수(D) | estimated_effort |
+| J | 작업시작일자 | started_at 후보 |
+| K | 작업종료일자 | completed_at 후보 |
+| L | 실투입 공수(D) | actual_effort 후보 |
+| M | 투입합계 공수(D) | total_effort 후보 |
+| N | 완료여부 | 실제로는 status/legacy_status |
+| O | 빈 헤더 | 처리이력/메모 |
+| P | 선행TASK | predecessor_issue_no 또는 legacy_predecessor |
+
+주의: `완료여부`는 이름과 다르게 `사업-접수`, `개발-검토`, `개발-공수정산`, `완료`, `미처리`, `보류` 같은 상태값으로 쓰이고 있다. 따라서 DB에는 `status`와 `legacy_status`로 매핑한다.
+
 ### 이슈 시트
 
 | 구글시트 | DB |
