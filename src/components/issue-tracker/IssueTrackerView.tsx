@@ -8,6 +8,7 @@ import { useIssueStore } from '@/stores/issue-store'
 import { useAuthStore } from '@/stores/auth-store'
 import { ISSUE_PRIORITY_LABELS, ISSUE_STATUSES, type IssueItem } from '@/lib/issue-types'
 import { richTextToPlainText, richTextToPreview, stripRichTextState } from '@/lib/rich-text'
+import { supabase } from '@/lib/supabase'
 import { cn } from '@/lib/utils'
 
 const statusClasses: Record<IssueItem['status'], string> = {
@@ -258,6 +259,30 @@ export function IssueTrackerView() {
     const saved = await updateIssue(selectedIssue.id, inputDraft)
     setInputSaving(false)
     if (saved) setInputDirty(false)
+  }
+
+  const uploadIssueEditorImages = async (files: File[]) => {
+    if (!project || !selectedIssue || files.length === 0) return []
+
+    const urls: string[] = []
+    for (const file of files) {
+      const safeName = file.name.replace(/[^\w.\-가-힣 ]/g, '_') || 'image.png'
+      const storagePath = `${project.id}/issues/${selectedIssue.id}/${crypto.randomUUID()}-${safeName}`
+      const { error } = await supabase.storage
+        .from('workspace-attachments')
+        .upload(storagePath, file, { contentType: file.type || 'image/png', upsert: false })
+
+      if (error) {
+        console.error('이슈 에디터 이미지 업로드 실패:', error.message)
+        window.alert(`이미지 업로드에 실패했습니다.\n${error.message}`)
+        continue
+      }
+
+      const { data } = supabase.storage.from('workspace-attachments').getPublicUrl(storagePath)
+      if (data.publicUrl) urls.push(data.publicUrl)
+    }
+
+    return urls
   }
 
   useEffect(() => {
@@ -733,6 +758,8 @@ export function IssueTrackerView() {
                       minHeight={420}
                       fontSize={14}
                       toolbarVariant="formatting"
+                      enableImages
+                      onUploadImages={uploadIssueEditorImages}
                       className="rounded-lg shadow-none"
                     />
                     </div>
@@ -759,6 +786,8 @@ export function IssueTrackerView() {
                   minHeight={180}
                   fontSize={14}
                   toolbarVariant="formatting"
+                  enableImages
+                  onUploadImages={uploadIssueEditorImages}
                   className="rounded-lg shadow-none"
                 />
                 <Button size="sm" variant="outline" onClick={handleAddComment} disabled={!richTextToPlainText(draftComment).trim()}>이력 추가</Button>

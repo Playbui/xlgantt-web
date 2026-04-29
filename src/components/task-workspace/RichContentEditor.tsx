@@ -185,12 +185,14 @@ export function RichContentEditor({
         if (!url) continue
         insertImage(plateEditor, url)
       }
+      window.setTimeout(() => handleValueChange({ editor }), 0)
       return
     }
 
     const transfer = new DataTransfer()
     files.forEach((file) => transfer.items.add(file))
     insertMedia(plateEditor, transfer.files)
+    window.setTimeout(() => handleValueChange({ editor }), 0)
   }
 
   const isBlockActive = (type: string) => {
