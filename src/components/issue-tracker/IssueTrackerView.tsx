@@ -2,10 +2,12 @@ import { useEffect, useMemo, useState } from 'react'
 import { AlertCircle, ArrowLeft, CalendarDays, CheckCircle2, ClipboardList, MessageSquareText, Plus, Search, Trash2 } from 'lucide-react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { Button } from '@/components/ui/button'
+import { RichContentEditor } from '@/components/task-workspace/RichContentEditor'
 import { useProjectStore } from '@/stores/project-store'
 import { useIssueStore } from '@/stores/issue-store'
 import { useAuthStore } from '@/stores/auth-store'
 import { ISSUE_PRIORITY_LABELS, ISSUE_STATUSES, type IssueItem } from '@/lib/issue-types'
+import { richTextToPlainText, richTextToPreview } from '@/lib/rich-text'
 import { cn } from '@/lib/utils'
 
 const statusClasses: Record<IssueItem['status'], string> = {
@@ -34,7 +36,7 @@ function includesText(issue: IssueItem, query: string) {
   const target = [
     issue.issue_no,
     issue.title,
-    issue.description,
+    richTextToPlainText(issue.description),
     issue.system_name,
     issue.requester_name,
     issue.issue_type,
@@ -306,7 +308,7 @@ export function IssueTrackerView() {
                       </div>
                       {(issue.description || issue.internal_owner_name || issue.external_requester) && (
                         <div className="mt-2 line-clamp-2 text-sm leading-5 text-slate-600">
-                          {issue.description || issue.internal_owner_name || issue.external_requester}
+                          {richTextToPreview(issue.description, 96) || issue.internal_owner_name || issue.external_requester}
                         </div>
                       )}
                     </button>
@@ -447,11 +449,14 @@ export function IssueTrackerView() {
                   </div>
 
                   <Field label="상세 내용">
-                    <textarea
+                    <RichContentEditor
+                      key={selectedIssue.id}
                       value={selectedIssue.description || ''}
-                      onChange={(event) => updateIssue(selectedIssue.id, { description: event.target.value })}
+                      onChange={(value) => updateIssue(selectedIssue.id, { description: value })}
                       placeholder="발생 현상, 요청 내용, 재현 조건, 확인할 내용을 충분히 입력"
-                      className="min-h-56 w-full resize-y rounded-md border border-slate-300 px-3 py-2 text-sm leading-6 outline-none focus:border-sky-400 focus:ring-2 focus:ring-sky-100"
+                      minHeight={360}
+                      fontSize={14}
+                      className="rounded-lg shadow-none"
                     />
                   </Field>
                 </div>
