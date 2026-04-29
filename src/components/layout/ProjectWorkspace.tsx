@@ -67,6 +67,9 @@ export function ProjectWorkspace({ mode = 'wbs', redirectTo }: { mode?: 'wbs' | 
   const loadCalendars = useCalendarStore((s) => s.loadCalendars)
   const loadWorkspaceItems = useWorkspaceStore((s) => s.loadItems)
   const loadIssues = useIssueStore((s) => s.loadIssues)
+  const loadIssueMembers = useIssueStore((s) => s.loadIssueMembers)
+  const issueMembersLoadedProjectId = useIssueStore((s) => s.issueMembersLoadedProjectId)
+  const canAccessIssues = useIssueStore((s) => projectId ? s.canAccessIssues(projectId, currentUserId) : false)
   const currentUserId = useAuthStore((s) => s.currentUser?.id)
   const clearUndo = useUndoStore((s) => s.clear)
 
@@ -85,6 +88,7 @@ export function ProjectWorkspace({ mode = 'wbs', redirectTo }: { mode?: 'wbs' | 
           loadDependencies(projectId),
           loadResources(projectId),
           loadProjectMembers(projectId),
+          loadIssueMembers(projectId),
           loadCalendars(projectId),
           loadWorkspaceItems(projectId),
           mode === 'issues' ? loadIssues(projectId) : Promise.resolve(),
@@ -124,6 +128,10 @@ export function ProjectWorkspace({ mode = 'wbs', redirectTo }: { mode?: 'wbs' | 
 
   if (projectId && redirectTo) {
     return <Navigate to={`/projects/${projectId}/${redirectTo}`} replace />
+  }
+
+  if (projectId && mode === 'issues' && issueMembersLoadedProjectId === projectId && !canAccessIssues) {
+    return <Navigate to={`/projects/${projectId}/wbs`} replace />
   }
 
   if (isMobile) {

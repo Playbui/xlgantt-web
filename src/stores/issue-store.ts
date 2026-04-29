@@ -1,15 +1,19 @@
 import { create } from 'zustand'
-import type { IssueComment, IssueFilters, IssueItem, IssueWorkLog } from '@/lib/issue-types'
+import type { IssueComment, IssueFilters, IssueItem, IssueMember, IssueWorkLog } from '@/lib/issue-types'
 import { supabase } from '@/lib/supabase'
 import { useAuthStore } from '@/stores/auth-store'
 
 interface IssueState {
   issues: IssueItem[]
+  issueMembers: IssueMember[]
   comments: IssueComment[]
   workLogs: IssueWorkLog[]
   selectedIssueId: string | null
   filters: IssueFilters
   isLoading: boolean
+  issueMembersLoadedProjectId: string | null
+  loadIssueMembers: (projectId: string) => Promise<void>
+  canAccessIssues: (projectId: string, userId?: string | null) => boolean
   loadIssues: (projectId: string) => Promise<void>
   selectIssue: (issueId: string | null) => void
   setFilters: (filters: Partial<IssueFilters>) => void
@@ -145,6 +149,7 @@ function getCurrentUserLabel() {
 
 export const useIssueStore = create<IssueState>((set, get) => ({
   issues: [],
+  issueMembers: [],
   comments: [],
   workLogs: [],
   selectedIssueId: null,
@@ -156,6 +161,41 @@ export const useIssueStore = create<IssueState>((set, get) => ({
     search: '',
   },
   isLoading: false,
+  issueMembersLoadedProjectId: null,
+
+  loadIssueMembers: async (projectId) => {
+    const { data, error } = await supabase
+      .from('issue_members')
+      .select('project_id, user_id, role, created_at')
+      .eq('project_id', projectId)
+    if (error) {
+      console.error('이슈 접근자 로드 실패:', error.message)
+      set((state) => ({
+        issueMembers: state.issueMembers.filter((member) => member.project_id !== projectId),
+        issueMembersLoadedProjectId: projectId,
+      }))
+      return
+    }
+
+    const loaded = (data || []).map((row) => ({
+      project_id: row.project_id as string,
+      user_id: row.user_id as string,
+      role: row.role as IssueMember['role'],
+      created_at: row.created_at as string,
+    }))
+    set((state) => ({
+      issueMembers: [
+        ...state.issueMembers.filter((member) => member.project_id !== projectId),
+        ...loaded,
+      ],
+      issueMembersLoadedProjectId: projectId,
+    }))
+  },
+
+  canAccessIssues: (projectId, userId) => {
+    if (!projectId || !userId) return false
+    return get().issueMembers.some((member) => member.project_id === projectId && member.user_id === userId)
+  },
 
   loadIssues: async (projectId) => {
     set({ isLoading: true })

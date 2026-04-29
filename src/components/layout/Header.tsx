@@ -40,6 +40,7 @@ import { useProjectStore } from '@/stores/project-store'
 import { useTaskStore } from '@/stores/task-store'
 import { useResourceStore } from '@/stores/resource-store'
 import { useUIStore, type ViewMode } from '@/stores/ui-store'
+import { useIssueStore } from '@/stores/issue-store'
 import { exportToExcel } from '@/lib/excel-export'
 import type { ZoomLevel } from '@/lib/types'
 import { cn } from '@/lib/utils'
@@ -83,6 +84,7 @@ export function Header() {
   const { companies, members, assignments, taskDetails } = useResourceStore()
   const { activeView, setActiveView, zoomLevel, setZoomLevel, linkMode, toggleLinkMode, linkSourceTaskId, customDateRange, setCustomDateRange } =
     useUIStore()
+  const canAccessIssues = useIssueStore((s) => project ? s.canAccessIssues(project.id, currentUser?.id) : false)
 
   const isAdmin = currentUser?.role === 'admin'
   const isIssuePage = location.pathname.endsWith('/issues')
@@ -240,12 +242,14 @@ export function Header() {
           >
             WBS
           </button>
-          <button
-            onClick={() => navigate(`/projects/${project.id}/issues`)}
-            className={cn('rounded-md px-2.5 py-1 text-xs font-medium transition-colors', isIssuePage ? 'bg-white text-slate-950 shadow-sm' : 'text-slate-600 hover:text-slate-950')}
-          >
-            이슈
-          </button>
+          {canAccessIssues && (
+            <button
+              onClick={() => navigate(`/projects/${project.id}/issues`)}
+              className={cn('rounded-md px-2.5 py-1 text-xs font-medium transition-colors', isIssuePage ? 'bg-white text-slate-950 shadow-sm' : 'text-slate-600 hover:text-slate-950')}
+            >
+              이슈
+            </button>
+          )}
         </div>
       )}
 

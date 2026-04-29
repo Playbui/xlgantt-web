@@ -65,6 +65,15 @@ export interface IssueWorkLog {
   updated_at: string
 }
 
+export type IssueMemberRole = 'manager' | 'editor' | 'viewer'
+
+export interface IssueMember {
+  project_id: string
+  user_id: string
+  role: IssueMemberRole
+  created_at: string
+}
+
 export interface IssueFilters {
   status?: IssueStatus | 'all'
   priority?: IssuePriority | 'all'
