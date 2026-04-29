@@ -26,6 +26,7 @@ import {
   Info,
   Sparkles,
   History,
+  Bug,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import {
@@ -59,6 +60,7 @@ const TAB_GROUPS: TabGroup[] = [
     { key: 'mytasks', label: '내 업무', icon: <ClipboardList className="h-3.5 w-3.5" /> },
     { key: 'memberTasks', label: '담당자 업무', icon: <UserCheck className="h-3.5 w-3.5" /> },
     { key: 'workspace', label: '업무노트', icon: <NotebookText className="h-3.5 w-3.5" /> },
+    { key: 'issues', label: '이슈', icon: <Bug className="h-3.5 w-3.5" /> },
   ]},
   { tabs: [
     { key: 'progress', label: '진척현황', icon: <PieChart className="h-3.5 w-3.5" /> },

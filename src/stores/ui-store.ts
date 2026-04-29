@@ -3,7 +3,7 @@ import { persist } from 'zustand/middleware'
 import type { ZoomLevel } from '@/lib/types'
 import { DEFAULT_VISIBLE_COLUMNS, REQUIRED_COLUMNS, getTotalColumnWidth } from '@/lib/column-defs'
 
-export type ViewMode = 'gantt' | 'progress' | 'analysis' | 'workload' | 'calendar' | 'resources' | 'settings' | 'activity' | 'mytasks' | 'memberTasks' | 'workspace'
+export type ViewMode = 'gantt' | 'progress' | 'analysis' | 'workload' | 'calendar' | 'resources' | 'settings' | 'activity' | 'mytasks' | 'memberTasks' | 'workspace' | 'issues'
 export type MobileTab = 'mytasks' | 'progress' | 'activity'
 export type FilterStatus = 'all' | 'delayed' | 'completed' | 'in_progress'
 export type GanttStatusFilter = 'all' | 'not_started' | 'in_progress' | 'completed' | 'delayed'
