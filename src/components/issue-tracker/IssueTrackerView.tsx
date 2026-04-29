@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { AlertCircle, ArrowLeft, CalendarDays, CheckCircle2, ClipboardList, MessageSquareText, Plus, Search, Trash2 } from 'lucide-react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useSearchParams } from 'react-router-dom'
 import { Button } from '@/components/ui/button'
 import { useProjectStore } from '@/stores/project-store'
 import { useIssueStore } from '@/stores/issue-store'
@@ -50,7 +50,10 @@ function includesText(issue: IssueItem, query: string) {
 
 export function IssueTrackerView() {
   const navigate = useNavigate()
-  const project = useProjectStore((s) => s.currentProject)
+  const [searchParams, setSearchParams] = useSearchParams()
+  const projects = useProjectStore((s) => s.projects)
+  const loadProjects = useProjectStore((s) => s.loadProjects)
+  const switchProject = useProjectStore((s) => s.switchProject)
   const currentUser = useAuthStore((s) => s.currentUser)
   const issues = useIssueStore((s) => s.issues)
   const comments = useIssueStore((s) => s.comments)
@@ -66,10 +69,48 @@ export function IssueTrackerView() {
   const addWorkLog = useIssueStore((s) => s.addWorkLog)
   const updateWorkLog = useIssueStore((s) => s.updateWorkLog)
   const deleteWorkLog = useIssueStore((s) => s.deleteWorkLog)
+  const loadIssues = useIssueStore((s) => s.loadIssues)
+  const loadIssueMembers = useIssueStore((s) => s.loadIssueMembers)
+  const issueMembers = useIssueStore((s) => s.issueMembers)
   const [draftComment, setDraftComment] = useState('')
   const [draftWorkBody, setDraftWorkBody] = useState('')
   const [draftWorkHours, setDraftWorkHours] = useState('1')
   const [draftWorkDate, setDraftWorkDate] = useState(new Date().toISOString().slice(0, 10))
+  const selectedProjectId = searchParams.get('project') || ''
+  const isAdmin = currentUser?.role === 'admin'
+
+  useEffect(() => {
+    if (projects.length === 0) {
+      void loadProjects()
+    }
+  }, [loadProjects, projects.length])
+
+  useEffect(() => {
+    if (projects.length === 0) return
+    void Promise.all(projects.map((project) => loadIssueMembers(project.id)))
+  }, [loadIssueMembers, projects])
+
+  const accessibleProjects = useMemo(() => {
+    if (isAdmin) return projects
+    if (!currentUser?.id) return []
+    return projects.filter((project) =>
+      issueMembers.some((member) => member.project_id === project.id && member.user_id === currentUser.id)
+    )
+  }, [currentUser?.id, isAdmin, issueMembers, projects])
+
+  const project = useMemo(() => {
+    return accessibleProjects.find((item) => item.id === selectedProjectId) || accessibleProjects[0] || null
+  }, [accessibleProjects, selectedProjectId])
+
+  useEffect(() => {
+    if (!project) return
+    if (selectedProjectId !== project.id) {
+      setSearchParams({ project: project.id }, { replace: true })
+      return
+    }
+    switchProject(project.id)
+    void loadIssues(project.id)
+  }, [loadIssues, project, selectedProjectId, setSearchParams, switchProject])
 
   const issueKinds = useMemo(() => {
     return Array.from(new Set(issues.map((issue) => issue.issue_type || issue.legacy_status).filter(Boolean) as string[])).sort((a, b) => a.localeCompare(b, 'ko'))
@@ -156,11 +197,11 @@ export function IssueTrackerView() {
       <div className="border-b bg-white px-5 py-3">
         <div className="mb-3 flex items-center justify-between gap-3">
           <button
-            onClick={() => project ? navigate(`/projects/${project.id}`) : navigate('/projects')}
+            onClick={() => navigate('/projects')}
             className="flex items-center gap-2 rounded-md px-2 py-1.5 text-sm font-semibold text-slate-700 hover:bg-slate-100"
           >
             <ArrowLeft className="h-4 w-4" />
-            프로젝트 선택 화면
+            프로젝트 목록
           </button>
           {project && (
             <Button variant="outline" size="sm" onClick={() => navigate(`/projects/${project.id}/wbs`)}>
@@ -171,7 +212,7 @@ export function IssueTrackerView() {
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
             <h1 className="text-lg font-semibold text-slate-950">이슈 트래커</h1>
-            <p className="mt-1 text-sm text-slate-500">{project?.name || '프로젝트'} 이슈 접수, 처리 이력, 공수 정산</p>
+            <p className="mt-1 text-sm text-slate-500">프로젝트를 선택해 이슈 접수, 처리 이력, 공수 정산을 관리합니다.</p>
           </div>
           <Button onClick={handleCreateIssue} disabled={!project}>
             <Plus className="h-4 w-4" />
@@ -189,6 +230,17 @@ export function IssueTrackerView() {
 
       <div className="border-b bg-white px-5 py-3">
         <div className="flex flex-wrap items-center gap-2">
+          <select
+            value={project?.id || ''}
+            onChange={(event) => setSearchParams({ project: event.target.value })}
+            className="h-9 min-w-[280px] rounded-md border border-slate-300 bg-white px-3 text-sm font-semibold text-slate-800 outline-none focus:border-sky-400 focus:ring-2 focus:ring-sky-100"
+          >
+            {accessibleProjects.length === 0 ? (
+              <option value="">접근 가능한 프로젝트 없음</option>
+            ) : (
+              accessibleProjects.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)
+            )}
+          </select>
           <div className="relative min-w-[260px] flex-1">
             <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
             <input

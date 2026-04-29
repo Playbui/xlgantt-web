@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Plus, Calendar, Trash2, FolderOpen, User, Shield, LogOut, ChevronDown, Diamond, CheckCircle2, Folder, ArrowDownUp, FolderPlus, Tag, Gauge, FolderKanban, AlertTriangle, Timer } from 'lucide-react'
+import { Plus, Calendar, Trash2, FolderOpen, User, Shield, LogOut, ChevronDown, Diamond, CheckCircle2, Folder, ArrowDownUp, FolderPlus, Tag, Gauge, FolderKanban, AlertTriangle, Timer, ClipboardList } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
@@ -561,6 +561,15 @@ export function ProjectDashboard() {
             >
               <Folder className="h-3 w-3" />
               그룹
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              className="h-8 text-xs gap-1.5"
+              onClick={() => navigate('/issues')}
+            >
+              <ClipboardList className="h-3 w-3" />
+              이슈 트래커
             </Button>
             {/* 카테고리 만들기 (admin 전용) */}
             {isAdmin && (

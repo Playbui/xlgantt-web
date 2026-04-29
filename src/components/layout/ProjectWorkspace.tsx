@@ -11,7 +11,6 @@ import { ActivityTimeline } from '@/components/activity/ActivityTimeline'
 import { MyTasksDashboard } from '@/components/mytasks/MyTasksDashboard'
 import { MemberTasksView } from '@/components/member-tasks/MemberTasksView'
 import { WorkspaceView } from '@/components/workspace/WorkspaceView'
-import { IssueTrackerView } from '@/components/issue-tracker/IssueTrackerView'
 import { useProjectStore } from '@/stores/project-store'
 import { useTaskStore } from '@/stores/task-store'
 import { useResourceStore } from '@/stores/resource-store'
@@ -120,7 +119,7 @@ function ProjectEntry({ canAccessIssues }: { canAccessIssues: boolean }) {
 
           {canAccessIssues && (
             <button
-              onClick={() => navigate(`/projects/${project.id}/issues`)}
+              onClick={() => navigate(`/issues?project=${project.id}`)}
               className="group flex min-h-48 flex-col justify-between rounded-lg border border-slate-300 bg-white p-6 text-left shadow-sm transition-colors hover:border-emerald-300 hover:bg-emerald-50/40"
             >
               <div>
@@ -235,7 +234,7 @@ export function ProjectWorkspace({ mode = 'home' }: { mode?: WorkspaceMode }) {
   }
 
   if (mode === 'issues') {
-    return <IssueTrackerView />
+    return <Navigate to={`/issues?project=${projectId}`} replace />
   }
 
   if (isMobile) {
