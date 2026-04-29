@@ -251,18 +251,20 @@ export function RichContentEditor({
             onInput={() => {
               window.setTimeout(() => handleValueChange({ editor }), 0)
             }}
-            onPaste={(event) => {
+            onPasteCapture={(event) => {
               if (!enableImages) return
               const files = Array.from(event.clipboardData?.files || []).filter((file) => file.type.startsWith('image/'))
               if (files.length === 0) return
               event.preventDefault()
+              event.stopPropagation()
               void handleImageInsert(files)
             }}
-            onDrop={(event) => {
+            onDropCapture={(event) => {
               if (!enableImages) return
               const files = Array.from(event.dataTransfer?.files || []).filter((file) => file.type.startsWith('image/'))
               if (files.length === 0) return
               event.preventDefault()
+              event.stopPropagation()
               void handleImageInsert(files)
             }}
           />

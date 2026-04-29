@@ -32,7 +32,7 @@ export function deserializeRichTextState(html?: string | null) {
     const binary = atob(match[1])
     const bytes = Uint8Array.from(binary, (char) => char.charCodeAt(0))
     const parsed = JSON.parse(new TextDecoder().decode(bytes))
-    return Array.isArray(parsed) ? parsed : null
+    return Array.isArray(parsed) ? sanitizeRichTextValue(parsed) : null
   } catch {
     return null
   }
@@ -68,6 +68,7 @@ export function richTextToPlainText(html?: string | null) {
 }
 
 export function isRichTextEmpty(html?: string | null) {
+  if (/<img\b/i.test(stripRichTextState(html))) return false
   return richTextToPlainText(html).length === 0
 }
 
@@ -81,6 +82,7 @@ type RichTextNode = {
   type?: string
   text?: string
   url?: string
+  src?: string
   children?: RichTextNode[]
   align?: string
   attributes?: {
@@ -114,6 +116,8 @@ type TableCellBorder = {
 type TableCellBorders = Partial<Record<TableBorderDirection, TableCellBorder>>
 
 const TABLE_CELL_TYPES = new Set(['td', 'th'])
+const PLACEHOLDER_TYPES = new Set(['placeholder'])
+const IMAGE_TYPES = new Set(['img', 'image'])
 const TABLE_BORDER_DIRECTIONS: TableBorderDirection[] = ['top', 'right', 'bottom', 'left']
 const TEXT_ALIGN_VALUES = new Set(['start', 'left', 'center', 'right', 'end', 'justify'])
 
@@ -265,7 +269,7 @@ function serializeRichTextNode(node: RichTextNode): string {
     return `<a${attrs({ href: typeof node.url === 'string' ? node.url : undefined })}>${children}</a>`
   }
 
-  if (type === 'img' || type === 'image') {
+  if (IMAGE_TYPES.has(type)) {
     const src = typeof node.url === 'string' ? node.url : typeof node.src === 'string' ? node.src : undefined
     return src ? `<img${attrs({ src, alt: typeof node.alt === 'string' ? node.alt : undefined })}>` : ''
   }
@@ -276,10 +280,44 @@ function serializeRichTextNode(node: RichTextNode): string {
   return `<${tag}${attrs(buildBlockAttrs(node))}>${children}</${tag}>`
 }
 
+function sanitizeRichTextNode(node: RichTextNode): RichTextNode | null {
+  if (PLACEHOLDER_TYPES.has(node.type || '')) return null
+
+  if (typeof node.text === 'string') return { ...node }
+
+  const children = (node.children || [])
+    .map(sanitizeRichTextNode)
+    .filter(Boolean) as RichTextNode[]
+
+  if (IMAGE_TYPES.has(node.type || '')) {
+    const src = typeof node.url === 'string' ? node.url : typeof node.src === 'string' ? node.src : undefined
+    if (!src) return null
+
+    const { src: _src, ...rest } = node
+    return {
+      ...rest,
+      type: 'img',
+      url: src,
+      children: children.length > 0 ? children : [{ text: '' }],
+    }
+  }
+
+  return {
+    ...node,
+    children,
+  }
+}
+
+function sanitizeRichTextValue(value: unknown) {
+  if (!Array.isArray(value)) return []
+  return value.map((node) => sanitizeRichTextNode(node as RichTextNode)).filter(Boolean)
+}
+
 export function serializeRichTextValue(value: unknown) {
   if (!Array.isArray(value)) return ''
-  const visibleHtml = value.map((node) => serializeRichTextNode(node as RichTextNode)).join('')
-  return normalizeRichTextHtml(`${encodeRichTextState(value)}${visibleHtml}`)
+  const sanitizedValue = sanitizeRichTextValue(value)
+  const visibleHtml = sanitizedValue.map((node) => serializeRichTextNode(node as RichTextNode)).join('')
+  return normalizeRichTextHtml(`${encodeRichTextState(sanitizedValue)}${visibleHtml}`)
 }
 
 function parseBordersJson(value?: string | null): TableCellBorders | undefined {
