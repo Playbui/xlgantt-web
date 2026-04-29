@@ -255,9 +255,9 @@ export function IssueTrackerView() {
   const handleSaveInputDraft = async () => {
     if (!selectedIssue || !inputDirty || inputSaving) return
     setInputSaving(true)
-    await updateIssue(selectedIssue.id, inputDraft)
+    const saved = await updateIssue(selectedIssue.id, inputDraft)
     setInputSaving(false)
-    setInputDirty(false)
+    if (saved) setInputDirty(false)
   }
 
   useEffect(() => {

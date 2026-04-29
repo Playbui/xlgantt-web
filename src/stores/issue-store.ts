@@ -25,7 +25,7 @@ interface IssueState {
   selectIssue: (issueId: string | null) => void
   setFilters: (filters: Partial<IssueFilters>) => void
   createIssue: (projectId: string, issue: Partial<IssueItem>) => Promise<string | null>
-  updateIssue: (issueId: string, changes: Partial<IssueItem>) => Promise<void>
+  updateIssue: (issueId: string, changes: Partial<IssueItem>) => Promise<boolean>
   deleteIssue: (issueId: string) => Promise<void>
   addComment: (issueId: string, body: string) => Promise<void>
   addWorkLog: (issueId: string, workLog: Partial<IssueWorkLog>) => Promise<void>
@@ -165,6 +165,12 @@ function getCurrentUserLabel() {
 }
 
 function notifyIssueMemberSaveFailure(action: string, message: string) {
+  if (typeof window !== 'undefined') {
+    window.alert(`${action} 실패: ${message}`)
+  }
+}
+
+function notifyIssueSaveFailure(action: string, message: string) {
   if (typeof window !== 'undefined') {
     window.alert(`${action} 실패: ${message}`)
   }
@@ -488,10 +494,20 @@ export const useIssueStore = create<IssueState>((set, get) => ({
     delete payload.project_id
     delete payload.created_by
 
-    const { error } = await supabase.from('issue_items').update(payload).eq('id', issueId)
-    if (error) {
-      console.error('이슈 수정 실패:', error.message)
-      if (!previousIssue) return
+    const { data, error } = await supabase
+      .from('issue_items')
+      .update(payload)
+      .eq('id', issueId)
+      .select('*')
+      .maybeSingle()
+
+    if (error || !data) {
+      const message = error?.message || '저장된 행을 확인할 수 없습니다. 이슈 편집 권한을 확인하세요.'
+      console.error('이슈 수정 실패:', message)
+      if (!previousIssue) {
+        notifyIssueSaveFailure('이슈 저장', message)
+        return false
+      }
       set((state) => ({
         issues: state.issues.map((issue) => {
           if (issue.id !== issueId) return issue
@@ -501,7 +517,15 @@ export const useIssueStore = create<IssueState>((set, get) => ({
           return hasNewerLocalChange ? issue : previousIssue
         }),
       }))
+      notifyIssueSaveFailure('이슈 저장', message)
+      return false
     }
+
+    const saved = dbRowToIssue(data as Record<string, unknown>)
+    set((state) => ({
+      issues: state.issues.map((issue) => issue.id === issueId ? saved : issue),
+    }))
+    return true
   },
 
   deleteIssue: async (issueId) => {
