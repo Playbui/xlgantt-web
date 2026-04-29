@@ -115,7 +115,7 @@ function issueToDb(issue: Partial<IssueItem>): Record<string, unknown> {
   const payload: Record<string, unknown> = {}
   const assign = (key: keyof IssueItem, column: string = key) => {
     if (Object.prototype.hasOwnProperty.call(issue, key)) {
-      payload[column] = issue[key] ?? null
+      payload[column] = issue[key] === '' ? null : (issue[key] ?? null)
     }
   }
 
