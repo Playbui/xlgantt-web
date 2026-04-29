@@ -1,4 +1,4 @@
-import { useMemo } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { AlertCircle, CalendarDays, CheckCircle2, ClipboardList, Plus, Search } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { useProjectStore } from '@/stores/project-store'
@@ -44,12 +44,20 @@ function includesText(issue: IssueItem, query: string) {
 export function IssueTrackerView() {
   const project = useProjectStore((s) => s.currentProject)
   const issues = useIssueStore((s) => s.issues)
+  const comments = useIssueStore((s) => s.comments)
+  const workLogs = useIssueStore((s) => s.workLogs)
   const selectedIssueId = useIssueStore((s) => s.selectedIssueId)
   const filters = useIssueStore((s) => s.filters)
   const isLoading = useIssueStore((s) => s.isLoading)
   const selectIssue = useIssueStore((s) => s.selectIssue)
   const setFilters = useIssueStore((s) => s.setFilters)
   const createIssue = useIssueStore((s) => s.createIssue)
+  const updateIssue = useIssueStore((s) => s.updateIssue)
+  const addComment = useIssueStore((s) => s.addComment)
+  const addWorkLog = useIssueStore((s) => s.addWorkLog)
+  const [draftComment, setDraftComment] = useState('')
+  const [draftWorkBody, setDraftWorkBody] = useState('')
+  const [draftWorkHours, setDraftWorkHours] = useState('1')
 
   const systemNames = useMemo(() => {
     return Array.from(new Set(issues.map((issue) => issue.system_name).filter(Boolean) as string[])).sort((a, b) => a.localeCompare(b, 'ko'))
@@ -74,6 +82,26 @@ export function IssueTrackerView() {
     }
   }, [issues])
 
+  const selectedIssue = useMemo(() => {
+    return issues.find((issue) => issue.id === selectedIssueId) || null
+  }, [issues, selectedIssueId])
+
+  const selectedComments = useMemo(() => {
+    if (!selectedIssue) return []
+    return comments.filter((comment) => comment.issue_id === selectedIssue.id)
+  }, [comments, selectedIssue])
+
+  const selectedWorkLogs = useMemo(() => {
+    if (!selectedIssue) return []
+    return workLogs.filter((log) => log.issue_id === selectedIssue.id)
+  }, [selectedIssue, workLogs])
+
+  useEffect(() => {
+    setDraftComment('')
+    setDraftWorkBody('')
+    setDraftWorkHours('1')
+  }, [selectedIssueId])
+
   const handleCreateIssue = async () => {
     if (!project) return
     await createIssue(project.id, {
@@ -81,6 +109,23 @@ export function IssueTrackerView() {
       title: '새 이슈',
       received_at: new Date().toISOString().slice(0, 10),
     })
+  }
+
+  const handleAddComment = async () => {
+    if (!selectedIssue || !draftComment.trim()) return
+    await addComment(selectedIssue.id, draftComment)
+    setDraftComment('')
+  }
+
+  const handleAddWorkLog = async () => {
+    if (!selectedIssue || !draftWorkBody.trim()) return
+    const hours = Number(draftWorkHours)
+    await addWorkLog(selectedIssue.id, {
+      hours: Number.isFinite(hours) ? hours : 0,
+      body: draftWorkBody,
+    })
+    setDraftWorkBody('')
+    setDraftWorkHours('1')
   }
 
   return (
@@ -135,55 +180,194 @@ export function IssueTrackerView() {
         </div>
       </div>
 
-      <div className="min-h-0 flex-1 overflow-auto px-5 py-4">
-        <div className="overflow-hidden rounded-lg border border-slate-200 bg-white">
-          <table className="w-full min-w-[1080px] border-collapse text-sm">
-            <thead className="bg-slate-100 text-xs font-semibold uppercase tracking-wide text-slate-500">
-              <tr>
-                <th className="w-36 px-3 py-2 text-left">Task ID</th>
-                <th className="w-36 px-3 py-2 text-left">사업명</th>
-                <th className="px-3 py-2 text-left">내용</th>
-                <th className="w-28 px-3 py-2 text-left">상태</th>
-                <th className="w-24 px-3 py-2 text-left">우선순위</th>
-                <th className="w-28 px-3 py-2 text-left">요청자</th>
-                <th className="w-28 px-3 py-2 text-left">등록일</th>
-                <th className="w-24 px-3 py-2 text-right">공수</th>
-              </tr>
-            </thead>
-            <tbody>
-              {isLoading ? (
-                <tr><td colSpan={8} className="px-3 py-12 text-center text-slate-500">이슈를 불러오는 중...</td></tr>
-              ) : filteredIssues.length === 0 ? (
-                <tr><td colSpan={8} className="px-3 py-12 text-center text-slate-500">표시할 이슈가 없습니다.</td></tr>
-              ) : (
-                filteredIssues.map((issue) => (
-                  <tr
-                    key={issue.id}
-                    onClick={() => selectIssue(issue.id)}
-                    className={cn(
-                      'cursor-pointer border-t border-slate-100 hover:bg-sky-50/50',
-                      selectedIssueId === issue.id && 'bg-sky-50'
-                    )}
-                  >
-                    <td className="px-3 py-3 font-medium text-slate-900">{issue.issue_no}</td>
-                    <td className="px-3 py-3 text-slate-600">{issue.system_name || '-'}</td>
-                    <td className="px-3 py-3">
-                      <div className="line-clamp-1 font-medium text-slate-900">{issue.title}</div>
-                      {issue.description && <div className="mt-0.5 line-clamp-1 text-xs text-slate-500">{issue.description}</div>}
-                    </td>
-                    <td className="px-3 py-3">
-                      <span className={cn('inline-flex rounded-full border px-2 py-0.5 text-xs font-medium', statusClasses[issue.status])}>{issue.status}</span>
-                    </td>
-                    <td className={cn('px-3 py-3 font-medium', priorityClasses[issue.priority])}>{ISSUE_PRIORITY_LABELS[issue.priority]}</td>
-                    <td className="px-3 py-3 text-slate-600">{issue.requester_name || '-'}</td>
-                    <td className="px-3 py-3 text-slate-600">{formatDate(issue.received_at)}</td>
-                    <td className="px-3 py-3 text-right tabular-nums text-slate-700">{issue.total_effort.toFixed(2)}</td>
-                  </tr>
-                ))
-              )}
-            </tbody>
-          </table>
+      <div className="flex min-h-0 flex-1 gap-4 overflow-hidden px-5 py-4">
+        <div className="min-w-0 flex-1 overflow-auto rounded-lg border border-slate-200 bg-white">
+          <div className="min-w-[1080px]">
+            <table className="w-full border-collapse text-sm">
+              <thead className="bg-slate-100 text-xs font-semibold uppercase tracking-wide text-slate-500">
+                <tr>
+                  <th className="w-36 px-3 py-2 text-left">Task ID</th>
+                  <th className="w-36 px-3 py-2 text-left">사업명</th>
+                  <th className="px-3 py-2 text-left">내용</th>
+                  <th className="w-28 px-3 py-2 text-left">상태</th>
+                  <th className="w-24 px-3 py-2 text-left">우선순위</th>
+                  <th className="w-28 px-3 py-2 text-left">요청자</th>
+                  <th className="w-28 px-3 py-2 text-left">등록일</th>
+                  <th className="w-24 px-3 py-2 text-right">공수</th>
+                </tr>
+              </thead>
+              <tbody>
+                {isLoading ? (
+                  <tr><td colSpan={8} className="px-3 py-12 text-center text-slate-500">이슈를 불러오는 중...</td></tr>
+                ) : filteredIssues.length === 0 ? (
+                  <tr><td colSpan={8} className="px-3 py-12 text-center text-slate-500">표시할 이슈가 없습니다.</td></tr>
+                ) : (
+                  filteredIssues.map((issue) => (
+                    <tr
+                      key={issue.id}
+                      onClick={() => selectIssue(issue.id)}
+                      className={cn(
+                        'cursor-pointer border-t border-slate-100 hover:bg-sky-50/50',
+                        selectedIssueId === issue.id && 'bg-sky-50'
+                      )}
+                    >
+                      <td className="px-3 py-3 font-medium text-slate-900">{issue.issue_no}</td>
+                      <td className="px-3 py-3 text-slate-600">{issue.system_name || '-'}</td>
+                      <td className="px-3 py-3">
+                        <div className="line-clamp-1 font-medium text-slate-900">{issue.title}</div>
+                        {issue.description && <div className="mt-0.5 line-clamp-1 text-xs text-slate-500">{issue.description}</div>}
+                      </td>
+                      <td className="px-3 py-3">
+                        <span className={cn('inline-flex rounded-full border px-2 py-0.5 text-xs font-medium', statusClasses[issue.status])}>{issue.status}</span>
+                      </td>
+                      <td className={cn('px-3 py-3 font-medium', priorityClasses[issue.priority])}>{ISSUE_PRIORITY_LABELS[issue.priority]}</td>
+                      <td className="px-3 py-3 text-slate-600">{issue.requester_name || '-'}</td>
+                      <td className="px-3 py-3 text-slate-600">{formatDate(issue.received_at)}</td>
+                      <td className="px-3 py-3 text-right tabular-nums text-slate-700">{issue.total_effort.toFixed(2)}</td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
         </div>
+
+        <aside className="hidden w-[420px] shrink-0 overflow-auto rounded-lg border border-slate-200 bg-white xl:block">
+          {selectedIssue ? (
+            <div className="space-y-5 p-4">
+              <section className="space-y-3">
+                <div className="flex items-start justify-between gap-3">
+                  <div>
+                    <div className="text-xs font-medium text-slate-500">{selectedIssue.issue_no}</div>
+                    <input
+                      value={selectedIssue.title}
+                      onChange={(event) => updateIssue(selectedIssue.id, { title: event.target.value })}
+                      className="mt-1 w-full rounded-md border border-transparent px-0 text-base font-semibold text-slate-950 outline-none focus:border-slate-200 focus:px-2"
+                    />
+                  </div>
+                  <span className={cn('inline-flex rounded-full border px-2 py-0.5 text-xs font-medium', statusClasses[selectedIssue.status])}>{selectedIssue.status}</span>
+                </div>
+
+                <textarea
+                  value={selectedIssue.description || ''}
+                  onChange={(event) => updateIssue(selectedIssue.id, { description: event.target.value })}
+                  placeholder="이슈 내용을 입력"
+                  className="min-h-28 w-full resize-y rounded-md border border-slate-200 px-3 py-2 text-sm outline-none focus:border-sky-400 focus:ring-2 focus:ring-sky-100"
+                />
+
+                <div className="grid grid-cols-2 gap-2">
+                  <Field label="상태">
+                    <select
+                      value={selectedIssue.status}
+                      onChange={(event) => updateIssue(selectedIssue.id, { status: event.target.value as IssueItem['status'] })}
+                      className="h-8 w-full rounded-md border border-slate-200 px-2 text-sm"
+                    >
+                      {ISSUE_STATUSES.map((status) => <option key={status} value={status}>{status}</option>)}
+                    </select>
+                  </Field>
+                  <Field label="우선순위">
+                    <select
+                      value={selectedIssue.priority}
+                      onChange={(event) => updateIssue(selectedIssue.id, { priority: event.target.value as IssueItem['priority'] })}
+                      className="h-8 w-full rounded-md border border-slate-200 px-2 text-sm"
+                    >
+                      {Object.entries(ISSUE_PRIORITY_LABELS).map(([value, label]) => <option key={value} value={value}>{label}</option>)}
+                    </select>
+                  </Field>
+                  <Field label="사업명">
+                    <input
+                      value={selectedIssue.system_name || ''}
+                      onChange={(event) => updateIssue(selectedIssue.id, { system_name: event.target.value })}
+                      className="h-8 w-full rounded-md border border-slate-200 px-2 text-sm"
+                    />
+                  </Field>
+                  <Field label="요청자">
+                    <input
+                      value={selectedIssue.requester_name || ''}
+                      onChange={(event) => updateIssue(selectedIssue.id, { requester_name: event.target.value })}
+                      className="h-8 w-full rounded-md border border-slate-200 px-2 text-sm"
+                    />
+                  </Field>
+                  <Field label="등록일">
+                    <input
+                      type="date"
+                      value={selectedIssue.received_at || ''}
+                      onChange={(event) => updateIssue(selectedIssue.id, { received_at: event.target.value })}
+                      className="h-8 w-full rounded-md border border-slate-200 px-2 text-sm"
+                    />
+                  </Field>
+                  <Field label="마감요청일">
+                    <input
+                      type="date"
+                      value={selectedIssue.due_date || ''}
+                      onChange={(event) => updateIssue(selectedIssue.id, { due_date: event.target.value })}
+                      className="h-8 w-full rounded-md border border-slate-200 px-2 text-sm"
+                    />
+                  </Field>
+                </div>
+              </section>
+
+              <section className="space-y-3 border-t pt-4">
+                <div className="flex items-center justify-between">
+                  <h2 className="text-sm font-semibold text-slate-900">댓글</h2>
+                  <span className="text-xs text-slate-500">{selectedComments.length}개</span>
+                </div>
+                <textarea
+                  value={draftComment}
+                  onChange={(event) => setDraftComment(event.target.value)}
+                  placeholder="처리 이력 또는 메모 입력"
+                  className="min-h-20 w-full resize-y rounded-md border border-slate-200 px-3 py-2 text-sm outline-none focus:border-sky-400 focus:ring-2 focus:ring-sky-100"
+                />
+                <Button size="sm" variant="outline" onClick={handleAddComment} disabled={!draftComment.trim()}>댓글 추가</Button>
+                <div className="space-y-2">
+                  {selectedComments.slice(0, 8).map((comment) => (
+                    <div key={comment.id} className="rounded-md bg-slate-50 px-3 py-2 text-sm">
+                      <div className="mb-1 flex justify-between gap-2 text-xs text-slate-500">
+                        <span>{comment.author_name || '작성자'}</span>
+                        <span>{formatDate(comment.commented_at.slice(0, 10))}</span>
+                      </div>
+                      <p className="whitespace-pre-wrap text-slate-700">{comment.body}</p>
+                    </div>
+                  ))}
+                </div>
+              </section>
+
+              <section className="space-y-3 border-t pt-4">
+                <div className="flex items-center justify-between">
+                  <h2 className="text-sm font-semibold text-slate-900">공수 로그</h2>
+                  <span className="text-xs text-slate-500">{selectedIssue.total_effort.toFixed(2)} D</span>
+                </div>
+                <div className="flex gap-2">
+                  <input
+                    value={draftWorkHours}
+                    onChange={(event) => setDraftWorkHours(event.target.value)}
+                    className="h-8 w-20 rounded-md border border-slate-200 px-2 text-sm"
+                  />
+                  <input
+                    value={draftWorkBody}
+                    onChange={(event) => setDraftWorkBody(event.target.value)}
+                    placeholder="작업내역"
+                    className="h-8 min-w-0 flex-1 rounded-md border border-slate-200 px-2 text-sm"
+                  />
+                  <Button size="sm" variant="outline" onClick={handleAddWorkLog} disabled={!draftWorkBody.trim()}>추가</Button>
+                </div>
+                <div className="space-y-2">
+                  {selectedWorkLogs.slice(0, 8).map((log) => (
+                    <div key={log.id} className="rounded-md bg-slate-50 px-3 py-2 text-sm">
+                      <div className="mb-1 flex justify-between gap-2 text-xs text-slate-500">
+                        <span>{log.worker_name}</span>
+                        <span>{formatDate(log.work_date)} · {log.hours.toFixed(2)} D</span>
+                      </div>
+                      <p className="text-slate-700">{log.body}</p>
+                    </div>
+                  ))}
+                </div>
+              </section>
+            </div>
+          ) : (
+            <div className="flex h-full items-center justify-center p-8 text-center text-sm text-slate-500">이슈를 선택하면 상세 정보가 표시됩니다.</div>
+          )}
+        </aside>
       </div>
     </main>
   )
@@ -198,5 +382,14 @@ function SummaryItem({ icon, label, value }: { icon: React.ReactNode; label: str
       </div>
       <div className="mt-1 text-lg font-semibold text-slate-950">{value}</div>
     </div>
+  )
+}
+
+function Field({ label, children }: { label: string; children: React.ReactNode }) {
+  return (
+    <label className="space-y-1">
+      <span className="text-xs font-medium text-slate-500">{label}</span>
+      {children}
+    </label>
   )
 }
