@@ -2,6 +2,7 @@ import { useEffect } from 'react'
 import { Routes, Route, Navigate } from 'react-router-dom'
 import { ProjectWorkspace } from '@/components/layout/ProjectWorkspace'
 import { IssueTrackerView } from '@/components/issue-tracker/IssueTrackerView'
+import { IssueStatsView } from '@/components/issue-tracker/IssueStatsView'
 import { LoginPage } from '@/pages/LoginPage'
 import { SignupPage } from '@/pages/SignupPage'
 import { ProjectDashboard } from '@/pages/ProjectDashboard'
@@ -55,6 +56,7 @@ function App() {
       <Route path="/force-password-change" element={<AuthGuard><ForcePasswordChangePage /></AuthGuard>} />
       <Route path="/projects" element={<AuthGuard><PasswordFreshGuard><ProjectDashboard /></PasswordFreshGuard></AuthGuard>} />
       <Route path="/issues" element={<AuthGuard><PasswordFreshGuard><IssueTrackerView /></PasswordFreshGuard></AuthGuard>} />
+      <Route path="/issues/stats" element={<AuthGuard><PasswordFreshGuard><IssueStatsView /></PasswordFreshGuard></AuthGuard>} />
       <Route path="/projects/:projectId" element={<AuthGuard><PasswordFreshGuard><ProjectWorkspace mode="home" /></PasswordFreshGuard></AuthGuard>} />
       <Route path="/projects/:projectId/wbs" element={<AuthGuard><PasswordFreshGuard><ProjectWorkspace mode="wbs" /></PasswordFreshGuard></AuthGuard>} />
       <Route path="/projects/:projectId/issues" element={<AuthGuard><PasswordFreshGuard><ProjectWorkspace mode="issues" /></PasswordFreshGuard></AuthGuard>} />

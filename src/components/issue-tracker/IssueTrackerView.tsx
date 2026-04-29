@@ -450,6 +450,9 @@ export function IssueTrackerView() {
                 WBS로 이동
               </Button>
             )}
+            <Button variant="outline" size="sm" onClick={() => navigate(project ? `/issues/stats?project=${project.id}` : '/issues/stats')}>
+              통계
+            </Button>
             <Button size="sm" onClick={handleCreateIssue} disabled={!project}>
               <Plus className="h-4 w-4" />
               이슈 추가
