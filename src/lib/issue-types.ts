@@ -70,6 +70,14 @@ export interface IssueWorkLog {
   updated_at: string
 }
 
+export interface IssueCategory {
+  id: string
+  project_id: string
+  name: string
+  sort_order: number
+  created_at: string
+}
+
 export type IssueMemberRole = 'manager' | 'editor' | 'viewer'
 
 export interface IssueMember {

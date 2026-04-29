@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { ArrowLeft, ClipboardList, MessageSquareText, Plus, Search, Trash2 } from 'lucide-react'
+import { ArrowLeft, MessageSquareText, Plus, Search, Trash2 } from 'lucide-react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { Button } from '@/components/ui/button'
 import { RichContentEditor } from '@/components/task-workspace/RichContentEditor'
@@ -7,7 +7,7 @@ import { useProjectStore } from '@/stores/project-store'
 import { useIssueStore } from '@/stores/issue-store'
 import { useAuthStore } from '@/stores/auth-store'
 import { ISSUE_PRIORITY_LABELS, ISSUE_STATUSES, type IssueItem } from '@/lib/issue-types'
-import { richTextToPlainText, richTextToPreview } from '@/lib/rich-text'
+import { richTextToPlainText, richTextToPreview, stripRichTextState } from '@/lib/rich-text'
 import { cn } from '@/lib/utils'
 
 const statusClasses: Record<IssueItem['status'], string> = {
@@ -74,10 +74,18 @@ export function IssueTrackerView() {
   const loadIssues = useIssueStore((s) => s.loadIssues)
   const loadIssueMembers = useIssueStore((s) => s.loadIssueMembers)
   const issueMembers = useIssueStore((s) => s.issueMembers)
+  const issueCategories = useIssueStore((s) => s.issueCategories)
+  const loadIssueCategories = useIssueStore((s) => s.loadIssueCategories)
+  const addIssueCategory = useIssueStore((s) => s.addIssueCategory)
+  const deleteIssueCategory = useIssueStore((s) => s.deleteIssueCategory)
+  const [detailTab, setDetailTab] = useState<'input' | 'process'>('input')
   const [draftComment, setDraftComment] = useState('')
   const [draftWorkBody, setDraftWorkBody] = useState('')
   const [draftWorkHours, setDraftWorkHours] = useState('1')
   const [draftWorkDate, setDraftWorkDate] = useState(new Date().toISOString().slice(0, 10))
+  const [draftWorkWorkerName, setDraftWorkWorkerName] = useState(currentUser?.name || currentUser?.email || '')
+  const [newIssueKind, setNewIssueKind] = useState('')
+  const [showIssueKindManager, setShowIssueKindManager] = useState(false)
   const selectedProjectId = searchParams.get('project') || ''
   const isAdmin = currentUser?.role === 'admin'
 
@@ -112,11 +120,16 @@ export function IssueTrackerView() {
     }
     switchProject(project.id)
     void loadIssues(project.id)
-  }, [loadIssues, project, selectedProjectId, setSearchParams, switchProject])
+    void loadIssueCategories(project.id)
+  }, [loadIssueCategories, loadIssues, project, selectedProjectId, setSearchParams, switchProject])
 
   const issueKinds = useMemo(() => {
-    return Array.from(new Set(issues.map((issue) => issue.issue_type || issue.legacy_status).filter(Boolean) as string[])).sort((a, b) => a.localeCompare(b, 'ko'))
-  }, [issues])
+    const managed = issueCategories
+      .filter((category) => category.project_id === project?.id)
+      .map((category) => category.name)
+    const legacy = issues.map((issue) => issue.issue_type || issue.legacy_status).filter(Boolean) as string[]
+    return Array.from(new Set([...managed, ...legacy])).sort((a, b) => a.localeCompare(b, 'ko'))
+  }, [issueCategories, issues, project?.id])
 
   const filteredIssues = useMemo(() => {
     return issues.filter((issue) => {
@@ -156,7 +169,9 @@ export function IssueTrackerView() {
     setDraftWorkBody('')
     setDraftWorkHours('1')
     setDraftWorkDate(new Date().toISOString().slice(0, 10))
-  }, [selectedIssueId])
+    setDraftWorkWorkerName(currentUser?.name || currentUser?.email || '')
+    setDetailTab('input')
+  }, [currentUser?.email, currentUser?.name, selectedIssueId])
 
   const handleCreateIssue = async () => {
     if (!project) return
@@ -174,7 +189,7 @@ export function IssueTrackerView() {
   }
 
   const handleAddComment = async () => {
-    if (!selectedIssue || !draftComment.trim()) return
+    if (!selectedIssue || !richTextToPlainText(draftComment).trim()) return
     await addComment(selectedIssue.id, draftComment)
     setDraftComment('')
   }
@@ -187,11 +202,32 @@ export function IssueTrackerView() {
       body: draftWorkBody,
       work_date: draftWorkDate,
       worker_user_id: currentUser?.id,
-      worker_name: currentUser?.name || currentUser?.email || '작업자',
+      worker_name: draftWorkWorkerName || currentUser?.name || currentUser?.email || '작업자',
     })
     setDraftWorkBody('')
     setDraftWorkHours('1')
     setDraftWorkDate(new Date().toISOString().slice(0, 10))
+  }
+
+  const handleAddIssueKind = async () => {
+    if (!project || !newIssueKind.trim()) return
+    await addIssueCategory(project.id, newIssueKind)
+    setNewIssueKind('')
+  }
+
+  const handleDeleteIssueKind = async (name: string) => {
+    if (!project) return
+    const replacements = issueKinds.filter((kind) => kind !== name)
+    if (replacements.length === 0) {
+      window.alert('삭제하려면 먼저 대체할 구분을 하나 더 등록해야 합니다.')
+      return
+    }
+    const replacement = window.prompt(`"${name}" 구분을 삭제합니다.\n기존 이슈를 대체할 구분명을 입력하세요.`, replacements[0])
+    if (!replacement) return
+    await deleteIssueCategory(project.id, name, replacement)
+    if (selectedIssue && (selectedIssue.issue_type === name || selectedIssue.legacy_status === name)) {
+      await updateIssue(selectedIssue.id, { issue_type: replacement, legacy_status: replacement })
+    }
   }
 
   return (
@@ -335,6 +371,32 @@ export function IssueTrackerView() {
                   </div>
                 </div>
 
+                <div className="border-b border-slate-200 px-4 py-2">
+                  <div className="inline-flex rounded-lg border border-slate-200 bg-slate-50 p-1">
+                    <button
+                      type="button"
+                      onClick={() => setDetailTab('input')}
+                      className={cn(
+                        'h-8 rounded-md px-4 text-sm font-semibold transition-colors',
+                        detailTab === 'input' ? 'bg-white text-slate-950 shadow-sm' : 'text-slate-500 hover:text-slate-800'
+                      )}
+                    >
+                      입력
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setDetailTab('process')}
+                      className={cn(
+                        'h-8 rounded-md px-4 text-sm font-semibold transition-colors',
+                        detailTab === 'process' ? 'bg-white text-slate-950 shadow-sm' : 'text-slate-500 hover:text-slate-800'
+                      )}
+                    >
+                      처리
+                    </button>
+                  </div>
+                </div>
+
+                {detailTab === 'input' && (
                 <div className="space-y-5 p-4">
                   <Field label="제목">
                     <input
@@ -349,17 +411,25 @@ export function IssueTrackerView() {
                       <div className="text-sm font-semibold text-slate-900">분류 / 상태</div>
                       <div className="grid gap-3 sm:grid-cols-3">
                         <Field label="구분">
-                          <input
-                            list="issue-kind-options"
+                          <div className="flex gap-2">
+                            <select
                             value={selectedIssue.issue_type || selectedIssue.legacy_status || ''}
                             onChange={(event) => updateIssue(selectedIssue.id, { issue_type: event.target.value, legacy_status: event.target.value })}
-                            placeholder="이슈 / 버그 / 확인"
-                            className="h-9 w-full rounded-md border border-slate-300 px-2 text-sm"
-                          />
-                          <datalist id="issue-kind-options">
-                            {['이슈', '버그', '확인', '요청', '장애', '개선'].map((kind) => <option key={kind} value={kind} />)}
-                            {issueKinds.map((kind) => <option key={kind} value={kind} />)}
-                          </datalist>
+                              className="h-9 min-w-0 flex-1 rounded-md border border-slate-300 px-2 text-sm"
+                            >
+                              {issueKinds.length === 0 && <option value="">구분 없음</option>}
+                              {issueKinds.map((kind) => <option key={kind} value={kind}>{kind}</option>)}
+                            </select>
+                            <Button
+                              type="button"
+                              size="sm"
+                              variant="outline"
+                              className="h-9 shrink-0 px-2 text-xs"
+                              onClick={() => setShowIssueKindManager((value) => !value)}
+                            >
+                              관리
+                            </Button>
+                          </div>
                         </Field>
                         <Field label="상태">
                           <select
@@ -380,6 +450,39 @@ export function IssueTrackerView() {
                           </select>
                         </Field>
                       </div>
+                      {showIssueKindManager && (
+                        <div className="rounded-lg border border-slate-200 bg-slate-50 p-3">
+                          <div className="mb-2 flex gap-2">
+                            <input
+                              value={newIssueKind}
+                              onChange={(event) => setNewIssueKind(event.target.value)}
+                              onKeyDown={(event) => {
+                                if (event.key === 'Enter') void handleAddIssueKind()
+                              }}
+                              placeholder="새 구분명"
+                              className="h-8 min-w-0 flex-1 rounded-md border border-slate-300 bg-white px-2 text-sm"
+                            />
+                            <Button type="button" size="sm" variant="outline" className="h-8" onClick={() => void handleAddIssueKind()} disabled={!newIssueKind.trim()}>
+                              등록
+                            </Button>
+                          </div>
+                          <div className="flex flex-wrap gap-2">
+                            {issueKinds.map((kind) => (
+                              <span key={kind} className="inline-flex items-center gap-1 rounded-full border border-slate-200 bg-white px-2.5 py-1 text-xs font-medium text-slate-700">
+                                {kind}
+                                <button
+                                  type="button"
+                                  onClick={() => void handleDeleteIssueKind(kind)}
+                                  className="rounded-full px-1 text-slate-400 hover:bg-red-50 hover:text-red-600"
+                                  title="삭제 후 대체"
+                                >
+                                  ×
+                                </button>
+                              </span>
+                            ))}
+                          </div>
+                        </div>
+                      )}
                     </div>
 
                     <div className="space-y-2">
@@ -461,8 +564,11 @@ export function IssueTrackerView() {
                     />
                   </Field>
                 </div>
+                )}
               </section>
 
+              {detailTab === 'process' && (
+                <>
               <section className="space-y-3 rounded-lg border border-slate-200 bg-white p-4">
                 <div className="flex items-center justify-between border-b border-slate-100 pb-2">
                   <h2 className="flex items-center gap-2 text-sm font-semibold text-slate-900">
@@ -471,13 +577,15 @@ export function IssueTrackerView() {
                   </h2>
                   <span className="text-xs text-slate-500">{selectedComments.length}개</span>
                 </div>
-                <textarea
+                <RichContentEditor
                   value={draftComment}
-                  onChange={(event) => setDraftComment(event.target.value)}
+                  onChange={setDraftComment}
                   placeholder="날짜별 진행 상황, 확인 결과, 외부 전달 내용 등을 남깁니다."
-                  className="min-h-32 w-full resize-y rounded-md border border-slate-300 px-3 py-2 text-sm leading-6 outline-none focus:border-sky-400 focus:ring-2 focus:ring-sky-100"
+                  minHeight={180}
+                  fontSize={14}
+                  className="rounded-lg shadow-none"
                 />
-                <Button size="sm" variant="outline" onClick={handleAddComment} disabled={!draftComment.trim()}>이력 추가</Button>
+                <Button size="sm" variant="outline" onClick={handleAddComment} disabled={!richTextToPlainText(draftComment).trim()}>이력 추가</Button>
                 <div className="space-y-2">
                   {selectedComments.slice(0, 8).map((comment) => (
                     <div key={comment.id} className="rounded-md bg-slate-50 px-3 py-2 text-sm">
@@ -485,7 +593,10 @@ export function IssueTrackerView() {
                         <span>{comment.author_name || '작성자'}</span>
                         <span>{formatDate(comment.commented_at.slice(0, 10))}</span>
                       </div>
-                      <p className="whitespace-pre-wrap text-slate-700">{comment.body}</p>
+                      <div
+                        className="prose prose-sm max-w-none text-slate-700"
+                        dangerouslySetInnerHTML={{ __html: stripRichTextState(comment.body) || richTextToPlainText(comment.body) }}
+                      />
                     </div>
                   ))}
                 </div>
@@ -496,11 +607,17 @@ export function IssueTrackerView() {
                   <h2 className="text-sm font-semibold text-slate-900">공수 로그</h2>
                   <span className="text-xs text-slate-500">{selectedIssue.total_effort.toFixed(2)} D</span>
                 </div>
-                <div className="grid grid-cols-[150px_100px_minmax(260px,1fr)_64px] gap-2">
+                <div className="grid grid-cols-[150px_150px_90px_minmax(420px,1fr)_64px] gap-2">
                   <input
                     type="date"
                     value={draftWorkDate}
                     onChange={(event) => setDraftWorkDate(event.target.value)}
+                    className="h-9 rounded-md border border-slate-200 px-2 text-sm"
+                  />
+                  <input
+                    value={draftWorkWorkerName}
+                    onChange={(event) => setDraftWorkWorkerName(event.target.value)}
+                    placeholder="작업자"
                     className="h-9 rounded-md border border-slate-200 px-2 text-sm"
                   />
                   <input
@@ -519,7 +636,7 @@ export function IssueTrackerView() {
                 <div className="space-y-2">
                   {selectedWorkLogs.slice(0, 8).map((log) => (
                     <div key={log.id} className="rounded-md bg-slate-50 px-3 py-2 text-sm">
-                      <div className="mb-2 grid grid-cols-[1fr_130px_72px_28px] items-center gap-2">
+                      <div className="mb-2 grid grid-cols-[160px_130px_72px_minmax(360px,1fr)_28px] items-center gap-2">
                         <input
                           defaultValue={log.worker_name}
                           onBlur={(event) => updateWorkLog(log.id, { worker_name: event.target.value })}
@@ -539,6 +656,11 @@ export function IssueTrackerView() {
                           }}
                           className="h-8 rounded border border-slate-200 bg-white px-2 text-right text-xs"
                         />
+                        <input
+                          defaultValue={log.body}
+                          onBlur={(event) => updateWorkLog(log.id, { body: event.target.value })}
+                          className="h-8 min-w-0 rounded border border-slate-200 bg-white px-2 text-sm text-slate-700"
+                        />
                         <button
                           onClick={() => deleteWorkLog(log.id)}
                           className="flex h-7 w-7 items-center justify-center rounded text-slate-400 hover:bg-red-50 hover:text-red-600"
@@ -547,15 +669,12 @@ export function IssueTrackerView() {
                           <Trash2 className="h-3.5 w-3.5" />
                         </button>
                       </div>
-                      <input
-                        defaultValue={log.body}
-                        onBlur={(event) => updateWorkLog(log.id, { body: event.target.value })}
-                        className="h-8 w-full rounded border border-slate-200 bg-white px-2 text-sm text-slate-700"
-                      />
                     </div>
                   ))}
                 </div>
               </section>
+                </>
+              )}
             </div>
           ) : (
             <div className="flex h-full items-center justify-center p-8 text-center text-sm text-slate-500">이슈를 선택하면 상세 정보가 표시됩니다.</div>

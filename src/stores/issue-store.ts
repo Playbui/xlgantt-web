@@ -1,11 +1,12 @@
 import { create } from 'zustand'
-import type { IssueComment, IssueFilters, IssueItem, IssueMember, IssueWorkLog } from '@/lib/issue-types'
+import type { IssueCategory, IssueComment, IssueFilters, IssueItem, IssueMember, IssueWorkLog } from '@/lib/issue-types'
 import { supabase } from '@/lib/supabase'
 import { useAuthStore } from '@/stores/auth-store'
 
 interface IssueState {
   issues: IssueItem[]
   issueMembers: IssueMember[]
+  issueCategories: IssueCategory[]
   comments: IssueComment[]
   workLogs: IssueWorkLog[]
   selectedIssueId: string | null
@@ -13,6 +14,9 @@ interface IssueState {
   isLoading: boolean
   issueMembersLoadedProjectId: string | null
   loadIssueMembers: (projectId: string) => Promise<void>
+  loadIssueCategories: (projectId: string) => Promise<void>
+  addIssueCategory: (projectId: string, name: string) => Promise<void>
+  deleteIssueCategory: (projectId: string, name: string, replacementName: string) => Promise<void>
   addIssueMember: (projectId: string, userId: string, role: IssueMember['role']) => Promise<void>
   updateIssueMemberRole: (projectId: string, userId: string, role: IssueMember['role']) => Promise<void>
   removeIssueMember: (projectId: string, userId: string) => Promise<void>
@@ -169,6 +173,7 @@ function notifyIssueMemberSaveFailure(action: string, message: string) {
 export const useIssueStore = create<IssueState>((set, get) => ({
   issues: [],
   issueMembers: [],
+  issueCategories: [],
   comments: [],
   workLogs: [],
   selectedIssueId: null,
@@ -209,6 +214,103 @@ export const useIssueStore = create<IssueState>((set, get) => ({
       ],
       issueMembersLoadedProjectId: projectId,
     }))
+  },
+
+  loadIssueCategories: async (projectId) => {
+    const { data, error } = await supabase
+      .from('issue_categories')
+      .select('id, project_id, name, sort_order, created_at')
+      .eq('project_id', projectId)
+      .order('sort_order', { ascending: true })
+      .order('name', { ascending: true })
+    if (error) {
+      console.error('이슈 구분 로드 실패:', error.message)
+      set((state) => ({
+        issueCategories: state.issueCategories.filter((category) => category.project_id !== projectId),
+      }))
+      return
+    }
+
+    set((state) => ({
+      issueCategories: [
+        ...state.issueCategories.filter((category) => category.project_id !== projectId),
+        ...((data || []) as IssueCategory[]),
+      ],
+    }))
+  },
+
+  addIssueCategory: async (projectId, name) => {
+    const nextName = name.trim()
+    if (!nextName) return
+    const existing = get().issueCategories.some((category) => category.project_id === projectId && category.name === nextName)
+    if (existing) return
+
+    const { data, error } = await supabase
+      .from('issue_categories')
+      .insert({ project_id: projectId, name: nextName })
+      .select('id, project_id, name, sort_order, created_at')
+      .single()
+    if (error) {
+      console.error('이슈 구분 추가 실패:', error.message)
+      if (typeof window !== 'undefined') window.alert(`구분 추가 실패: ${error.message}`)
+      return
+    }
+
+    set((state) => ({
+      issueCategories: [...state.issueCategories, data as IssueCategory].sort((a, b) =>
+        a.project_id === b.project_id ? a.sort_order - b.sort_order || a.name.localeCompare(b.name, 'ko') : 0
+      ),
+    }))
+  },
+
+  deleteIssueCategory: async (projectId, name, replacementName) => {
+    const targetName = name.trim()
+    const replacement = replacementName.trim()
+    if (!targetName || !replacement || targetName === replacement) return
+
+    const previous = {
+      issueCategories: get().issueCategories,
+      issues: get().issues,
+    }
+    set((state) => ({
+      issueCategories: state.issueCategories.filter((category) => !(category.project_id === projectId && category.name === targetName)),
+      issues: state.issues.map((issue) =>
+        issue.project_id === projectId && (issue.issue_type === targetName || issue.legacy_status === targetName)
+          ? { ...issue, issue_type: replacement, legacy_status: replacement }
+          : issue
+      ),
+    }))
+
+    const { error: updateByTypeError } = await supabase
+      .from('issue_items')
+      .update({ issue_type: replacement, legacy_status: replacement })
+      .eq('project_id', projectId)
+      .eq('issue_type', targetName)
+    const { error: updateByLegacyError } = await supabase
+      .from('issue_items')
+      .update({ issue_type: replacement, legacy_status: replacement })
+      .eq('project_id', projectId)
+      .eq('legacy_status', targetName)
+
+    if (updateByTypeError || updateByLegacyError) {
+      const message = updateByTypeError?.message || updateByLegacyError?.message || 'unknown'
+      console.error('이슈 구분 대체 실패:', message)
+      set(previous)
+      if (typeof window !== 'undefined') window.alert(`구분 대체 실패: ${message}`)
+      return
+    }
+
+    const { error: deleteError } = await supabase
+      .from('issue_categories')
+      .delete()
+      .eq('project_id', projectId)
+      .eq('name', targetName)
+
+    if (deleteError) {
+      console.error('이슈 구분 삭제 실패:', deleteError.message)
+      set(previous)
+      if (typeof window !== 'undefined') window.alert(`구분 삭제 실패: ${deleteError.message}`)
+    }
   },
 
   canAccessIssues: (projectId, userId) => {
