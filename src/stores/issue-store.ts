@@ -150,6 +150,12 @@ function getCurrentUserLabel() {
   }
 }
 
+function notifyIssueMemberSaveFailure(action: string, message: string) {
+  if (typeof window !== 'undefined') {
+    window.alert(`${action} 실패: ${message}`)
+  }
+}
+
 export const useIssueStore = create<IssueState>((set, get) => ({
   issues: [],
   issueMembers: [],
@@ -223,7 +229,7 @@ export const useIssueStore = create<IssueState>((set, get) => ({
       set((state) => ({
         issueMembers: state.issueMembers.filter((item) => !(item.project_id === projectId && item.user_id === userId)),
       }))
-      if (typeof window !== 'undefined') window.alert('이슈 접근자 저장이 DB에 반영되지 않았습니다.')
+      notifyIssueMemberSaveFailure('이슈 접근자 저장', error.message)
     }
   },
 
@@ -250,7 +256,7 @@ export const useIssueStore = create<IssueState>((set, get) => ({
           ),
         }))
       }
-      if (typeof window !== 'undefined') window.alert('이슈 접근자 역할 변경이 DB에 반영되지 않았습니다.')
+      notifyIssueMemberSaveFailure('이슈 접근자 역할 변경', error.message)
     }
   },
 
@@ -271,7 +277,7 @@ export const useIssueStore = create<IssueState>((set, get) => ({
       if (before) {
         set((state) => ({ issueMembers: [...state.issueMembers, before] }))
       }
-      if (typeof window !== 'undefined') window.alert('이슈 접근자 삭제가 DB에 반영되지 않았습니다.')
+      notifyIssueMemberSaveFailure('이슈 접근자 삭제', error.message)
     }
   },
 
