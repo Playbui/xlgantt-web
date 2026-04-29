@@ -11,10 +11,15 @@ export interface IssueItem {
   title: string
   description?: string
   system_name?: string
+  issue_type?: string
   status: IssueStatus
   legacy_status?: string
   priority: IssuePriority
   requester_name?: string
+  request_source?: string
+  external_requester?: string
+  internal_owner_user_id?: string
+  internal_owner_name?: string
   assignee_user_id?: string
   assignee_name?: string
   company_id?: string

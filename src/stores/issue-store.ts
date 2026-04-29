@@ -43,10 +43,15 @@ function dbRowToIssue(row: Record<string, unknown>): IssueItem {
     title: (row.title as string) || '',
     description: optionalString(row.description),
     system_name: optionalString(row.system_name),
+    issue_type: optionalString(row.issue_type) || optionalString(row.legacy_status),
     status: (row.status as IssueItem['status']) || '접수',
     legacy_status: optionalString(row.legacy_status),
     priority: (row.priority as IssueItem['priority']) || 'normal',
     requester_name: optionalString(row.requester_name),
+    request_source: optionalString(row.request_source),
+    external_requester: optionalString(row.external_requester) || optionalString(row.source_url),
+    internal_owner_user_id: optionalString(row.internal_owner_user_id),
+    internal_owner_name: optionalString(row.internal_owner_name) || optionalString(row.requester_name),
     assignee_user_id: optionalString(row.assignee_user_id),
     assignee_name: optionalString(row.assignee_name),
     company_id: optionalString(row.company_id),
@@ -117,10 +122,15 @@ function issueToDb(issue: Partial<IssueItem>): Record<string, unknown> {
   assign('title')
   assign('description')
   assign('system_name')
+  assign('issue_type')
   assign('status')
   assign('legacy_status')
   assign('priority')
   assign('requester_name')
+  assign('request_source')
+  assign('external_requester')
+  assign('internal_owner_user_id')
+  assign('internal_owner_name')
   assign('assignee_user_id')
   assign('assignee_name')
   assign('company_id')

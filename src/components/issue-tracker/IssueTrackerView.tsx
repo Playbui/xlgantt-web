@@ -36,6 +36,10 @@ function includesText(issue: IssueItem, query: string) {
     issue.description,
     issue.system_name,
     issue.requester_name,
+    issue.issue_type,
+    issue.request_source,
+    issue.external_requester,
+    issue.internal_owner_name,
     issue.assignee_name,
     issue.legacy_status,
     issue.source_url,
@@ -66,7 +70,7 @@ export function IssueTrackerView() {
   const [draftWorkDate, setDraftWorkDate] = useState(new Date().toISOString().slice(0, 10))
 
   const issueKinds = useMemo(() => {
-    return Array.from(new Set(issues.map((issue) => issue.legacy_status).filter(Boolean) as string[])).sort((a, b) => a.localeCompare(b, 'ko'))
+    return Array.from(new Set(issues.map((issue) => issue.issue_type || issue.legacy_status).filter(Boolean) as string[])).sort((a, b) => a.localeCompare(b, 'ko'))
   }, [issues])
 
   const filteredIssues = useMemo(() => {
@@ -74,7 +78,7 @@ export function IssueTrackerView() {
       if (filters.status && filters.status !== 'all' && issue.status !== filters.status) return false
       if (filters.priority && filters.priority !== 'all' && issue.priority !== filters.priority) return false
       if (filters.assigneeUserId && filters.assigneeUserId !== 'all' && issue.assignee_user_id !== filters.assigneeUserId) return false
-      if (filters.systemName && filters.systemName !== 'all' && issue.legacy_status !== filters.systemName) return false
+      if (filters.systemName && filters.systemName !== 'all' && (issue.issue_type || issue.legacy_status) !== filters.systemName) return false
       return includesText(issue, filters.search || '')
     })
   }, [filters, issues])
@@ -114,7 +118,10 @@ export function IssueTrackerView() {
     await createIssue(project.id, {
       issue_no: `ISS-${new Date().toISOString().slice(0, 10).replaceAll('-', '')}-${issues.length + 1}`,
       title: '제목을 입력하세요',
+      issue_type: '이슈',
       legacy_status: '이슈',
+      internal_owner_user_id: currentUser?.id,
+      internal_owner_name: currentUser?.name || currentUser?.email || '',
       requester_name: currentUser?.name || currentUser?.email || '',
       system_name: project.name,
       received_at: new Date().toISOString().slice(0, 10),
@@ -226,7 +233,7 @@ export function IssueTrackerView() {
                       )}
                     >
                       <td className="px-3 py-3 font-medium text-slate-900">{issue.issue_no}</td>
-                      <td className="px-3 py-3 text-slate-600">{issue.legacy_status || '이슈'}</td>
+                      <td className="px-3 py-3 text-slate-600">{issue.issue_type || issue.legacy_status || '이슈'}</td>
                       <td className="px-3 py-3">
                         <div className="line-clamp-1 font-medium text-slate-900">{issue.title}</div>
                         {issue.description && <div className="mt-0.5 line-clamp-1 text-xs text-slate-500">{issue.description}</div>}
@@ -235,7 +242,7 @@ export function IssueTrackerView() {
                         <span className={cn('inline-flex rounded-full border px-2 py-0.5 text-xs font-medium', statusClasses[issue.status])}>{issue.status}</span>
                       </td>
                       <td className={cn('px-3 py-3 font-medium', priorityClasses[issue.priority])}>{ISSUE_PRIORITY_LABELS[issue.priority]}</td>
-                      <td className="px-3 py-3 text-slate-600">{issue.requester_name || '-'}</td>
+                      <td className="px-3 py-3 text-slate-600">{issue.internal_owner_name || issue.requester_name || issue.external_requester || '-'}</td>
                       <td className="px-3 py-3 text-slate-600">{formatDate(issue.received_at)}</td>
                       <td className="px-3 py-3 text-right tabular-nums text-slate-700">{issue.total_effort.toFixed(2)}</td>
                     </tr>
@@ -273,8 +280,8 @@ export function IssueTrackerView() {
                   <Field label="구분">
                     <input
                       list="issue-kind-options"
-                      value={selectedIssue.legacy_status || ''}
-                      onChange={(event) => updateIssue(selectedIssue.id, { legacy_status: event.target.value })}
+                      value={selectedIssue.issue_type || selectedIssue.legacy_status || ''}
+                      onChange={(event) => updateIssue(selectedIssue.id, { issue_type: event.target.value, legacy_status: event.target.value })}
                       placeholder="이슈 / 버그 / 확인"
                       className="h-8 w-full rounded-md border border-slate-200 px-2 text-sm"
                     />
@@ -310,16 +317,24 @@ export function IssueTrackerView() {
                   </Field>
                   <Field label="등록자 / 내부 담당">
                     <input
-                      value={selectedIssue.requester_name || ''}
-                      onChange={(event) => updateIssue(selectedIssue.id, { requester_name: event.target.value })}
+                      value={selectedIssue.internal_owner_name || selectedIssue.requester_name || ''}
+                      onChange={(event) => updateIssue(selectedIssue.id, { internal_owner_name: event.target.value, requester_name: event.target.value })}
                       className="h-8 w-full rounded-md border border-slate-200 px-2 text-sm"
                     />
                   </Field>
                   <Field label="외부 요청처/요청자">
                     <input
-                      value={selectedIssue.source_url || ''}
-                      onChange={(event) => updateIssue(selectedIssue.id, { source_url: event.target.value })}
+                      value={selectedIssue.external_requester || selectedIssue.source_url || ''}
+                      onChange={(event) => updateIssue(selectedIssue.id, { external_requester: event.target.value, source_url: event.target.value })}
                       placeholder="예: 수협 홍길동"
+                      className="h-8 w-full rounded-md border border-slate-200 px-2 text-sm"
+                    />
+                  </Field>
+                  <Field label="요청처">
+                    <input
+                      value={selectedIssue.request_source || ''}
+                      onChange={(event) => updateIssue(selectedIssue.id, { request_source: event.target.value })}
+                      placeholder="예: 발주처 / 사업부"
                       className="h-8 w-full rounded-md border border-slate-200 px-2 text-sm"
                     />
                   </Field>
