@@ -19,6 +19,13 @@ import { OrganizationAssignmentForm } from '@/components/organization/Organizati
 import type { OrganizationDraftValue } from '@/lib/organization-types'
 import type { IssueMemberRole } from '@/lib/issue-types'
 
+interface AdminUserGroup {
+  key: string
+  label: string
+  users: User[]
+  isUnassigned: boolean
+}
+
 export function AdminPage() {
   const navigate = useNavigate()
   const { currentUser, users, updateUser, deleteUser, updatePassword, addUserManual, fetchAllUsers, authMode } = useAuthStore()
@@ -135,6 +142,88 @@ export function AdminPage() {
   const projectMembersByUserId = useMemo(
     () => new Map(currentProjectMembers.map((member) => [member.userId, member])),
     [currentProjectMembers]
+  )
+  const buildUserGroups = useMemo(() => {
+    const getOrgMeta = (user: User) => {
+      const assignment = getUserAssignment(user.id)
+      if (!assignment) return null
+      const company = companies.find((item) => item.id === assignment.company_id)
+      const department = departments.find((item) => item.id === assignment.department_id)
+      const team = assignment.team_id ? teams.find((item) => item.id === assignment.team_id) : undefined
+      if (!company || !department) return null
+      return {
+        key: [company.id, department.id, team?.id || 'no-team'].join(':'),
+        label: [company.name, department.name, team?.name].filter(Boolean).join(' / '),
+        sort: [
+          String(company.sort_order).padStart(5, '0'),
+          company.name,
+          String(department.sort_order).padStart(5, '0'),
+          department.name,
+          String(team?.sort_order ?? 0).padStart(5, '0'),
+          team?.name || '',
+        ].join('|'),
+      }
+    }
+
+    return (targetUsers: User[]): AdminUserGroup[] => {
+      const unassigned: User[] = []
+      const assigned = new Map<string, AdminUserGroup & { sort: string }>()
+
+      targetUsers.forEach((user) => {
+        const meta = getOrgMeta(user)
+        if (!meta) {
+          unassigned.push(user)
+          return
+        }
+        const group = assigned.get(meta.key)
+        if (group) {
+          group.users.push(user)
+        } else {
+          assigned.set(meta.key, {
+            key: meta.key,
+            label: meta.label,
+            users: [user],
+            isUnassigned: false,
+            sort: meta.sort,
+          })
+        }
+      })
+
+      const sortUsers = (items: User[]) => items.sort((a, b) => a.name.localeCompare(b.name, 'ko-KR'))
+      const groups: AdminUserGroup[] = []
+
+      if (unassigned.length > 0) {
+        groups.push({
+          key: 'unassigned',
+          label: '조직 미지정',
+          users: sortUsers(unassigned),
+          isUnassigned: true,
+        })
+      }
+
+      groups.push(
+        ...Array.from(assigned.values())
+          .sort((a, b) => a.sort.localeCompare(b.sort, 'ko-KR'))
+          .map(({ sort: _sort, ...group }) => ({
+            ...group,
+            users: sortUsers(group.users),
+          }))
+      )
+
+      return groups
+    }
+  }, [companies, departments, getUserAssignment, teams])
+  const groupedUsers = useMemo(
+    () => buildUserGroups([...pendingUsers, ...approvedUsers]),
+    [approvedUsers, buildUserGroups, pendingUsers]
+  )
+  const projectAccessUsers = useMemo(
+    () => approvedUsers.filter((user) => projectMembersByUserId.has(user.id) || issueMembersByUserId.has(user.id)),
+    [approvedUsers, issueMembersByUserId, projectMembersByUserId]
+  )
+  const groupedProjectAccessUsers = useMemo(
+    () => buildUserGroups(projectAccessUsers),
+    [buildUserGroups, projectAccessUsers]
   )
 
   const handleRefresh = async () => {
@@ -529,14 +618,14 @@ export function AdminPage() {
                   </p>
                 </div>
 
-                <div className="w-full max-w-sm">
+                <div className="w-full lg:w-[440px]">
                   <Select value={selectedAccessProjectId || undefined} onValueChange={setSelectedAccessProjectId}>
-                    <SelectTrigger className="h-9 text-sm">
+                    <SelectTrigger className="h-9 text-sm w-full">
                       <SelectValue placeholder="프로젝트 선택">
                         {selectedAccessProject?.name}
                       </SelectValue>
                     </SelectTrigger>
-                    <SelectContent>
+                    <SelectContent className="min-w-[420px]">
                       {projects.map((project) => (
                         <SelectItem key={project.id} value={project.id}>{project.name}</SelectItem>
                       ))}
@@ -560,79 +649,87 @@ export function AdminPage() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {approvedUsers.length === 0 ? (
+                  {projectAccessUsers.length === 0 ? (
                     <TableRow>
                       <TableCell colSpan={7} className="h-28 text-center text-sm text-muted-foreground">
-                        승인된 사용자가 없습니다.
+                        선택한 프로젝트에 등록된 WBS/이슈 접근자가 없습니다.
                       </TableCell>
                     </TableRow>
                   ) : (
-                    approvedUsers.map((user) => {
-                      const wbsMember = projectMembersByUserId.get(user.id)
-                      const issueMember = issueMembersByUserId.get(user.id)
-                      return (
-                        <TableRow key={user.id}>
-                          <TableCell className="text-sm font-medium">{user.name}</TableCell>
-                          <TableCell className="text-sm text-muted-foreground">{user.email}</TableCell>
-                          <TableCell>
-                            <Badge variant="outline" className="text-[10px]">
-                              {user.role === 'admin' ? '관리자' : user.role === 'pm' ? 'PM' : user.role === 'guest' ? '게스트' : '멤버'}
-                            </Badge>
-                          </TableCell>
-                          <TableCell>
-                            <div className="flex justify-center">
-                              <Checkbox
-                                checked={!!wbsMember}
-                                onCheckedChange={(checked) => handleToggleWbsAccess(user.id, checked === true)}
-                                aria-label={`${user.name} WBS 접근`}
-                              />
-                            </div>
-                          </TableCell>
-                          <TableCell>
-                            <Select
-                              value={wbsMember?.role || 'viewer'}
-                              onValueChange={(value) => handleUpdateWbsRole(user.id, value as ProjectRole)}
-                              disabled={!wbsMember}
-                            >
-                              <SelectTrigger className="h-7 w-24 text-xs">
-                                <SelectValue />
-                              </SelectTrigger>
-                              <SelectContent>
-                                <SelectItem value="owner" className="text-xs">소유</SelectItem>
-                                <SelectItem value="pm" className="text-xs">PM</SelectItem>
-                                <SelectItem value="editor" className="text-xs">편집</SelectItem>
-                                <SelectItem value="viewer" className="text-xs">조회</SelectItem>
-                              </SelectContent>
-                            </Select>
-                          </TableCell>
-                          <TableCell>
-                            <div className="flex justify-center">
-                              <Checkbox
-                                checked={!!issueMember}
-                                onCheckedChange={(checked) => handleToggleIssueAccess(user.id, checked === true)}
-                                aria-label={`${user.name} 이슈 접근`}
-                              />
-                            </div>
-                          </TableCell>
-                          <TableCell>
-                            <Select
-                              value={issueMember?.role || 'editor'}
-                              onValueChange={(value) => handleUpdateIssueMemberRole(user.id, value as IssueMemberRole)}
-                              disabled={!issueMember}
-                            >
-                              <SelectTrigger className="h-7 w-24 text-xs">
-                                <SelectValue />
-                              </SelectTrigger>
-                              <SelectContent>
-                                <SelectItem value="manager" className="text-xs">관리</SelectItem>
-                                <SelectItem value="editor" className="text-xs">편집</SelectItem>
-                                <SelectItem value="viewer" className="text-xs">조회</SelectItem>
-                              </SelectContent>
-                            </Select>
-                          </TableCell>
-                        </TableRow>
-                      )
-                    })
+                    groupedProjectAccessUsers.flatMap((group) => [
+                      <TableRow key={`${group.key}-group`} className="bg-muted/30 hover:bg-muted/30">
+                        <TableCell colSpan={7} className="h-9 text-xs font-semibold text-foreground/80">
+                          {group.label}
+                          <span className="ml-2 text-[11px] font-normal text-muted-foreground">{group.users.length}명</span>
+                        </TableCell>
+                      </TableRow>,
+                      ...group.users.map((user) => {
+                        const wbsMember = projectMembersByUserId.get(user.id)
+                        const issueMember = issueMembersByUserId.get(user.id)
+                        return (
+                          <TableRow key={user.id}>
+                            <TableCell className="text-sm font-medium">{user.name}</TableCell>
+                            <TableCell className="text-sm text-muted-foreground">{user.email}</TableCell>
+                            <TableCell>
+                              <Badge variant="outline" className="text-[10px]">
+                                {user.role === 'admin' ? '관리자' : user.role === 'pm' ? 'PM' : user.role === 'guest' ? '게스트' : '멤버'}
+                              </Badge>
+                            </TableCell>
+                            <TableCell>
+                              <div className="flex justify-center">
+                                <Checkbox
+                                  checked={!!wbsMember}
+                                  onCheckedChange={(checked) => handleToggleWbsAccess(user.id, checked === true)}
+                                  aria-label={`${user.name} WBS 접근`}
+                                />
+                              </div>
+                            </TableCell>
+                            <TableCell>
+                              <Select
+                                value={wbsMember?.role || 'viewer'}
+                                onValueChange={(value) => handleUpdateWbsRole(user.id, value as ProjectRole)}
+                                disabled={!wbsMember}
+                              >
+                                <SelectTrigger className="h-7 w-24 text-xs">
+                                  <SelectValue />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  <SelectItem value="owner" className="text-xs">소유</SelectItem>
+                                  <SelectItem value="pm" className="text-xs">PM</SelectItem>
+                                  <SelectItem value="editor" className="text-xs">편집</SelectItem>
+                                  <SelectItem value="viewer" className="text-xs">조회</SelectItem>
+                                </SelectContent>
+                              </Select>
+                            </TableCell>
+                            <TableCell>
+                              <div className="flex justify-center">
+                                <Checkbox
+                                  checked={!!issueMember}
+                                  onCheckedChange={(checked) => handleToggleIssueAccess(user.id, checked === true)}
+                                  aria-label={`${user.name} 이슈 접근`}
+                                />
+                              </div>
+                            </TableCell>
+                            <TableCell>
+                              <Select
+                                value={issueMember?.role || 'editor'}
+                                onValueChange={(value) => handleUpdateIssueMemberRole(user.id, value as IssueMemberRole)}
+                                disabled={!issueMember}
+                              >
+                                <SelectTrigger className="h-7 w-24 text-xs">
+                                  <SelectValue />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  <SelectItem value="manager" className="text-xs">관리</SelectItem>
+                                  <SelectItem value="editor" className="text-xs">편집</SelectItem>
+                                  <SelectItem value="viewer" className="text-xs">조회</SelectItem>
+                                </SelectContent>
+                              </Select>
+                            </TableCell>
+                          </TableRow>
+                        )
+                      }),
+                    ])
                   )}
                 </TableBody>
               </Table>
@@ -655,94 +752,102 @@ export function AdminPage() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {[...pendingUsers, ...approvedUsers].map((user) => (
-                <TableRow key={user.id}>
-                  <TableCell className="text-sm font-medium">
-                    {user.name}
-                    {user.id === currentUser.id && (
-                      <Badge variant="outline" className="ml-2 text-[10px] px-1.5 py-0">나</Badge>
-                    )}
+              {groupedUsers.flatMap((group) => [
+                <TableRow key={`${group.key}-group`} className="bg-muted/30 hover:bg-muted/30">
+                  <TableCell colSpan={7} className="h-9 text-xs font-semibold text-foreground/80">
+                    {group.label}
+                    <span className="ml-2 text-[11px] font-normal text-muted-foreground">{group.users.length}명</span>
                   </TableCell>
-                  <TableCell className="text-sm text-muted-foreground">{user.email}</TableCell>
-                  <TableCell className="text-sm">
-                    <div className="flex items-center gap-2">
-                      <div className="min-w-0 flex-1">
-                        <OrganizationPath userId={user.id} emptyLabel={user.approved ? '미지정' : '승인 전 지정 필요'} />
+                </TableRow>,
+                ...group.users.map((user) => (
+                  <TableRow key={user.id}>
+                    <TableCell className="text-sm font-medium">
+                      {user.name}
+                      {user.id === currentUser.id && (
+                        <Badge variant="outline" className="ml-2 text-[10px] px-1.5 py-0">나</Badge>
+                      )}
+                    </TableCell>
+                    <TableCell className="text-sm text-muted-foreground">{user.email}</TableCell>
+                    <TableCell className="text-sm">
+                      <div className="flex items-center gap-2">
+                        <div className="min-w-0 flex-1">
+                          <OrganizationPath userId={user.id} emptyLabel={user.approved ? '미지정' : '승인 전 지정 필요'} />
+                        </div>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="h-7 text-[11px]"
+                          onClick={() => openOrganizationDialog(user)}
+                        >
+                          조직 지정
+                        </Button>
                       </div>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        className="h-7 text-[11px]"
-                        onClick={() => openOrganizationDialog(user)}
-                      >
-                        조직 지정
-                      </Button>
-                    </div>
-                  </TableCell>
-                  <TableCell>
-                    <Select
-                      value={user.role}
-                      onValueChange={(v) => handleRoleChange(user.id, v as UserRole)}
-                      disabled={user.id === currentUser.id}
-                    >
-                      <SelectTrigger className="h-7 w-28 text-xs">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="admin" className="text-xs">관리자</SelectItem>
-                        <SelectItem value="pm" className="text-xs">PM</SelectItem>
-                        <SelectItem value="member" className="text-xs">멤버</SelectItem>
-                        <SelectItem value="guest" className="text-xs">게스트</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </TableCell>
-                  <TableCell>
-                    {user.role === 'admin' ? (
-                      <Badge className="text-[10px] bg-emerald-100 text-emerald-700 border-emerald-200">승인</Badge>
-                    ) : (
-                      <button
-                        onClick={() => handleApprovalToggle(user)}
-                        className={`text-xs font-medium px-2 py-0.5 rounded-full border transition-colors ${
-                          user.approved
-                            ? 'bg-emerald-50 text-emerald-700 border-emerald-200 hover:bg-red-50 hover:text-red-600 hover:border-red-200'
-                            : 'bg-red-50 text-red-600 border-red-200 hover:bg-emerald-50 hover:text-emerald-700 hover:border-emerald-200'
-                        }`}
-                      >
-                        {user.approved ? '승인' : '대기'}
-                      </button>
-                    )}
-                  </TableCell>
-                  <TableCell className="text-xs text-muted-foreground">
-                    {new Date(user.created_at).toLocaleDateString('ko-KR')}
-                  </TableCell>
-                  <TableCell>
-                    <div className="flex items-center gap-1">
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="h-7 w-7"
-                        onClick={() => {
-                          setResetError('')
-                          setResetTarget(user)
-                        }}
-                        title={authMode === 'supabase' ? '임시 비밀번호 설정' : '비밀번호 초기화'}
-                      >
-                        <KeyRound className="h-3.5 w-3.5" />
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="h-7 w-7 text-red-500 hover:text-red-600"
-                        onClick={() => handleDelete(user.id)}
+                    </TableCell>
+                    <TableCell>
+                      <Select
+                        value={user.role}
+                        onValueChange={(v) => handleRoleChange(user.id, v as UserRole)}
                         disabled={user.id === currentUser.id}
-                        title="사용자 삭제"
                       >
-                        <Trash2 className="h-3.5 w-3.5" />
-                      </Button>
-                    </div>
-                  </TableCell>
-                </TableRow>
-              ))}
+                        <SelectTrigger className="h-7 w-28 text-xs">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="admin" className="text-xs">관리자</SelectItem>
+                          <SelectItem value="pm" className="text-xs">PM</SelectItem>
+                          <SelectItem value="member" className="text-xs">멤버</SelectItem>
+                          <SelectItem value="guest" className="text-xs">게스트</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </TableCell>
+                    <TableCell>
+                      {user.role === 'admin' ? (
+                        <Badge className="text-[10px] bg-emerald-100 text-emerald-700 border-emerald-200">승인</Badge>
+                      ) : (
+                        <button
+                          onClick={() => handleApprovalToggle(user)}
+                          className={`text-xs font-medium px-2 py-0.5 rounded-full border transition-colors ${
+                            user.approved
+                              ? 'bg-emerald-50 text-emerald-700 border-emerald-200 hover:bg-red-50 hover:text-red-600 hover:border-red-200'
+                              : 'bg-red-50 text-red-600 border-red-200 hover:bg-emerald-50 hover:text-emerald-700 hover:border-emerald-200'
+                          }`}
+                        >
+                          {user.approved ? '승인' : '대기'}
+                        </button>
+                      )}
+                    </TableCell>
+                    <TableCell className="text-xs text-muted-foreground">
+                      {new Date(user.created_at).toLocaleDateString('ko-KR')}
+                    </TableCell>
+                    <TableCell>
+                      <div className="flex items-center gap-1">
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-7 w-7"
+                          onClick={() => {
+                            setResetError('')
+                            setResetTarget(user)
+                          }}
+                          title={authMode === 'supabase' ? '임시 비밀번호 설정' : '비밀번호 초기화'}
+                        >
+                          <KeyRound className="h-3.5 w-3.5" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-7 w-7 text-red-500 hover:text-red-600"
+                          onClick={() => handleDelete(user.id)}
+                          disabled={user.id === currentUser.id}
+                          title="사용자 삭제"
+                        >
+                          <Trash2 className="h-3.5 w-3.5" />
+                        </Button>
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                )),
+              ])}
             </TableBody>
           </Table>
         </div>
