@@ -13,6 +13,7 @@ import { Button } from '@/components/ui/button'
 import { Editor, EditorContainer } from '@/components/ui/editor'
 import { EditorKit } from '@/components/editor-kit'
 import { BaseEditorKit } from '@/components/editor-base-kit'
+import { FormattingToolbarKit } from '@/components/fixed-toolbar-kit'
 import { BlockquoteElement } from '@/components/ui/blockquote-node'
 import { H1Element, H2Element, H3Element } from '@/components/ui/heading-node'
 import { HrElement } from '@/components/ui/hr-node'
@@ -27,6 +28,7 @@ interface RichContentEditorProps {
   className?: string
   minHeight?: number
   fontSize?: number
+  toolbarVariant?: 'full' | 'formatting' | 'none'
   showToolbar?: boolean
   enableImages?: boolean
   onUploadImages?: (files: File[]) => Promise<string[]>
@@ -64,6 +66,10 @@ function ToolbarButton({ active = false, title, onClick, children, size = 'icon'
 
 const EDITOR_PLUGINS = EditorKit as any
 const BASE_EDITOR_PLUGINS = BaseEditorKit as any
+const FORMATTING_EDITOR_PLUGINS = [
+  ...EditorKit.filter((plugin) => (plugin as any)?.key !== 'fixed-toolbar'),
+  ...FormattingToolbarKit,
+] as any
 
 function createEditorValue(html: string, plugins = BASE_EDITOR_PLUGINS) {
   const editor = createPlateEditor({ plugins })
@@ -85,6 +91,7 @@ export function RichContentEditor({
   className,
   minHeight = 360,
   fontSize = 15,
+  toolbarVariant = 'full',
   showToolbar = true,
   enableImages = false,
   onUploadImages,
@@ -95,7 +102,11 @@ export function RichContentEditor({
   const serializeVersionRef = useRef(0)
   const fileInputRef = useRef<HTMLInputElement | null>(null)
 
-  const plugins = useMemo(() => (showToolbar ? EDITOR_PLUGINS : BASE_EDITOR_PLUGINS), [showToolbar])
+  const plugins = useMemo(() => {
+    if (!showToolbar || toolbarVariant === 'none') return BASE_EDITOR_PLUGINS
+    if (toolbarVariant === 'formatting') return FORMATTING_EDITOR_PLUGINS
+    return EDITOR_PLUGINS
+  }, [showToolbar, toolbarVariant])
 
   const editor = usePlateEditor({
     plugins,

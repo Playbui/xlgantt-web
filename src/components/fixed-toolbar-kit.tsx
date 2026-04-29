@@ -17,3 +17,16 @@ export const FixedToolbarKit = [
     },
   }),
 ];
+
+export const FormattingToolbarKit = [
+  createPlatePlugin({
+    key: 'fixed-toolbar',
+    render: {
+      beforeEditable: () => (
+        <FixedToolbar>
+          <FixedToolbarButtons aiActions={false} fileActions={false} mediaActions={false} />
+        </FixedToolbar>
+      ),
+    },
+  }),
+];

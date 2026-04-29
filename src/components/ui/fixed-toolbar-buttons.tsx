@@ -46,7 +46,17 @@ import { ToggleToolbarButton } from './toggle-toolbar-button';
 import { ToolbarGroup } from './toolbar';
 import { TurnIntoToolbarButton } from './turn-into-toolbar-button';
 
-export function FixedToolbarButtons() {
+interface FixedToolbarButtonsProps {
+  aiActions?: boolean;
+  fileActions?: boolean;
+  mediaActions?: boolean;
+}
+
+export function FixedToolbarButtons({
+  aiActions = true,
+  fileActions = true,
+  mediaActions = true,
+}: FixedToolbarButtonsProps = {}) {
   const readOnly = useEditorReadOnly();
 
   return (
@@ -58,19 +68,23 @@ export function FixedToolbarButtons() {
             <RedoToolbarButton />
           </ToolbarGroup>
 
-          <ToolbarGroup>
-            <AIToolbarButton tooltip="AI commands">
-              <WandSparklesIcon />
-            </AIToolbarButton>
-          </ToolbarGroup>
+          {aiActions && (
+            <ToolbarGroup>
+              <AIToolbarButton tooltip="AI commands">
+                <WandSparklesIcon />
+              </AIToolbarButton>
+            </ToolbarGroup>
+          )}
 
-          <ToolbarGroup>
-            <ExportToolbarButton>
-              <ArrowUpToLineIcon />
-            </ExportToolbarButton>
+          {fileActions && (
+            <ToolbarGroup>
+              <ExportToolbarButton>
+                <ArrowUpToLineIcon />
+              </ExportToolbarButton>
 
-            <ImportToolbarButton />
-          </ToolbarGroup>
+              <ImportToolbarButton />
+            </ToolbarGroup>
+          )}
 
           <ToolbarGroup>
             <InsertToolbarButton />
@@ -132,12 +146,14 @@ export function FixedToolbarButtons() {
             <EmojiToolbarButton />
           </ToolbarGroup>
 
-          <ToolbarGroup>
-            <MediaToolbarButton nodeType={KEYS.img} />
-            <MediaToolbarButton nodeType={KEYS.video} />
-            <MediaToolbarButton nodeType={KEYS.audio} />
-            <MediaToolbarButton nodeType={KEYS.file} />
-          </ToolbarGroup>
+          {mediaActions && (
+            <ToolbarGroup>
+              <MediaToolbarButton nodeType={KEYS.img} />
+              <MediaToolbarButton nodeType={KEYS.video} />
+              <MediaToolbarButton nodeType={KEYS.audio} />
+              <MediaToolbarButton nodeType={KEYS.file} />
+            </ToolbarGroup>
+          )}
 
           <ToolbarGroup>
             <LineHeightToolbarButton />
