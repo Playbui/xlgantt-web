@@ -120,6 +120,7 @@ export function IssueTrackerView() {
   const setFilters = useIssueStore((s) => s.setFilters)
   const createIssue = useIssueStore((s) => s.createIssue)
   const updateIssue = useIssueStore((s) => s.updateIssue)
+  const deleteIssue = useIssueStore((s) => s.deleteIssue)
   const addComment = useIssueStore((s) => s.addComment)
   const addWorkLog = useIssueStore((s) => s.addWorkLog)
   const updateWorkLog = useIssueStore((s) => s.updateWorkLog)
@@ -224,6 +225,13 @@ export function IssueTrackerView() {
     return workLogs.filter((log) => log.issue_id === selectedIssue.id)
   }, [selectedIssue, workLogs])
 
+  const currentIssueMemberRole = useMemo(() => {
+    if (!project || !currentUser?.id) return null
+    return issueMembers.find((member) => member.project_id === project.id && member.user_id === currentUser.id)?.role || null
+  }, [currentUser?.id, issueMembers, project])
+
+  const canDeleteSelectedIssue = isAdmin || currentIssueMemberRole === 'manager'
+
   const userLabels = useMemo(() => {
     const labels = new Map<string, string>()
     users.forEach((user) => labels.set(user.id, user.name || user.email || user.id))
@@ -322,6 +330,28 @@ export function IssueTrackerView() {
     if (selectedIssue && (selectedIssue.issue_type === name || selectedIssue.legacy_status === name)) {
       await updateIssue(selectedIssue.id, { issue_type: replacement, legacy_status: replacement })
     }
+  }
+
+  const handleDeleteSelectedIssue = async () => {
+    if (!selectedIssue || !canDeleteSelectedIssue) return
+    const workLogCount = selectedWorkLogs.length
+    const commentCount = selectedComments.length
+    const effort = selectedIssue.total_effort.toFixed(2)
+    const message = [
+      `"${selectedIssue.issue_no}" 이슈를 삭제합니다.`,
+      workLogCount > 0 ? `공수 로그 ${workLogCount}건, 누적 공수 ${effort} D가 함께 삭제됩니다.` : '등록된 공수 로그는 없습니다.',
+      commentCount > 0 ? `처리 이력 ${commentCount}건도 함께 삭제됩니다.` : '',
+      '삭제 후 복구할 수 없습니다.',
+    ].filter(Boolean).join('\n')
+
+    if (workLogCount > 0 || selectedIssue.total_effort > 0) {
+      const typed = window.prompt(`${message}\n\n정말 삭제하려면 이슈 번호를 그대로 입력하세요.`, '')
+      if (typed !== selectedIssue.issue_no) return
+    } else if (!window.confirm(message)) {
+      return
+    }
+
+    await deleteIssue(selectedIssue.id)
   }
 
   return (
@@ -483,6 +513,16 @@ export function IssueTrackerView() {
                   <div className="flex items-center gap-2">
                     <span className={cn('inline-flex rounded-full border px-2 py-0.5 text-xs font-medium', statusClasses[selectedIssue.status])}>{selectedIssue.status}</span>
                     <span className={cn('text-sm font-semibold', priorityClasses[selectedIssue.priority])}>{ISSUE_PRIORITY_LABELS[selectedIssue.priority]}</span>
+                    {canDeleteSelectedIssue && (
+                      <button
+                        type="button"
+                        onClick={() => void handleDeleteSelectedIssue()}
+                        className="ml-2 flex h-8 w-8 items-center justify-center rounded-md border border-red-200 text-red-600 hover:bg-red-50"
+                        title="이슈 삭제"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </button>
+                    )}
                   </div>
                 </div>
 

@@ -510,17 +510,39 @@ export const useIssueStore = create<IssueState>((set, get) => ({
       workLogs: get().workLogs,
       selectedIssueId: get().selectedIssueId,
     }
+    const issue = previousState.issues.find((item) => item.id === issueId)
     set((state) => ({
       issues: state.issues.filter((issue) => issue.id !== issueId),
       comments: state.comments.filter((comment) => comment.issue_id !== issueId),
       workLogs: state.workLogs.filter((log) => log.issue_id !== issueId),
-      selectedIssueId: state.selectedIssueId === issueId ? null : state.selectedIssueId,
+      selectedIssueId: state.selectedIssueId === issueId
+        ? state.issues.find((item) => item.id !== issueId)?.id ?? null
+        : state.selectedIssueId,
     }))
+
+    const { error: workLogError } = await supabase.from('issue_work_logs').delete().eq('issue_id', issueId)
+    if (workLogError) {
+      console.error('이슈 공수 로그 삭제 실패:', workLogError.message)
+      set(previousState)
+      if (typeof window !== 'undefined') window.alert(`이슈 공수 로그 삭제 실패: ${workLogError.message}`)
+      return
+    }
+
+    const { error: commentError } = await supabase.from('issue_comments').delete().eq('issue_id', issueId)
+    if (commentError) {
+      console.error('이슈 처리 이력 삭제 실패:', commentError.message)
+      set(previousState)
+      if (issue?.project_id) void get().loadIssues(issue.project_id)
+      if (typeof window !== 'undefined') window.alert(`이슈 처리 이력 삭제 실패: ${commentError.message}`)
+      return
+    }
 
     const { error } = await supabase.from('issue_items').delete().eq('id', issueId)
     if (error) {
       console.error('이슈 삭제 실패:', error.message)
       set(previousState)
+      if (issue?.project_id) void get().loadIssues(issue.project_id)
+      if (typeof window !== 'undefined') window.alert(`이슈 삭제 실패: ${error.message}`)
     }
   },
 
