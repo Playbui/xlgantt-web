@@ -1,8 +1,9 @@
 import { useEffect, useMemo, useState } from 'react'
-import { AlertCircle, CalendarDays, CheckCircle2, ClipboardList, Plus, Search, Trash2 } from 'lucide-react'
+import { AlertCircle, CalendarDays, CheckCircle2, ClipboardList, MessageSquareText, Plus, Search, Trash2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { useProjectStore } from '@/stores/project-store'
 import { useIssueStore } from '@/stores/issue-store'
+import { useAuthStore } from '@/stores/auth-store'
 import { ISSUE_PRIORITY_LABELS, ISSUE_STATUSES, type IssueItem } from '@/lib/issue-types'
 import { cn } from '@/lib/utils'
 
@@ -37,12 +38,14 @@ function includesText(issue: IssueItem, query: string) {
     issue.requester_name,
     issue.assignee_name,
     issue.legacy_status,
+    issue.source_url,
   ].join(' ').toLowerCase()
   return target.includes(query.toLowerCase())
 }
 
 export function IssueTrackerView() {
   const project = useProjectStore((s) => s.currentProject)
+  const currentUser = useAuthStore((s) => s.currentUser)
   const issues = useIssueStore((s) => s.issues)
   const comments = useIssueStore((s) => s.comments)
   const workLogs = useIssueStore((s) => s.workLogs)
@@ -60,9 +63,10 @@ export function IssueTrackerView() {
   const [draftComment, setDraftComment] = useState('')
   const [draftWorkBody, setDraftWorkBody] = useState('')
   const [draftWorkHours, setDraftWorkHours] = useState('1')
+  const [draftWorkDate, setDraftWorkDate] = useState(new Date().toISOString().slice(0, 10))
 
-  const systemNames = useMemo(() => {
-    return Array.from(new Set(issues.map((issue) => issue.system_name).filter(Boolean) as string[])).sort((a, b) => a.localeCompare(b, 'ko'))
+  const issueKinds = useMemo(() => {
+    return Array.from(new Set(issues.map((issue) => issue.legacy_status).filter(Boolean) as string[])).sort((a, b) => a.localeCompare(b, 'ko'))
   }, [issues])
 
   const filteredIssues = useMemo(() => {
@@ -70,7 +74,7 @@ export function IssueTrackerView() {
       if (filters.status && filters.status !== 'all' && issue.status !== filters.status) return false
       if (filters.priority && filters.priority !== 'all' && issue.priority !== filters.priority) return false
       if (filters.assigneeUserId && filters.assigneeUserId !== 'all' && issue.assignee_user_id !== filters.assigneeUserId) return false
-      if (filters.systemName && filters.systemName !== 'all' && issue.system_name !== filters.systemName) return false
+      if (filters.systemName && filters.systemName !== 'all' && issue.legacy_status !== filters.systemName) return false
       return includesText(issue, filters.search || '')
     })
   }, [filters, issues])
@@ -102,13 +106,17 @@ export function IssueTrackerView() {
     setDraftComment('')
     setDraftWorkBody('')
     setDraftWorkHours('1')
+    setDraftWorkDate(new Date().toISOString().slice(0, 10))
   }, [selectedIssueId])
 
   const handleCreateIssue = async () => {
     if (!project) return
     await createIssue(project.id, {
       issue_no: `ISS-${new Date().toISOString().slice(0, 10).replaceAll('-', '')}-${issues.length + 1}`,
-      title: '새 이슈',
+      title: '제목을 입력하세요',
+      legacy_status: '이슈',
+      requester_name: currentUser?.name || currentUser?.email || '',
+      system_name: project.name,
       received_at: new Date().toISOString().slice(0, 10),
     })
   }
@@ -125,9 +133,13 @@ export function IssueTrackerView() {
     await addWorkLog(selectedIssue.id, {
       hours: Number.isFinite(hours) ? hours : 0,
       body: draftWorkBody,
+      work_date: draftWorkDate,
+      worker_user_id: currentUser?.id,
+      worker_name: currentUser?.name || currentUser?.email || '작업자',
     })
     setDraftWorkBody('')
     setDraftWorkHours('1')
+    setDraftWorkDate(new Date().toISOString().slice(0, 10))
   }
 
   return (
@@ -136,7 +148,7 @@ export function IssueTrackerView() {
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
             <h1 className="text-lg font-semibold text-slate-950">이슈 트래커</h1>
-            <p className="mt-1 text-sm text-slate-500">{project?.name || '프로젝트'} 내부 이슈와 공수 흐름</p>
+            <p className="mt-1 text-sm text-slate-500">{project?.name || '프로젝트'} 이슈 접수, 처리 이력, 공수 정산</p>
           </div>
           <Button onClick={handleCreateIssue} disabled={!project}>
             <Plus className="h-4 w-4" />
@@ -154,12 +166,12 @@ export function IssueTrackerView() {
 
       <div className="border-b bg-white px-5 py-3">
         <div className="flex flex-wrap items-center gap-2">
-          <div className="relative min-w-[240px] flex-1">
+          <div className="relative min-w-[260px] flex-1">
             <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
             <input
               value={filters.search || ''}
               onChange={(event) => setFilters({ search: event.target.value })}
-              placeholder="Task ID, 제목, 요청자 검색"
+              placeholder="Task ID, 제목, 내용, 등록자, 외부 요청자 검색"
               className="h-9 w-full rounded-md border border-slate-200 bg-white pl-9 pr-3 text-sm outline-none focus:border-sky-400 focus:ring-2 focus:ring-sky-100"
             />
           </div>
@@ -176,24 +188,24 @@ export function IssueTrackerView() {
             onChange={(event) => setFilters({ systemName: event.target.value })}
             className="h-9 rounded-md border border-slate-200 bg-white px-3 text-sm outline-none focus:border-sky-400 focus:ring-2 focus:ring-sky-100"
           >
-            <option value="all">사업 전체</option>
-            {systemNames.map((name) => <option key={name} value={name}>{name}</option>)}
+            <option value="all">구분 전체</option>
+            {issueKinds.map((name) => <option key={name} value={name}>{name}</option>)}
           </select>
         </div>
       </div>
 
       <div className="flex min-h-0 flex-1 gap-4 overflow-hidden px-5 py-4">
         <div className="min-w-0 flex-1 overflow-auto rounded-lg border border-slate-200 bg-white">
-          <div className="min-w-[1080px]">
+          <div className="min-w-[920px]">
             <table className="w-full border-collapse text-sm">
               <thead className="bg-slate-100 text-xs font-semibold uppercase tracking-wide text-slate-500">
                 <tr>
                   <th className="w-36 px-3 py-2 text-left">Task ID</th>
-                  <th className="w-36 px-3 py-2 text-left">사업명</th>
+                  <th className="w-24 px-3 py-2 text-left">구분</th>
                   <th className="px-3 py-2 text-left">내용</th>
                   <th className="w-28 px-3 py-2 text-left">상태</th>
                   <th className="w-24 px-3 py-2 text-left">우선순위</th>
-                  <th className="w-28 px-3 py-2 text-left">요청자</th>
+                  <th className="w-32 px-3 py-2 text-left">등록/요청</th>
                   <th className="w-28 px-3 py-2 text-left">등록일</th>
                   <th className="w-24 px-3 py-2 text-right">공수</th>
                 </tr>
@@ -214,7 +226,7 @@ export function IssueTrackerView() {
                       )}
                     >
                       <td className="px-3 py-3 font-medium text-slate-900">{issue.issue_no}</td>
-                      <td className="px-3 py-3 text-slate-600">{issue.system_name || '-'}</td>
+                      <td className="px-3 py-3 text-slate-600">{issue.legacy_status || '이슈'}</td>
                       <td className="px-3 py-3">
                         <div className="line-clamp-1 font-medium text-slate-900">{issue.title}</div>
                         {issue.description && <div className="mt-0.5 line-clamp-1 text-xs text-slate-500">{issue.description}</div>}
@@ -234,17 +246,17 @@ export function IssueTrackerView() {
           </div>
         </div>
 
-        <aside className="hidden w-[420px] shrink-0 overflow-auto rounded-lg border border-slate-200 bg-white xl:block">
+        <aside className="hidden w-[640px] shrink-0 overflow-auto rounded-lg border border-slate-200 bg-white xl:block">
           {selectedIssue ? (
             <div className="space-y-5 p-4">
               <section className="space-y-3">
                 <div className="flex items-start justify-between gap-3">
-                  <div>
+                  <div className="min-w-0 flex-1">
                     <div className="text-xs font-medium text-slate-500">{selectedIssue.issue_no}</div>
                     <input
                       value={selectedIssue.title}
                       onChange={(event) => updateIssue(selectedIssue.id, { title: event.target.value })}
-                      className="mt-1 w-full rounded-md border border-transparent px-0 text-base font-semibold text-slate-950 outline-none focus:border-slate-200 focus:px-2"
+                      className="mt-1 w-full rounded-md border border-slate-200 px-3 py-2 text-lg font-semibold text-slate-950 outline-none focus:border-sky-400 focus:ring-2 focus:ring-sky-100"
                     />
                   </div>
                   <span className={cn('inline-flex rounded-full border px-2 py-0.5 text-xs font-medium', statusClasses[selectedIssue.status])}>{selectedIssue.status}</span>
@@ -253,11 +265,24 @@ export function IssueTrackerView() {
                 <textarea
                   value={selectedIssue.description || ''}
                   onChange={(event) => updateIssue(selectedIssue.id, { description: event.target.value })}
-                  placeholder="이슈 내용을 입력"
-                  className="min-h-28 w-full resize-y rounded-md border border-slate-200 px-3 py-2 text-sm outline-none focus:border-sky-400 focus:ring-2 focus:ring-sky-100"
+                  placeholder="발생 현상, 요청 내용, 재현 조건, 확인할 내용을 충분히 입력"
+                  className="min-h-44 w-full resize-y rounded-md border border-slate-200 px-3 py-2 text-sm leading-6 outline-none focus:border-sky-400 focus:ring-2 focus:ring-sky-100"
                 />
 
-                <div className="grid grid-cols-2 gap-2">
+                <div className="grid grid-cols-3 gap-2">
+                  <Field label="구분">
+                    <input
+                      list="issue-kind-options"
+                      value={selectedIssue.legacy_status || ''}
+                      onChange={(event) => updateIssue(selectedIssue.id, { legacy_status: event.target.value })}
+                      placeholder="이슈 / 버그 / 확인"
+                      className="h-8 w-full rounded-md border border-slate-200 px-2 text-sm"
+                    />
+                    <datalist id="issue-kind-options">
+                      {['이슈', '버그', '확인', '요청', '장애', '개선'].map((kind) => <option key={kind} value={kind} />)}
+                      {issueKinds.map((kind) => <option key={kind} value={kind} />)}
+                    </datalist>
+                  </Field>
                   <Field label="상태">
                     <select
                       value={selectedIssue.status}
@@ -276,17 +301,25 @@ export function IssueTrackerView() {
                       {Object.entries(ISSUE_PRIORITY_LABELS).map(([value, label]) => <option key={value} value={value}>{label}</option>)}
                     </select>
                   </Field>
-                  <Field label="사업명">
+                  <Field label="프로젝트">
                     <input
-                      value={selectedIssue.system_name || ''}
-                      onChange={(event) => updateIssue(selectedIssue.id, { system_name: event.target.value })}
-                      className="h-8 w-full rounded-md border border-slate-200 px-2 text-sm"
+                      value={project?.name || selectedIssue.system_name || ''}
+                      readOnly
+                      className="h-8 w-full rounded-md border border-slate-200 bg-slate-50 px-2 text-sm text-slate-500"
                     />
                   </Field>
-                  <Field label="요청자">
+                  <Field label="등록자 / 내부 담당">
                     <input
                       value={selectedIssue.requester_name || ''}
                       onChange={(event) => updateIssue(selectedIssue.id, { requester_name: event.target.value })}
+                      className="h-8 w-full rounded-md border border-slate-200 px-2 text-sm"
+                    />
+                  </Field>
+                  <Field label="외부 요청처/요청자">
+                    <input
+                      value={selectedIssue.source_url || ''}
+                      onChange={(event) => updateIssue(selectedIssue.id, { source_url: event.target.value })}
+                      placeholder="예: 수협 홍길동"
                       className="h-8 w-full rounded-md border border-slate-200 px-2 text-sm"
                     />
                   </Field>
@@ -311,16 +344,19 @@ export function IssueTrackerView() {
 
               <section className="space-y-3 border-t pt-4">
                 <div className="flex items-center justify-between">
-                  <h2 className="text-sm font-semibold text-slate-900">댓글</h2>
+                  <h2 className="flex items-center gap-2 text-sm font-semibold text-slate-900">
+                    <MessageSquareText className="h-4 w-4" />
+                    처리 이력
+                  </h2>
                   <span className="text-xs text-slate-500">{selectedComments.length}개</span>
                 </div>
                 <textarea
                   value={draftComment}
                   onChange={(event) => setDraftComment(event.target.value)}
-                  placeholder="처리 이력 또는 메모 입력"
-                  className="min-h-20 w-full resize-y rounded-md border border-slate-200 px-3 py-2 text-sm outline-none focus:border-sky-400 focus:ring-2 focus:ring-sky-100"
+                  placeholder="날짜별 진행 상황, 확인 결과, 외부 전달 내용 등을 남깁니다."
+                  className="min-h-28 w-full resize-y rounded-md border border-slate-200 px-3 py-2 text-sm leading-6 outline-none focus:border-sky-400 focus:ring-2 focus:ring-sky-100"
                 />
-                <Button size="sm" variant="outline" onClick={handleAddComment} disabled={!draftComment.trim()}>댓글 추가</Button>
+                <Button size="sm" variant="outline" onClick={handleAddComment} disabled={!draftComment.trim()}>이력 추가</Button>
                 <div className="space-y-2">
                   {selectedComments.slice(0, 8).map((comment) => (
                     <div key={comment.id} className="rounded-md bg-slate-50 px-3 py-2 text-sm">
@@ -339,34 +375,40 @@ export function IssueTrackerView() {
                   <h2 className="text-sm font-semibold text-slate-900">공수 로그</h2>
                   <span className="text-xs text-slate-500">{selectedIssue.total_effort.toFixed(2)} D</span>
                 </div>
-                <div className="flex gap-2">
+                <div className="grid grid-cols-[130px_90px_1fr_56px] gap-2">
+                  <input
+                    type="date"
+                    value={draftWorkDate}
+                    onChange={(event) => setDraftWorkDate(event.target.value)}
+                    className="h-9 rounded-md border border-slate-200 px-2 text-sm"
+                  />
                   <input
                     value={draftWorkHours}
                     onChange={(event) => setDraftWorkHours(event.target.value)}
-                    className="h-8 w-20 rounded-md border border-slate-200 px-2 text-sm"
+                    className="h-9 rounded-md border border-slate-200 px-2 text-right text-sm"
                   />
                   <input
                     value={draftWorkBody}
                     onChange={(event) => setDraftWorkBody(event.target.value)}
                     placeholder="작업내역"
-                    className="h-8 min-w-0 flex-1 rounded-md border border-slate-200 px-2 text-sm"
+                    className="h-9 min-w-0 rounded-md border border-slate-200 px-2 text-sm"
                   />
                   <Button size="sm" variant="outline" onClick={handleAddWorkLog} disabled={!draftWorkBody.trim()}>추가</Button>
                 </div>
                 <div className="space-y-2">
                   {selectedWorkLogs.slice(0, 8).map((log) => (
                     <div key={log.id} className="rounded-md bg-slate-50 px-3 py-2 text-sm">
-                      <div className="mb-2 grid grid-cols-[1fr_92px_64px_28px] items-center gap-2">
+                      <div className="mb-2 grid grid-cols-[1fr_130px_72px_28px] items-center gap-2">
                         <input
                           defaultValue={log.worker_name}
                           onBlur={(event) => updateWorkLog(log.id, { worker_name: event.target.value })}
-                          className="h-7 rounded border border-slate-200 bg-white px-2 text-xs"
+                          className="h-8 rounded border border-slate-200 bg-white px-2 text-xs"
                         />
                         <input
                           type="date"
                           defaultValue={log.work_date}
                           onBlur={(event) => updateWorkLog(log.id, { work_date: event.target.value })}
-                          className="h-7 rounded border border-slate-200 bg-white px-2 text-xs"
+                          className="h-8 rounded border border-slate-200 bg-white px-2 text-xs"
                         />
                         <input
                           defaultValue={log.hours.toString()}
@@ -374,7 +416,7 @@ export function IssueTrackerView() {
                             const hours = Number(event.target.value)
                             updateWorkLog(log.id, { hours: Number.isFinite(hours) ? hours : log.hours })
                           }}
-                          className="h-7 rounded border border-slate-200 bg-white px-2 text-right text-xs"
+                          className="h-8 rounded border border-slate-200 bg-white px-2 text-right text-xs"
                         />
                         <button
                           onClick={() => deleteWorkLog(log.id)}
