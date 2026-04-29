@@ -13,6 +13,9 @@ interface IssueState {
   isLoading: boolean
   issueMembersLoadedProjectId: string | null
   loadIssueMembers: (projectId: string) => Promise<void>
+  addIssueMember: (projectId: string, userId: string, role: IssueMember['role']) => Promise<void>
+  updateIssueMemberRole: (projectId: string, userId: string, role: IssueMember['role']) => Promise<void>
+  removeIssueMember: (projectId: string, userId: string) => Promise<void>
   canAccessIssues: (projectId: string, userId?: string | null) => boolean
   loadIssues: (projectId: string) => Promise<void>
   selectIssue: (issueId: string | null) => void
@@ -195,6 +198,81 @@ export const useIssueStore = create<IssueState>((set, get) => ({
   canAccessIssues: (projectId, userId) => {
     if (!projectId || !userId) return false
     return get().issueMembers.some((member) => member.project_id === projectId && member.user_id === userId)
+  },
+
+  addIssueMember: async (projectId, userId, role) => {
+    const member: IssueMember = {
+      project_id: projectId,
+      user_id: userId,
+      role,
+      created_at: new Date().toISOString(),
+    }
+    set((state) => ({
+      issueMembers: [
+        ...state.issueMembers.filter((item) => !(item.project_id === projectId && item.user_id === userId)),
+        member,
+      ],
+    }))
+
+    const { error } = await supabase
+      .from('issue_members')
+      .upsert({ project_id: projectId, user_id: userId, role }, { onConflict: 'project_id,user_id' })
+
+    if (error) {
+      console.error('이슈 접근자 추가 실패:', error.message)
+      set((state) => ({
+        issueMembers: state.issueMembers.filter((item) => !(item.project_id === projectId && item.user_id === userId)),
+      }))
+      if (typeof window !== 'undefined') window.alert('이슈 접근자 저장이 DB에 반영되지 않았습니다.')
+    }
+  },
+
+  updateIssueMemberRole: async (projectId, userId, role) => {
+    const before = get().issueMembers.find((item) => item.project_id === projectId && item.user_id === userId)
+    set((state) => ({
+      issueMembers: state.issueMembers.map((item) =>
+        item.project_id === projectId && item.user_id === userId ? { ...item, role } : item
+      ),
+    }))
+
+    const { error } = await supabase
+      .from('issue_members')
+      .update({ role })
+      .eq('project_id', projectId)
+      .eq('user_id', userId)
+
+    if (error) {
+      console.error('이슈 접근자 역할 변경 실패:', error.message)
+      if (before) {
+        set((state) => ({
+          issueMembers: state.issueMembers.map((item) =>
+            item.project_id === projectId && item.user_id === userId ? before : item
+          ),
+        }))
+      }
+      if (typeof window !== 'undefined') window.alert('이슈 접근자 역할 변경이 DB에 반영되지 않았습니다.')
+    }
+  },
+
+  removeIssueMember: async (projectId, userId) => {
+    const before = get().issueMembers.find((item) => item.project_id === projectId && item.user_id === userId)
+    set((state) => ({
+      issueMembers: state.issueMembers.filter((item) => !(item.project_id === projectId && item.user_id === userId)),
+    }))
+
+    const { error } = await supabase
+      .from('issue_members')
+      .delete()
+      .eq('project_id', projectId)
+      .eq('user_id', userId)
+
+    if (error) {
+      console.error('이슈 접근자 삭제 실패:', error.message)
+      if (before) {
+        set((state) => ({ issueMembers: [...state.issueMembers, before] }))
+      }
+      if (typeof window !== 'undefined') window.alert('이슈 접근자 삭제가 DB에 반영되지 않았습니다.')
+    }
   },
 
   loadIssues: async (projectId) => {

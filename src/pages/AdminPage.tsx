@@ -7,13 +7,16 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
-import { BarChart3, Plus, Shield, Trash2, KeyRound, ArrowLeft, Loader2, RefreshCw, Building2, FolderTree, Layers3 } from 'lucide-react'
+import { BarChart3, Plus, Shield, Trash2, KeyRound, ArrowLeft, Loader2, RefreshCw, Building2, FolderTree, Layers3, Bug, UserPlus, UserMinus } from 'lucide-react'
 import { useAuthStore, type User, type UserRole } from '@/stores/auth-store'
 import { useOrganizationStore } from '@/stores/organization-store'
+import { useProjectStore } from '@/stores/project-store'
+import { useIssueStore } from '@/stores/issue-store'
 import { OrganizationTree } from '@/components/organization/OrganizationTree'
 import { OrganizationPath } from '@/components/organization/OrganizationPath'
 import { OrganizationAssignmentForm } from '@/components/organization/OrganizationAssignmentForm'
 import type { OrganizationDraftValue } from '@/lib/organization-types'
+import type { IssueMemberRole } from '@/lib/issue-types'
 
 export function AdminPage() {
   const navigate = useNavigate()
@@ -43,6 +46,11 @@ export function AdminPage() {
   const [newTeamDepartmentId, setNewTeamDepartmentId] = useState('')
   const [adminTab, setAdminTab] = useState('users')
   const [organizationError, setOrganizationError] = useState('')
+  const [selectedIssueProjectId, setSelectedIssueProjectId] = useState('')
+  const [issueMemberUserId, setIssueMemberUserId] = useState('')
+  const [issueMemberRole, setIssueMemberRole] = useState<IssueMemberRole>('editor')
+  const [issueAccessError, setIssueAccessError] = useState('')
+  const [issueAccessSaving, setIssueAccessSaving] = useState(false)
   const {
     companies,
     departments,
@@ -58,6 +66,14 @@ export function AdminPage() {
     assignUser,
     getUserAssignment,
   } = useOrganizationStore()
+  const { projects, loadProjects } = useProjectStore()
+  const {
+    issueMembers,
+    loadIssueMembers,
+    addIssueMember,
+    updateIssueMemberRole,
+    removeIssueMember,
+  } = useIssueStore()
 
   // Admin guard
   if (!currentUser || currentUser.role !== 'admin') {
@@ -78,8 +94,47 @@ export function AdminPage() {
     loadOrganization()
   }, [loadOrganization])
 
+  // eslint-disable-next-line react-hooks/rules-of-hooks
+  useEffect(() => {
+    loadProjects()
+  }, [loadProjects])
+
+  // eslint-disable-next-line react-hooks/rules-of-hooks
+  useEffect(() => {
+    if (!selectedIssueProjectId && projects.length > 0) {
+      setSelectedIssueProjectId(projects[0].id)
+    }
+  }, [projects, selectedIssueProjectId])
+
+  // eslint-disable-next-line react-hooks/rules-of-hooks
+  useEffect(() => {
+    if (selectedIssueProjectId) {
+      loadIssueMembers(selectedIssueProjectId)
+    }
+  }, [loadIssueMembers, selectedIssueProjectId])
+
   const pendingUsers = useMemo(() => users.filter((user) => !user.approved), [users])
   const approvedUsers = useMemo(() => users.filter((user) => user.approved), [users])
+  const selectedIssueProject = useMemo(
+    () => projects.find((project) => project.id === selectedIssueProjectId) || null,
+    [projects, selectedIssueProjectId]
+  )
+  const currentIssueMembers = useMemo(
+    () => issueMembers.filter((member) => member.project_id === selectedIssueProjectId),
+    [issueMembers, selectedIssueProjectId]
+  )
+  const issueMemberUserIds = useMemo(
+    () => new Set(currentIssueMembers.map((member) => member.user_id)),
+    [currentIssueMembers]
+  )
+  const issueAccessCandidates = useMemo(
+    () => approvedUsers.filter((user) => !issueMemberUserIds.has(user.id)),
+    [approvedUsers, issueMemberUserIds]
+  )
+  const usersById = useMemo(
+    () => new Map(users.map((user) => [user.id, user])),
+    [users]
+  )
 
   const handleRefresh = async () => {
     setRefreshing(true)
@@ -230,6 +285,42 @@ export function AdminPage() {
     }
   }
 
+  const handleAddIssueMember = async () => {
+    if (!selectedIssueProjectId || !issueMemberUserId) return
+    setIssueAccessError('')
+    setIssueAccessSaving(true)
+    try {
+      await addIssueMember(selectedIssueProjectId, issueMemberUserId, issueMemberRole)
+      setIssueMemberUserId('')
+      setIssueMemberRole('editor')
+    } catch (error) {
+      setIssueAccessError(error instanceof Error ? error.message : '이슈 접근자 저장에 실패했습니다.')
+    } finally {
+      setIssueAccessSaving(false)
+    }
+  }
+
+  const handleUpdateIssueMemberRole = async (userId: string, role: IssueMemberRole) => {
+    if (!selectedIssueProjectId) return
+    setIssueAccessError('')
+    try {
+      await updateIssueMemberRole(selectedIssueProjectId, userId, role)
+    } catch (error) {
+      setIssueAccessError(error instanceof Error ? error.message : '이슈 접근자 역할 변경에 실패했습니다.')
+    }
+  }
+
+  const handleRemoveIssueMember = async (userId: string) => {
+    if (!selectedIssueProjectId) return
+    if (!confirm('이 사용자의 이슈 접근 권한을 제거하시겠습니까?')) return
+    setIssueAccessError('')
+    try {
+      await removeIssueMember(selectedIssueProjectId, userId)
+    } catch (error) {
+      setIssueAccessError(error instanceof Error ? error.message : '이슈 접근자 삭제에 실패했습니다.')
+    }
+  }
+
   return (
     <div className="std-page">
       <header className="std-page-header">
@@ -275,6 +366,7 @@ export function AdminPage() {
           <TabsList className="h-10 bg-muted/40 p-1">
             <TabsTrigger value="users" className="text-xs">사용자 관리</TabsTrigger>
             <TabsTrigger value="organization" className="text-xs">조직 관리</TabsTrigger>
+            <TabsTrigger value="issues" className="text-xs">이슈 접근</TabsTrigger>
           </TabsList>
         </Tabs>
 
@@ -400,6 +492,153 @@ export function AdminPage() {
           </div>
         )}
 
+        {adminTab === 'issues' && (
+          <div className="space-y-5">
+            {issueAccessError && (
+              <div className="std-feedback-error">
+                이슈 접근 권한 저장 실패: {issueAccessError}
+              </div>
+            )}
+
+            <div className="std-surface p-4">
+              <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+                <div>
+                  <div className="flex items-center gap-2">
+                    <Bug className="h-4 w-4 text-primary" />
+                    <h2 className="text-sm font-semibold">프로젝트 이슈 접근자</h2>
+                  </div>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    여기에 등록된 사용자에게만 프로젝트 화면의 이슈 전환 버튼이 표시됩니다.
+                  </p>
+                </div>
+
+                <div className="grid gap-2 sm:grid-cols-[260px_220px_120px_auto]">
+                  <Select value={selectedIssueProjectId || undefined} onValueChange={setSelectedIssueProjectId}>
+                    <SelectTrigger className="h-9 text-sm">
+                      <SelectValue placeholder="프로젝트 선택">
+                        {selectedIssueProject?.name}
+                      </SelectValue>
+                    </SelectTrigger>
+                    <SelectContent>
+                      {projects.map((project) => (
+                        <SelectItem key={project.id} value={project.id}>{project.name}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+
+                  <Select value={issueMemberUserId || undefined} onValueChange={setIssueMemberUserId}>
+                    <SelectTrigger className="h-9 text-sm">
+                      <SelectValue placeholder="사용자 선택">
+                        {issueMemberUserId ? usersById.get(issueMemberUserId)?.name : undefined}
+                      </SelectValue>
+                    </SelectTrigger>
+                    <SelectContent>
+                      {issueAccessCandidates.map((user) => (
+                        <SelectItem key={user.id} value={user.id}>
+                          {user.name} · {user.email}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+
+                  <Select value={issueMemberRole} onValueChange={(value) => setIssueMemberRole(value as IssueMemberRole)}>
+                    <SelectTrigger className="h-9 text-sm">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="manager">관리</SelectItem>
+                      <SelectItem value="editor">편집</SelectItem>
+                      <SelectItem value="viewer">조회</SelectItem>
+                    </SelectContent>
+                  </Select>
+
+                  <Button
+                    size="sm"
+                    className="h-9 text-xs"
+                    onClick={handleAddIssueMember}
+                    disabled={!selectedIssueProjectId || !issueMemberUserId || issueAccessSaving}
+                  >
+                    {issueAccessSaving ? (
+                      <><Loader2 className="h-3.5 w-3.5 mr-1 animate-spin" />저장</>
+                    ) : (
+                      <><UserPlus className="h-3.5 w-3.5 mr-1" />추가</>
+                    )}
+                  </Button>
+                </div>
+              </div>
+            </div>
+
+            <div className="std-surface overflow-hidden">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead className="text-xs">사용자</TableHead>
+                    <TableHead className="text-xs">이메일</TableHead>
+                    <TableHead className="text-xs">전역 역할</TableHead>
+                    <TableHead className="text-xs">이슈 역할</TableHead>
+                    <TableHead className="text-xs">등록일</TableHead>
+                    <TableHead className="text-xs w-[90px]">작업</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {currentIssueMembers.length === 0 ? (
+                    <TableRow>
+                      <TableCell colSpan={6} className="h-28 text-center text-sm text-muted-foreground">
+                        이 프로젝트에 등록된 이슈 접근자가 없습니다.
+                      </TableCell>
+                    </TableRow>
+                  ) : (
+                    currentIssueMembers.map((member) => {
+                      const user = usersById.get(member.user_id)
+                      return (
+                        <TableRow key={`${member.project_id}-${member.user_id}`}>
+                          <TableCell className="text-sm font-medium">{user?.name || '알 수 없는 사용자'}</TableCell>
+                          <TableCell className="text-sm text-muted-foreground">{user?.email || member.user_id}</TableCell>
+                          <TableCell>
+                            <Badge variant="outline" className="text-[10px]">
+                              {user?.role === 'admin' ? '관리자' : user?.role === 'pm' ? 'PM' : user?.role === 'guest' ? '게스트' : '멤버'}
+                            </Badge>
+                          </TableCell>
+                          <TableCell>
+                            <Select
+                              value={member.role}
+                              onValueChange={(value) => handleUpdateIssueMemberRole(member.user_id, value as IssueMemberRole)}
+                            >
+                              <SelectTrigger className="h-7 w-24 text-xs">
+                                <SelectValue />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="manager" className="text-xs">관리</SelectItem>
+                                <SelectItem value="editor" className="text-xs">편집</SelectItem>
+                                <SelectItem value="viewer" className="text-xs">조회</SelectItem>
+                              </SelectContent>
+                            </Select>
+                          </TableCell>
+                          <TableCell className="text-xs text-muted-foreground">
+                            {new Date(member.created_at).toLocaleDateString('ko-KR')}
+                          </TableCell>
+                          <TableCell>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-7 w-7 text-red-500 hover:text-red-600"
+                              onClick={() => handleRemoveIssueMember(member.user_id)}
+                              title="이슈 접근 제거"
+                            >
+                              <UserMinus className="h-3.5 w-3.5" />
+                            </Button>
+                          </TableCell>
+                        </TableRow>
+                      )
+                    })
+                  )}
+                </TableBody>
+              </Table>
+            </div>
+          </div>
+        )}
+
+        {adminTab === 'users' && (
         <div className="std-surface overflow-hidden">
           <Table>
             <TableHeader>
@@ -505,6 +744,7 @@ export function AdminPage() {
             </TableBody>
           </Table>
         </div>
+        )}
       </main>
 
       {/* 사용자 추가 다이얼로그 */}
