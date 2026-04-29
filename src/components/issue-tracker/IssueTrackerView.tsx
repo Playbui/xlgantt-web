@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { AlertCircle, ArrowLeft, CalendarDays, CheckCircle2, ClipboardList, MessageSquareText, Plus, Search, Trash2 } from 'lucide-react'
+import { ArrowLeft, ClipboardList, MessageSquareText, Plus, Search, Trash2 } from 'lucide-react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { Button } from '@/components/ui/button'
 import { RichContentEditor } from '@/components/task-workspace/RichContentEditor'
@@ -196,8 +196,8 @@ export function IssueTrackerView() {
 
   return (
     <main className="flex h-screen min-h-0 flex-col bg-slate-50/60">
-      <div className="border-b bg-white px-5 py-3">
-        <div className="mb-3 flex items-center justify-between gap-3">
+      <div className="border-b bg-white px-5 py-2.5">
+        <div className="mb-2 flex items-center justify-between gap-3">
           <button
             onClick={() => navigate('/projects')}
             className="flex items-center gap-2 rounded-md px-2 py-1.5 text-sm font-semibold text-slate-700 hover:bg-slate-100"
@@ -212,25 +212,26 @@ export function IssueTrackerView() {
           )}
         </div>
         <div className="flex flex-wrap items-center justify-between gap-3">
-          <div>
-            <h1 className="text-lg font-semibold text-slate-950">이슈 트래커</h1>
-            <p className="mt-1 text-sm text-slate-500">프로젝트를 선택해 이슈 접수, 처리 이력, 공수 정산을 관리합니다.</p>
+          <div className="min-w-0">
+            <div className="flex flex-wrap items-baseline gap-x-4 gap-y-1">
+              <h1 className="text-lg font-semibold text-slate-950">이슈 트래커</h1>
+              <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-slate-600">
+                <span>전체 <strong className="text-slate-950">{summary.total}건</strong></span>
+                <span>진행 중 <strong className="text-slate-950">{summary.active}건</strong></span>
+                <span>완료 <strong className="text-slate-950">{summary.done}건</strong></span>
+                <span>누적 공수 <strong className="text-slate-950">{summary.effort.toFixed(2)} D</strong></span>
+              </div>
+            </div>
+            <p className="mt-0.5 text-sm text-slate-500">프로젝트를 선택해 이슈 접수, 처리 이력, 공수 정산을 관리합니다.</p>
           </div>
           <Button onClick={handleCreateIssue} disabled={!project}>
             <Plus className="h-4 w-4" />
             이슈 추가
           </Button>
         </div>
-
-        <div className="mt-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-          <SummaryItem icon={<ClipboardList className="h-4 w-4" />} label="전체" value={`${summary.total}건`} />
-          <SummaryItem icon={<AlertCircle className="h-4 w-4" />} label="진행 중" value={`${summary.active}건`} />
-          <SummaryItem icon={<CheckCircle2 className="h-4 w-4" />} label="완료" value={`${summary.done}건`} />
-          <SummaryItem icon={<CalendarDays className="h-4 w-4" />} label="누적 공수" value={`${summary.effort.toFixed(2)} D`} />
-        </div>
       </div>
 
-      <div className="border-b bg-white px-5 py-3">
+      <div className="border-b bg-white px-5 py-2.5">
         <div className="flex flex-wrap items-center gap-2">
           <select
             value={project?.id || ''}
@@ -562,18 +563,6 @@ export function IssueTrackerView() {
         </aside>
       </div>
     </main>
-  )
-}
-
-function SummaryItem({ icon, label, value }: { icon: React.ReactNode; label: string; value: string }) {
-  return (
-    <div className="rounded-lg border border-slate-200 bg-white px-3 py-2">
-      <div className="flex items-center gap-2 text-xs font-medium text-slate-500">
-        {icon}
-        <span>{label}</span>
-      </div>
-      <div className="mt-1 text-lg font-semibold text-slate-950">{value}</div>
-    </div>
   )
 }
 
