@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
-import { AlertCircle, CalendarDays, CheckCircle2, ClipboardList, MessageSquareText, Plus, Search, Trash2 } from 'lucide-react'
+import { AlertCircle, ArrowLeft, CalendarDays, CheckCircle2, ClipboardList, MessageSquareText, Plus, Search, Trash2 } from 'lucide-react'
+import { useNavigate } from 'react-router-dom'
 import { Button } from '@/components/ui/button'
 import { useProjectStore } from '@/stores/project-store'
 import { useIssueStore } from '@/stores/issue-store'
@@ -48,6 +49,7 @@ function includesText(issue: IssueItem, query: string) {
 }
 
 export function IssueTrackerView() {
+  const navigate = useNavigate()
   const project = useProjectStore((s) => s.currentProject)
   const currentUser = useAuthStore((s) => s.currentUser)
   const issues = useIssueStore((s) => s.issues)
@@ -150,8 +152,22 @@ export function IssueTrackerView() {
   }
 
   return (
-    <main className="flex h-full min-h-0 flex-col bg-slate-50/60">
-      <div className="border-b bg-white px-5 py-4">
+    <main className="flex h-screen min-h-0 flex-col bg-slate-50/60">
+      <div className="border-b bg-white px-5 py-3">
+        <div className="mb-3 flex items-center justify-between gap-3">
+          <button
+            onClick={() => project ? navigate(`/projects/${project.id}`) : navigate('/projects')}
+            className="flex items-center gap-2 rounded-md px-2 py-1.5 text-sm font-semibold text-slate-700 hover:bg-slate-100"
+          >
+            <ArrowLeft className="h-4 w-4" />
+            프로젝트 선택 화면
+          </button>
+          {project && (
+            <Button variant="outline" size="sm" onClick={() => navigate(`/projects/${project.id}/wbs`)}>
+              WBS로 이동
+            </Button>
+          )}
+        </div>
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
             <h1 className="text-lg font-semibold text-slate-950">이슈 트래커</h1>
@@ -201,59 +217,55 @@ export function IssueTrackerView() {
         </div>
       </div>
 
-      <div className="flex min-h-0 flex-1 gap-4 overflow-hidden px-5 py-4">
-        <div className="min-w-0 flex-1 overflow-auto rounded-lg border border-slate-200 bg-white">
-          <div className="min-w-[920px]">
-            <table className="w-full border-collapse text-sm">
-              <thead className="bg-slate-100 text-xs font-semibold uppercase tracking-wide text-slate-500">
-                <tr>
-                  <th className="w-36 px-3 py-2 text-left">Task ID</th>
-                  <th className="w-24 px-3 py-2 text-left">구분</th>
-                  <th className="px-3 py-2 text-left">내용</th>
-                  <th className="w-28 px-3 py-2 text-left">상태</th>
-                  <th className="w-24 px-3 py-2 text-left">우선순위</th>
-                  <th className="w-32 px-3 py-2 text-left">등록/요청</th>
-                  <th className="w-28 px-3 py-2 text-left">등록일</th>
-                  <th className="w-24 px-3 py-2 text-right">공수</th>
-                </tr>
-              </thead>
-              <tbody>
-                {isLoading ? (
-                  <tr><td colSpan={8} className="px-3 py-12 text-center text-slate-500">이슈를 불러오는 중...</td></tr>
-                ) : filteredIssues.length === 0 ? (
-                  <tr><td colSpan={8} className="px-3 py-12 text-center text-slate-500">표시할 이슈가 없습니다.</td></tr>
-                ) : (
-                  filteredIssues.map((issue) => (
-                    <tr
+      <div className="grid min-h-0 flex-1 grid-cols-1 gap-4 overflow-hidden px-5 py-4 xl:grid-cols-[420px_minmax(0,1fr)]">
+        <div className="min-h-0 overflow-hidden rounded-lg border border-slate-200 bg-white">
+          <div className="flex h-full min-h-0 flex-col">
+            <div className="border-b border-slate-200 bg-slate-100 px-3 py-2 text-sm font-semibold text-slate-800">
+              이슈 목록
+            </div>
+            <div className="min-h-0 flex-1 overflow-auto">
+              {isLoading ? (
+                <div className="px-3 py-12 text-center text-sm text-slate-500">이슈를 불러오는 중...</div>
+              ) : filteredIssues.length === 0 ? (
+                <div className="px-3 py-12 text-center text-sm text-slate-500">표시할 이슈가 없습니다.</div>
+              ) : (
+                <div className="divide-y divide-slate-100">
+                  {filteredIssues.map((issue) => (
+                    <button
                       key={issue.id}
                       onClick={() => selectIssue(issue.id)}
                       className={cn(
-                        'cursor-pointer border-t border-slate-100 hover:bg-sky-50/50',
+                        'block w-full px-3 py-3 text-left transition-colors hover:bg-sky-50/60',
                         selectedIssueId === issue.id && 'bg-sky-50'
                       )}
                     >
-                      <td className="px-3 py-3 font-medium text-slate-900">{issue.issue_no}</td>
-                      <td className="px-3 py-3 text-slate-600">{issue.issue_type || issue.legacy_status || '이슈'}</td>
-                      <td className="px-3 py-3">
-                        <div className="line-clamp-1 font-medium text-slate-900">{issue.title}</div>
-                        {issue.description && <div className="mt-0.5 line-clamp-1 text-xs text-slate-500">{issue.description}</div>}
-                      </td>
-                      <td className="px-3 py-3">
-                        <span className={cn('inline-flex rounded-full border px-2 py-0.5 text-xs font-medium', statusClasses[issue.status])}>{issue.status}</span>
-                      </td>
-                      <td className={cn('px-3 py-3 font-medium', priorityClasses[issue.priority])}>{ISSUE_PRIORITY_LABELS[issue.priority]}</td>
-                      <td className="px-3 py-3 text-slate-600">{issue.internal_owner_name || issue.requester_name || issue.external_requester || '-'}</td>
-                      <td className="px-3 py-3 text-slate-600">{formatDate(issue.received_at)}</td>
-                      <td className="px-3 py-3 text-right tabular-nums text-slate-700">{issue.total_effort.toFixed(2)}</td>
-                    </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="min-w-0">
+                          <div className="text-xs font-semibold text-slate-500">{issue.issue_no}</div>
+                          <div className="mt-1 line-clamp-2 font-semibold text-slate-950">{issue.title}</div>
+                        </div>
+                        <span className={cn('shrink-0 rounded-full border px-2 py-0.5 text-xs font-medium', statusClasses[issue.status])}>{issue.status}</span>
+                      </div>
+                      <div className="mt-2 flex flex-wrap items-center gap-2 text-xs text-slate-500">
+                        <span>{issue.issue_type || issue.legacy_status || '이슈'}</span>
+                        <span>{ISSUE_PRIORITY_LABELS[issue.priority]}</span>
+                        <span>{formatDate(issue.received_at)}</span>
+                        <span className="ml-auto tabular-nums">{issue.total_effort.toFixed(2)} D</span>
+                      </div>
+                      {(issue.description || issue.internal_owner_name || issue.external_requester) && (
+                        <div className="mt-2 line-clamp-2 text-sm leading-5 text-slate-600">
+                          {issue.description || issue.internal_owner_name || issue.external_requester}
+                        </div>
+                      )}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
           </div>
         </div>
 
-        <aside className="hidden w-[640px] shrink-0 overflow-auto rounded-lg border border-slate-200 bg-white xl:block">
+        <aside className="min-h-0 overflow-auto rounded-lg border border-slate-200 bg-white">
           {selectedIssue ? (
             <div className="space-y-5 p-4">
               <section className="space-y-3">
@@ -276,7 +288,7 @@ export function IssueTrackerView() {
                   className="min-h-44 w-full resize-y rounded-md border border-slate-200 px-3 py-2 text-sm leading-6 outline-none focus:border-sky-400 focus:ring-2 focus:ring-sky-100"
                 />
 
-                <div className="grid grid-cols-3 gap-2">
+                <div className="grid grid-cols-2 gap-3 2xl:grid-cols-4">
                   <Field label="구분">
                     <input
                       list="issue-kind-options"
@@ -390,7 +402,7 @@ export function IssueTrackerView() {
                   <h2 className="text-sm font-semibold text-slate-900">공수 로그</h2>
                   <span className="text-xs text-slate-500">{selectedIssue.total_effort.toFixed(2)} D</span>
                 </div>
-                <div className="grid grid-cols-[130px_90px_1fr_56px] gap-2">
+                <div className="grid grid-cols-[150px_100px_minmax(260px,1fr)_64px] gap-2">
                   <input
                     type="date"
                     value={draftWorkDate}
