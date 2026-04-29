@@ -7,6 +7,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
 import { useProjectStore } from '@/stores/project-store'
 import { useAuthStore } from '@/stores/auth-store'
+import { useIssueStore } from '@/stores/issue-store'
 import { DatePicker } from '@/components/ui/date-picker'
 import { supabase } from '@/lib/supabase'
 import { cn } from '@/lib/utils'
@@ -45,6 +46,8 @@ export function ProjectDashboard() {
   }, [])
   const { currentUser, logout } = useAuthStore()
   const isAdmin = currentUser?.role === 'admin'
+  const issueMembers = useIssueStore((s) => s.issueMembers)
+  const loadIssueMembers = useIssueStore((s) => s.loadIssueMembers)
   const [showCreate, setShowCreate] = useState(false)
   const [newName, setNewName] = useState('')
   const [newStart, setNewStart] = useState('')
@@ -72,6 +75,17 @@ export function ProjectDashboard() {
   useEffect(() => {
     loadCategories()
   }, [])
+
+  useEffect(() => {
+    if (projects.length === 0) return
+    void Promise.all(projects.map((project) => loadIssueMembers(project.id)))
+  }, [loadIssueMembers, projects])
+
+  const canOpenIssueTracker = useMemo(() => {
+    if (isAdmin) return true
+    if (!currentUser?.id) return false
+    return issueMembers.some((member) => member.user_id === currentUser.id)
+  }, [currentUser?.id, isAdmin, issueMembers])
 
   // 전체 카테고리 목록 = 마스터 테이블 + 프로젝트에 박힌 값 (일관성 보정용 union)
   const allCategories = useMemo(() => {
@@ -562,15 +576,17 @@ export function ProjectDashboard() {
               <Folder className="h-3 w-3" />
               그룹
             </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              className="h-8 text-xs gap-1.5"
-              onClick={() => navigate('/issues')}
-            >
-              <ClipboardList className="h-3 w-3" />
-              이슈 트래커
-            </Button>
+            {canOpenIssueTracker && (
+              <Button
+                variant="outline"
+                size="sm"
+                className="h-8 text-xs gap-1.5"
+                onClick={() => navigate('/issues')}
+              >
+                <ClipboardList className="h-3 w-3" />
+                이슈 트래커
+              </Button>
+            )}
             {/* 카테고리 만들기 (admin 전용) */}
             {isAdmin && (
               <Button
