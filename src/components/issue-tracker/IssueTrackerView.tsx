@@ -217,7 +217,7 @@ export function IssueTrackerView() {
         </div>
       </div>
 
-      <div className="grid min-h-0 flex-1 grid-cols-1 gap-4 overflow-hidden px-5 py-4 xl:grid-cols-[420px_minmax(0,1fr)]">
+      <div className="grid min-h-0 flex-1 grid-cols-1 gap-4 overflow-hidden px-5 py-4 xl:grid-cols-[360px_minmax(0,1fr)]">
         <div className="min-h-0 overflow-hidden rounded-lg border border-slate-200 bg-white">
           <div className="flex h-full min-h-0 flex-col">
             <div className="border-b border-slate-200 bg-slate-100 px-3 py-2 text-sm font-semibold text-slate-800">
@@ -267,110 +267,146 @@ export function IssueTrackerView() {
 
         <aside className="min-h-0 overflow-auto rounded-lg border border-slate-200 bg-white">
           {selectedIssue ? (
-            <div className="space-y-5 p-4">
-              <section className="space-y-3">
-                <div className="flex items-start justify-between gap-3">
-                  <div className="min-w-0 flex-1">
-                    <div className="text-xs font-medium text-slate-500">{selectedIssue.issue_no}</div>
+            <div className="space-y-5 p-5">
+              <section className="rounded-lg border border-slate-200 bg-white">
+                <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-200 bg-slate-100 px-4 py-3">
+                  <div>
+                    <div className="text-xs font-semibold text-slate-500">이슈 번호</div>
+                    <div className="mt-0.5 font-semibold text-slate-950">{selectedIssue.issue_no}</div>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className={cn('inline-flex rounded-full border px-2 py-0.5 text-xs font-medium', statusClasses[selectedIssue.status])}>{selectedIssue.status}</span>
+                    <span className={cn('text-sm font-semibold', priorityClasses[selectedIssue.priority])}>{ISSUE_PRIORITY_LABELS[selectedIssue.priority]}</span>
+                  </div>
+                </div>
+
+                <div className="space-y-5 p-4">
+                  <Field label="제목">
                     <input
                       value={selectedIssue.title}
                       onChange={(event) => updateIssue(selectedIssue.id, { title: event.target.value })}
-                      className="mt-1 w-full rounded-md border border-slate-200 px-3 py-2 text-lg font-semibold text-slate-950 outline-none focus:border-sky-400 focus:ring-2 focus:ring-sky-100"
+                      className="h-11 w-full rounded-md border border-slate-300 px-3 text-base font-semibold text-slate-950 outline-none focus:border-sky-400 focus:ring-2 focus:ring-sky-100"
                     />
+                  </Field>
+
+                  <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_minmax(320px,0.8fr)]">
+                    <div className="space-y-2">
+                      <div className="text-sm font-semibold text-slate-900">분류 / 상태</div>
+                      <div className="grid gap-3 sm:grid-cols-3">
+                        <Field label="구분">
+                          <input
+                            list="issue-kind-options"
+                            value={selectedIssue.issue_type || selectedIssue.legacy_status || ''}
+                            onChange={(event) => updateIssue(selectedIssue.id, { issue_type: event.target.value, legacy_status: event.target.value })}
+                            placeholder="이슈 / 버그 / 확인"
+                            className="h-9 w-full rounded-md border border-slate-300 px-2 text-sm"
+                          />
+                          <datalist id="issue-kind-options">
+                            {['이슈', '버그', '확인', '요청', '장애', '개선'].map((kind) => <option key={kind} value={kind} />)}
+                            {issueKinds.map((kind) => <option key={kind} value={kind} />)}
+                          </datalist>
+                        </Field>
+                        <Field label="상태">
+                          <select
+                            value={selectedIssue.status}
+                            onChange={(event) => updateIssue(selectedIssue.id, { status: event.target.value as IssueItem['status'] })}
+                            className="h-9 w-full rounded-md border border-slate-300 px-2 text-sm"
+                          >
+                            {ISSUE_STATUSES.map((status) => <option key={status} value={status}>{status}</option>)}
+                          </select>
+                        </Field>
+                        <Field label="우선순위">
+                          <select
+                            value={selectedIssue.priority}
+                            onChange={(event) => updateIssue(selectedIssue.id, { priority: event.target.value as IssueItem['priority'] })}
+                            className="h-9 w-full rounded-md border border-slate-300 px-2 text-sm"
+                          >
+                            {Object.entries(ISSUE_PRIORITY_LABELS).map(([value, label]) => <option key={value} value={value}>{label}</option>)}
+                          </select>
+                        </Field>
+                      </div>
+                    </div>
+
+                    <div className="space-y-2">
+                      <div className="text-sm font-semibold text-slate-900">일정</div>
+                      <div className="grid gap-3 sm:grid-cols-2">
+                        <Field label="등록일">
+                          <input
+                            type="date"
+                            value={selectedIssue.received_at || ''}
+                            onChange={(event) => updateIssue(selectedIssue.id, { received_at: event.target.value })}
+                            className="h-9 w-full rounded-md border border-slate-300 px-2 text-sm"
+                          />
+                        </Field>
+                        <Field label="마감요청일">
+                          <input
+                            type="date"
+                            value={selectedIssue.due_date || ''}
+                            onChange={(event) => updateIssue(selectedIssue.id, { due_date: event.target.value })}
+                            className="h-9 w-full rounded-md border border-slate-300 px-2 text-sm"
+                          />
+                        </Field>
+                      </div>
+                    </div>
                   </div>
-                  <span className={cn('inline-flex rounded-full border px-2 py-0.5 text-xs font-medium', statusClasses[selectedIssue.status])}>{selectedIssue.status}</span>
-                </div>
 
-                <textarea
-                  value={selectedIssue.description || ''}
-                  onChange={(event) => updateIssue(selectedIssue.id, { description: event.target.value })}
-                  placeholder="발생 현상, 요청 내용, 재현 조건, 확인할 내용을 충분히 입력"
-                  className="min-h-44 w-full resize-y rounded-md border border-slate-200 px-3 py-2 text-sm leading-6 outline-none focus:border-sky-400 focus:ring-2 focus:ring-sky-100"
-                />
+                  <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
+                    <div className="space-y-2">
+                      <div className="text-sm font-semibold text-slate-900">내부 정보</div>
+                      <div className="grid gap-3 sm:grid-cols-2">
+                        <Field label="프로젝트">
+                          <input
+                            value={project?.name || selectedIssue.system_name || ''}
+                            readOnly
+                            className="h-9 w-full rounded-md border border-slate-200 bg-slate-50 px-2 text-sm text-slate-500"
+                          />
+                        </Field>
+                        <Field label="등록자 / 내부 담당">
+                          <input
+                            value={selectedIssue.internal_owner_name || selectedIssue.requester_name || ''}
+                            onChange={(event) => updateIssue(selectedIssue.id, { internal_owner_name: event.target.value, requester_name: event.target.value })}
+                            className="h-9 w-full rounded-md border border-slate-300 px-2 text-sm"
+                          />
+                        </Field>
+                      </div>
+                    </div>
 
-                <div className="grid grid-cols-2 gap-3 2xl:grid-cols-4">
-                  <Field label="구분">
-                    <input
-                      list="issue-kind-options"
-                      value={selectedIssue.issue_type || selectedIssue.legacy_status || ''}
-                      onChange={(event) => updateIssue(selectedIssue.id, { issue_type: event.target.value, legacy_status: event.target.value })}
-                      placeholder="이슈 / 버그 / 확인"
-                      className="h-8 w-full rounded-md border border-slate-200 px-2 text-sm"
-                    />
-                    <datalist id="issue-kind-options">
-                      {['이슈', '버그', '확인', '요청', '장애', '개선'].map((kind) => <option key={kind} value={kind} />)}
-                      {issueKinds.map((kind) => <option key={kind} value={kind} />)}
-                    </datalist>
-                  </Field>
-                  <Field label="상태">
-                    <select
-                      value={selectedIssue.status}
-                      onChange={(event) => updateIssue(selectedIssue.id, { status: event.target.value as IssueItem['status'] })}
-                      className="h-8 w-full rounded-md border border-slate-200 px-2 text-sm"
-                    >
-                      {ISSUE_STATUSES.map((status) => <option key={status} value={status}>{status}</option>)}
-                    </select>
-                  </Field>
-                  <Field label="우선순위">
-                    <select
-                      value={selectedIssue.priority}
-                      onChange={(event) => updateIssue(selectedIssue.id, { priority: event.target.value as IssueItem['priority'] })}
-                      className="h-8 w-full rounded-md border border-slate-200 px-2 text-sm"
-                    >
-                      {Object.entries(ISSUE_PRIORITY_LABELS).map(([value, label]) => <option key={value} value={value}>{label}</option>)}
-                    </select>
-                  </Field>
-                  <Field label="프로젝트">
-                    <input
-                      value={project?.name || selectedIssue.system_name || ''}
-                      readOnly
-                      className="h-8 w-full rounded-md border border-slate-200 bg-slate-50 px-2 text-sm text-slate-500"
-                    />
-                  </Field>
-                  <Field label="등록자 / 내부 담당">
-                    <input
-                      value={selectedIssue.internal_owner_name || selectedIssue.requester_name || ''}
-                      onChange={(event) => updateIssue(selectedIssue.id, { internal_owner_name: event.target.value, requester_name: event.target.value })}
-                      className="h-8 w-full rounded-md border border-slate-200 px-2 text-sm"
-                    />
-                  </Field>
-                  <Field label="외부 요청처/요청자">
-                    <input
-                      value={selectedIssue.external_requester || selectedIssue.source_url || ''}
-                      onChange={(event) => updateIssue(selectedIssue.id, { external_requester: event.target.value, source_url: event.target.value })}
-                      placeholder="예: 수협 홍길동"
-                      className="h-8 w-full rounded-md border border-slate-200 px-2 text-sm"
-                    />
-                  </Field>
-                  <Field label="요청처">
-                    <input
-                      value={selectedIssue.request_source || ''}
-                      onChange={(event) => updateIssue(selectedIssue.id, { request_source: event.target.value })}
-                      placeholder="예: 발주처 / 사업부"
-                      className="h-8 w-full rounded-md border border-slate-200 px-2 text-sm"
-                    />
-                  </Field>
-                  <Field label="등록일">
-                    <input
-                      type="date"
-                      value={selectedIssue.received_at || ''}
-                      onChange={(event) => updateIssue(selectedIssue.id, { received_at: event.target.value })}
-                      className="h-8 w-full rounded-md border border-slate-200 px-2 text-sm"
-                    />
-                  </Field>
-                  <Field label="마감요청일">
-                    <input
-                      type="date"
-                      value={selectedIssue.due_date || ''}
-                      onChange={(event) => updateIssue(selectedIssue.id, { due_date: event.target.value })}
-                      className="h-8 w-full rounded-md border border-slate-200 px-2 text-sm"
+                    <div className="space-y-2">
+                      <div className="text-sm font-semibold text-slate-900">요청 정보</div>
+                      <div className="grid gap-3 sm:grid-cols-2">
+                        <Field label="요청처">
+                          <input
+                            value={selectedIssue.request_source || ''}
+                            onChange={(event) => updateIssue(selectedIssue.id, { request_source: event.target.value })}
+                            placeholder="예: 발주처 / 사업부"
+                            className="h-9 w-full rounded-md border border-slate-300 px-2 text-sm"
+                          />
+                        </Field>
+                        <Field label="외부 요청자">
+                          <input
+                            value={selectedIssue.external_requester || selectedIssue.source_url || ''}
+                            onChange={(event) => updateIssue(selectedIssue.id, { external_requester: event.target.value, source_url: event.target.value })}
+                            placeholder="예: 수협 홍길동"
+                            className="h-9 w-full rounded-md border border-slate-300 px-2 text-sm"
+                          />
+                        </Field>
+                      </div>
+                    </div>
+                  </div>
+
+                  <Field label="상세 내용">
+                    <textarea
+                      value={selectedIssue.description || ''}
+                      onChange={(event) => updateIssue(selectedIssue.id, { description: event.target.value })}
+                      placeholder="발생 현상, 요청 내용, 재현 조건, 확인할 내용을 충분히 입력"
+                      className="min-h-56 w-full resize-y rounded-md border border-slate-300 px-3 py-2 text-sm leading-6 outline-none focus:border-sky-400 focus:ring-2 focus:ring-sky-100"
                     />
                   </Field>
                 </div>
               </section>
 
-              <section className="space-y-3 border-t pt-4">
-                <div className="flex items-center justify-between">
+              <section className="space-y-3 rounded-lg border border-slate-200 bg-white p-4">
+                <div className="flex items-center justify-between border-b border-slate-100 pb-2">
                   <h2 className="flex items-center gap-2 text-sm font-semibold text-slate-900">
                     <MessageSquareText className="h-4 w-4" />
                     처리 이력
@@ -381,7 +417,7 @@ export function IssueTrackerView() {
                   value={draftComment}
                   onChange={(event) => setDraftComment(event.target.value)}
                   placeholder="날짜별 진행 상황, 확인 결과, 외부 전달 내용 등을 남깁니다."
-                  className="min-h-28 w-full resize-y rounded-md border border-slate-200 px-3 py-2 text-sm leading-6 outline-none focus:border-sky-400 focus:ring-2 focus:ring-sky-100"
+                  className="min-h-32 w-full resize-y rounded-md border border-slate-300 px-3 py-2 text-sm leading-6 outline-none focus:border-sky-400 focus:ring-2 focus:ring-sky-100"
                 />
                 <Button size="sm" variant="outline" onClick={handleAddComment} disabled={!draftComment.trim()}>이력 추가</Button>
                 <div className="space-y-2">
@@ -397,8 +433,8 @@ export function IssueTrackerView() {
                 </div>
               </section>
 
-              <section className="space-y-3 border-t pt-4">
-                <div className="flex items-center justify-between">
+              <section className="space-y-3 rounded-lg border border-slate-200 bg-white p-4">
+                <div className="flex items-center justify-between border-b border-slate-100 pb-2">
                   <h2 className="text-sm font-semibold text-slate-900">공수 로그</h2>
                   <span className="text-xs text-slate-500">{selectedIssue.total_effort.toFixed(2)} D</span>
                 </div>
