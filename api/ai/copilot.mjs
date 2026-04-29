@@ -21075,1710 +21075,6 @@ async function* executeTool({
   }
 }
 
-// node_modules/@ai-sdk/gateway/dist/index.mjs
-var import_oidc = __toESM(require_dist(), 1);
-var import_oidc2 = __toESM(require_dist(), 1);
-var marker16 = "vercel.ai.gateway.error";
-var symbol17 = Symbol.for(marker16);
-var _a17;
-var _b16;
-var GatewayError = class _GatewayError extends (_b16 = Error, _a17 = symbol17, _b16) {
-  constructor({
-    message,
-    statusCode = 500,
-    cause,
-    generationId
-  }) {
-    super(generationId ? `${message} [${generationId}]` : message);
-    this[_a17] = true;
-    this.statusCode = statusCode;
-    this.cause = cause;
-    this.generationId = generationId;
-  }
-  /**
-   * Checks if the given error is a Gateway Error.
-   * @param {unknown} error - The error to check.
-   * @returns {boolean} True if the error is a Gateway Error, false otherwise.
-   */
-  static isInstance(error48) {
-    return _GatewayError.hasMarker(error48);
-  }
-  static hasMarker(error48) {
-    return typeof error48 === "object" && error48 !== null && symbol17 in error48 && error48[symbol17] === true;
-  }
-};
-var name15 = "GatewayAuthenticationError";
-var marker22 = `vercel.ai.gateway.error.${name15}`;
-var symbol22 = Symbol.for(marker22);
-var _a22;
-var _b22;
-var GatewayAuthenticationError = class _GatewayAuthenticationError extends (_b22 = GatewayError, _a22 = symbol22, _b22) {
-  constructor({
-    message = "Authentication failed",
-    statusCode = 401,
-    cause,
-    generationId
-  } = {}) {
-    super({ message, statusCode, cause, generationId });
-    this[_a22] = true;
-    this.name = name15;
-    this.type = "authentication_error";
-  }
-  static isInstance(error48) {
-    return GatewayError.hasMarker(error48) && symbol22 in error48;
-  }
-  /**
-   * Creates a contextual error message when authentication fails
-   */
-  static createContextualError({
-    apiKeyProvided,
-    oidcTokenProvided,
-    message = "Authentication failed",
-    statusCode = 401,
-    cause,
-    generationId
-  }) {
-    let contextualMessage;
-    if (apiKeyProvided) {
-      contextualMessage = `AI Gateway authentication failed: Invalid API key.
-
-Create a new API key: https://vercel.com/d?to=%2F%5Bteam%5D%2F%7E%2Fai%2Fapi-keys
-
-Provide via 'apiKey' option or 'AI_GATEWAY_API_KEY' environment variable.`;
-    } else if (oidcTokenProvided) {
-      contextualMessage = `AI Gateway authentication failed: Invalid OIDC token.
-
-Run 'npx vercel link' to link your project, then 'vc env pull' to fetch the token.
-
-Alternatively, use an API key: https://vercel.com/d?to=%2F%5Bteam%5D%2F%7E%2Fai%2Fapi-keys`;
-    } else {
-      contextualMessage = `AI Gateway authentication failed: No authentication provided.
-
-Option 1 - API key:
-Create an API key: https://vercel.com/d?to=%2F%5Bteam%5D%2F%7E%2Fai%2Fapi-keys
-Provide via 'apiKey' option or 'AI_GATEWAY_API_KEY' environment variable.
-
-Option 2 - OIDC token:
-Run 'npx vercel link' to link your project, then 'vc env pull' to fetch the token.`;
-    }
-    return new _GatewayAuthenticationError({
-      message: contextualMessage,
-      statusCode,
-      cause,
-      generationId
-    });
-  }
-};
-var name22 = "GatewayInvalidRequestError";
-var marker32 = `vercel.ai.gateway.error.${name22}`;
-var symbol32 = Symbol.for(marker32);
-var _a32;
-var _b32;
-var GatewayInvalidRequestError = class extends (_b32 = GatewayError, _a32 = symbol32, _b32) {
-  constructor({
-    message = "Invalid request",
-    statusCode = 400,
-    cause,
-    generationId
-  } = {}) {
-    super({ message, statusCode, cause, generationId });
-    this[_a32] = true;
-    this.name = name22;
-    this.type = "invalid_request_error";
-  }
-  static isInstance(error48) {
-    return GatewayError.hasMarker(error48) && symbol32 in error48;
-  }
-};
-var name32 = "GatewayRateLimitError";
-var marker42 = `vercel.ai.gateway.error.${name32}`;
-var symbol42 = Symbol.for(marker42);
-var _a42;
-var _b42;
-var GatewayRateLimitError = class extends (_b42 = GatewayError, _a42 = symbol42, _b42) {
-  constructor({
-    message = "Rate limit exceeded",
-    statusCode = 429,
-    cause,
-    generationId
-  } = {}) {
-    super({ message, statusCode, cause, generationId });
-    this[_a42] = true;
-    this.name = name32;
-    this.type = "rate_limit_exceeded";
-  }
-  static isInstance(error48) {
-    return GatewayError.hasMarker(error48) && symbol42 in error48;
-  }
-};
-var name42 = "GatewayModelNotFoundError";
-var marker52 = `vercel.ai.gateway.error.${name42}`;
-var symbol52 = Symbol.for(marker52);
-var modelNotFoundParamSchema = lazySchema(
-  () => zodSchema(
-    external_exports.object({
-      modelId: external_exports.string()
-    })
-  )
-);
-var _a52;
-var _b52;
-var GatewayModelNotFoundError = class extends (_b52 = GatewayError, _a52 = symbol52, _b52) {
-  constructor({
-    message = "Model not found",
-    statusCode = 404,
-    modelId,
-    cause,
-    generationId
-  } = {}) {
-    super({ message, statusCode, cause, generationId });
-    this[_a52] = true;
-    this.name = name42;
-    this.type = "model_not_found";
-    this.modelId = modelId;
-  }
-  static isInstance(error48) {
-    return GatewayError.hasMarker(error48) && symbol52 in error48;
-  }
-};
-var name52 = "GatewayInternalServerError";
-var marker62 = `vercel.ai.gateway.error.${name52}`;
-var symbol62 = Symbol.for(marker62);
-var _a62;
-var _b62;
-var GatewayInternalServerError = class extends (_b62 = GatewayError, _a62 = symbol62, _b62) {
-  constructor({
-    message = "Internal server error",
-    statusCode = 500,
-    cause,
-    generationId
-  } = {}) {
-    super({ message, statusCode, cause, generationId });
-    this[_a62] = true;
-    this.name = name52;
-    this.type = "internal_server_error";
-  }
-  static isInstance(error48) {
-    return GatewayError.hasMarker(error48) && symbol62 in error48;
-  }
-};
-var name62 = "GatewayResponseError";
-var marker72 = `vercel.ai.gateway.error.${name62}`;
-var symbol72 = Symbol.for(marker72);
-var _a72;
-var _b72;
-var GatewayResponseError = class extends (_b72 = GatewayError, _a72 = symbol72, _b72) {
-  constructor({
-    message = "Invalid response from Gateway",
-    statusCode = 502,
-    response,
-    validationError,
-    cause,
-    generationId
-  } = {}) {
-    super({ message, statusCode, cause, generationId });
-    this[_a72] = true;
-    this.name = name62;
-    this.type = "response_error";
-    this.response = response;
-    this.validationError = validationError;
-  }
-  static isInstance(error48) {
-    return GatewayError.hasMarker(error48) && symbol72 in error48;
-  }
-};
-async function createGatewayErrorFromResponse({
-  response,
-  statusCode,
-  defaultMessage = "Gateway request failed",
-  cause,
-  authMethod
-}) {
-  var _a93;
-  const parseResult = await safeValidateTypes({
-    value: response,
-    schema: gatewayErrorResponseSchema
-  });
-  if (!parseResult.success) {
-    const rawGenerationId = typeof response === "object" && response !== null && "generationId" in response ? response.generationId : void 0;
-    return new GatewayResponseError({
-      message: `Invalid error response format: ${defaultMessage}`,
-      statusCode,
-      response,
-      validationError: parseResult.error,
-      cause,
-      generationId: rawGenerationId
-    });
-  }
-  const validatedResponse = parseResult.value;
-  const errorType = validatedResponse.error.type;
-  const message = validatedResponse.error.message;
-  const generationId = (_a93 = validatedResponse.generationId) != null ? _a93 : void 0;
-  switch (errorType) {
-    case "authentication_error":
-      return GatewayAuthenticationError.createContextualError({
-        apiKeyProvided: authMethod === "api-key",
-        oidcTokenProvided: authMethod === "oidc",
-        statusCode,
-        cause,
-        generationId
-      });
-    case "invalid_request_error":
-      return new GatewayInvalidRequestError({
-        message,
-        statusCode,
-        cause,
-        generationId
-      });
-    case "rate_limit_exceeded":
-      return new GatewayRateLimitError({
-        message,
-        statusCode,
-        cause,
-        generationId
-      });
-    case "model_not_found": {
-      const modelResult = await safeValidateTypes({
-        value: validatedResponse.error.param,
-        schema: modelNotFoundParamSchema
-      });
-      return new GatewayModelNotFoundError({
-        message,
-        statusCode,
-        modelId: modelResult.success ? modelResult.value.modelId : void 0,
-        cause,
-        generationId
-      });
-    }
-    case "internal_server_error":
-      return new GatewayInternalServerError({
-        message,
-        statusCode,
-        cause,
-        generationId
-      });
-    default:
-      return new GatewayInternalServerError({
-        message,
-        statusCode,
-        cause,
-        generationId
-      });
-  }
-}
-var gatewayErrorResponseSchema = lazySchema(
-  () => zodSchema(
-    external_exports.object({
-      error: external_exports.object({
-        message: external_exports.string(),
-        type: external_exports.string().nullish(),
-        param: external_exports.unknown().nullish(),
-        code: external_exports.union([external_exports.string(), external_exports.number()]).nullish()
-      }),
-      generationId: external_exports.string().nullish()
-    })
-  )
-);
-var name72 = "GatewayTimeoutError";
-var marker82 = `vercel.ai.gateway.error.${name72}`;
-var symbol82 = Symbol.for(marker82);
-var _a82;
-var _b82;
-var GatewayTimeoutError = class _GatewayTimeoutError extends (_b82 = GatewayError, _a82 = symbol82, _b82) {
-  constructor({
-    message = "Request timed out",
-    statusCode = 408,
-    cause,
-    generationId
-  } = {}) {
-    super({ message, statusCode, cause, generationId });
-    this[_a82] = true;
-    this.name = name72;
-    this.type = "timeout_error";
-  }
-  static isInstance(error48) {
-    return GatewayError.hasMarker(error48) && symbol82 in error48;
-  }
-  /**
-   * Creates a helpful timeout error message with troubleshooting guidance
-   */
-  static createTimeoutError({
-    originalMessage,
-    statusCode = 408,
-    cause,
-    generationId
-  }) {
-    const message = `Gateway request timed out: ${originalMessage}
-
-    This is a client-side timeout. To resolve this, increase your timeout configuration: https://vercel.com/docs/ai-gateway/capabilities/video-generation#extending-timeouts-for-node.js`;
-    return new _GatewayTimeoutError({
-      message,
-      statusCode,
-      cause,
-      generationId
-    });
-  }
-};
-function isTimeoutError(error48) {
-  if (!(error48 instanceof Error)) {
-    return false;
-  }
-  const errorCode = error48.code;
-  if (typeof errorCode === "string") {
-    const undiciTimeoutCodes = [
-      "UND_ERR_HEADERS_TIMEOUT",
-      "UND_ERR_BODY_TIMEOUT",
-      "UND_ERR_CONNECT_TIMEOUT"
-    ];
-    return undiciTimeoutCodes.includes(errorCode);
-  }
-  return false;
-}
-async function asGatewayError(error48, authMethod) {
-  var _a93;
-  if (GatewayError.isInstance(error48)) {
-    return error48;
-  }
-  if (isTimeoutError(error48)) {
-    return GatewayTimeoutError.createTimeoutError({
-      originalMessage: error48 instanceof Error ? error48.message : "Unknown error",
-      cause: error48
-    });
-  }
-  if (APICallError.isInstance(error48)) {
-    if (error48.cause && isTimeoutError(error48.cause)) {
-      return GatewayTimeoutError.createTimeoutError({
-        originalMessage: error48.message,
-        cause: error48
-      });
-    }
-    return await createGatewayErrorFromResponse({
-      response: extractApiCallResponse(error48),
-      statusCode: (_a93 = error48.statusCode) != null ? _a93 : 500,
-      defaultMessage: "Gateway request failed",
-      cause: error48,
-      authMethod
-    });
-  }
-  return await createGatewayErrorFromResponse({
-    response: {},
-    statusCode: 500,
-    defaultMessage: error48 instanceof Error ? `Gateway request failed: ${error48.message}` : "Unknown Gateway error",
-    cause: error48,
-    authMethod
-  });
-}
-function extractApiCallResponse(error48) {
-  if (error48.data !== void 0) {
-    return error48.data;
-  }
-  if (error48.responseBody != null) {
-    try {
-      return JSON.parse(error48.responseBody);
-    } catch (e) {
-      return error48.responseBody;
-    }
-  }
-  return {};
-}
-var GATEWAY_AUTH_METHOD_HEADER = "ai-gateway-auth-method";
-async function parseAuthMethod(headers) {
-  const result = await safeValidateTypes({
-    value: headers[GATEWAY_AUTH_METHOD_HEADER],
-    schema: gatewayAuthMethodSchema
-  });
-  return result.success ? result.value : void 0;
-}
-var gatewayAuthMethodSchema = lazySchema(
-  () => zodSchema(external_exports.union([external_exports.literal("api-key"), external_exports.literal("oidc")]))
-);
-var KNOWN_MODEL_TYPES = [
-  "embedding",
-  "image",
-  "language",
-  "reranking",
-  "video"
-];
-var GatewayFetchMetadata = class {
-  constructor(config3) {
-    this.config = config3;
-  }
-  async getAvailableModels() {
-    try {
-      const { value } = await getFromApi({
-        url: `${this.config.baseURL}/config`,
-        headers: await resolve(this.config.headers()),
-        successfulResponseHandler: createJsonResponseHandler(
-          gatewayAvailableModelsResponseSchema
-        ),
-        failedResponseHandler: createJsonErrorResponseHandler({
-          errorSchema: external_exports.any(),
-          errorToMessage: (data) => data
-        }),
-        fetch: this.config.fetch
-      });
-      return value;
-    } catch (error48) {
-      throw await asGatewayError(error48);
-    }
-  }
-  async getCredits() {
-    try {
-      const baseUrl = new URL(this.config.baseURL);
-      const { value } = await getFromApi({
-        url: `${baseUrl.origin}/v1/credits`,
-        headers: await resolve(this.config.headers()),
-        successfulResponseHandler: createJsonResponseHandler(
-          gatewayCreditsResponseSchema
-        ),
-        failedResponseHandler: createJsonErrorResponseHandler({
-          errorSchema: external_exports.any(),
-          errorToMessage: (data) => data
-        }),
-        fetch: this.config.fetch
-      });
-      return value;
-    } catch (error48) {
-      throw await asGatewayError(error48);
-    }
-  }
-};
-var gatewayAvailableModelsResponseSchema = lazySchema(
-  () => zodSchema(
-    external_exports.object({
-      models: external_exports.array(
-        external_exports.object({
-          id: external_exports.string(),
-          name: external_exports.string(),
-          description: external_exports.string().nullish(),
-          pricing: external_exports.object({
-            input: external_exports.string(),
-            output: external_exports.string(),
-            input_cache_read: external_exports.string().nullish(),
-            input_cache_write: external_exports.string().nullish()
-          }).transform(
-            ({ input, output, input_cache_read, input_cache_write }) => ({
-              input,
-              output,
-              ...input_cache_read ? { cachedInputTokens: input_cache_read } : {},
-              ...input_cache_write ? { cacheCreationInputTokens: input_cache_write } : {}
-            })
-          ).nullish(),
-          specification: external_exports.object({
-            specificationVersion: external_exports.literal("v3"),
-            provider: external_exports.string(),
-            modelId: external_exports.string()
-          }),
-          modelType: external_exports.string().nullish()
-        })
-      ).transform(
-        (models) => models.filter(
-          (m) => m.modelType == null || KNOWN_MODEL_TYPES.includes(m.modelType)
-        )
-      )
-    })
-  )
-);
-var gatewayCreditsResponseSchema = lazySchema(
-  () => zodSchema(
-    external_exports.object({
-      balance: external_exports.string(),
-      total_used: external_exports.string()
-    }).transform(({ balance, total_used }) => ({
-      balance,
-      totalUsed: total_used
-    }))
-  )
-);
-var GatewaySpendReport = class {
-  constructor(config3) {
-    this.config = config3;
-  }
-  async getSpendReport(params) {
-    try {
-      const baseUrl = new URL(this.config.baseURL);
-      const searchParams = new URLSearchParams();
-      searchParams.set("start_date", params.startDate);
-      searchParams.set("end_date", params.endDate);
-      if (params.groupBy) {
-        searchParams.set("group_by", params.groupBy);
-      }
-      if (params.datePart) {
-        searchParams.set("date_part", params.datePart);
-      }
-      if (params.userId) {
-        searchParams.set("user_id", params.userId);
-      }
-      if (params.model) {
-        searchParams.set("model", params.model);
-      }
-      if (params.provider) {
-        searchParams.set("provider", params.provider);
-      }
-      if (params.credentialType) {
-        searchParams.set("credential_type", params.credentialType);
-      }
-      if (params.tags && params.tags.length > 0) {
-        searchParams.set("tags", params.tags.join(","));
-      }
-      const { value } = await getFromApi({
-        url: `${baseUrl.origin}/v1/report?${searchParams.toString()}`,
-        headers: await resolve(this.config.headers()),
-        successfulResponseHandler: createJsonResponseHandler(
-          gatewaySpendReportResponseSchema
-        ),
-        failedResponseHandler: createJsonErrorResponseHandler({
-          errorSchema: external_exports.any(),
-          errorToMessage: (data) => data
-        }),
-        fetch: this.config.fetch
-      });
-      return value;
-    } catch (error48) {
-      throw await asGatewayError(error48);
-    }
-  }
-};
-var gatewaySpendReportResponseSchema = lazySchema(
-  () => zodSchema(
-    external_exports.object({
-      results: external_exports.array(
-        external_exports.object({
-          day: external_exports.string().optional(),
-          hour: external_exports.string().optional(),
-          user: external_exports.string().optional(),
-          model: external_exports.string().optional(),
-          tag: external_exports.string().optional(),
-          provider: external_exports.string().optional(),
-          credential_type: external_exports.enum(["byok", "system"]).optional(),
-          total_cost: external_exports.number(),
-          market_cost: external_exports.number().optional(),
-          input_tokens: external_exports.number().optional(),
-          output_tokens: external_exports.number().optional(),
-          cached_input_tokens: external_exports.number().optional(),
-          cache_creation_input_tokens: external_exports.number().optional(),
-          reasoning_tokens: external_exports.number().optional(),
-          request_count: external_exports.number().optional()
-        }).transform(
-          ({
-            credential_type,
-            total_cost,
-            market_cost,
-            input_tokens,
-            output_tokens,
-            cached_input_tokens,
-            cache_creation_input_tokens,
-            reasoning_tokens,
-            request_count,
-            ...rest
-          }) => ({
-            ...rest,
-            ...credential_type !== void 0 ? { credentialType: credential_type } : {},
-            totalCost: total_cost,
-            ...market_cost !== void 0 ? { marketCost: market_cost } : {},
-            ...input_tokens !== void 0 ? { inputTokens: input_tokens } : {},
-            ...output_tokens !== void 0 ? { outputTokens: output_tokens } : {},
-            ...cached_input_tokens !== void 0 ? { cachedInputTokens: cached_input_tokens } : {},
-            ...cache_creation_input_tokens !== void 0 ? { cacheCreationInputTokens: cache_creation_input_tokens } : {},
-            ...reasoning_tokens !== void 0 ? { reasoningTokens: reasoning_tokens } : {},
-            ...request_count !== void 0 ? { requestCount: request_count } : {}
-          })
-        )
-      )
-    })
-  )
-);
-var GatewayGenerationInfoFetcher = class {
-  constructor(config3) {
-    this.config = config3;
-  }
-  async getGenerationInfo(params) {
-    try {
-      const baseUrl = new URL(this.config.baseURL);
-      const { value } = await getFromApi({
-        url: `${baseUrl.origin}/v1/generation?id=${encodeURIComponent(params.id)}`,
-        headers: await resolve(this.config.headers()),
-        successfulResponseHandler: createJsonResponseHandler(
-          gatewayGenerationInfoResponseSchema
-        ),
-        failedResponseHandler: createJsonErrorResponseHandler({
-          errorSchema: external_exports.any(),
-          errorToMessage: (data) => data
-        }),
-        fetch: this.config.fetch
-      });
-      return value;
-    } catch (error48) {
-      throw await asGatewayError(error48);
-    }
-  }
-};
-var gatewayGenerationInfoResponseSchema = lazySchema(
-  () => zodSchema(
-    external_exports.object({
-      data: external_exports.object({
-        id: external_exports.string(),
-        total_cost: external_exports.number(),
-        upstream_inference_cost: external_exports.number(),
-        usage: external_exports.number(),
-        created_at: external_exports.string(),
-        model: external_exports.string(),
-        is_byok: external_exports.boolean(),
-        provider_name: external_exports.string(),
-        streamed: external_exports.boolean(),
-        finish_reason: external_exports.string(),
-        latency: external_exports.number(),
-        generation_time: external_exports.number(),
-        native_tokens_prompt: external_exports.number(),
-        native_tokens_completion: external_exports.number(),
-        native_tokens_reasoning: external_exports.number(),
-        native_tokens_cached: external_exports.number(),
-        native_tokens_cache_creation: external_exports.number(),
-        billable_web_search_calls: external_exports.number()
-      }).transform(
-        ({
-          total_cost,
-          upstream_inference_cost,
-          created_at,
-          is_byok,
-          provider_name,
-          finish_reason,
-          generation_time,
-          native_tokens_prompt,
-          native_tokens_completion,
-          native_tokens_reasoning,
-          native_tokens_cached,
-          native_tokens_cache_creation,
-          billable_web_search_calls,
-          ...rest
-        }) => ({
-          ...rest,
-          totalCost: total_cost,
-          upstreamInferenceCost: upstream_inference_cost,
-          createdAt: created_at,
-          isByok: is_byok,
-          providerName: provider_name,
-          finishReason: finish_reason,
-          generationTime: generation_time,
-          promptTokens: native_tokens_prompt,
-          completionTokens: native_tokens_completion,
-          reasoningTokens: native_tokens_reasoning,
-          cachedTokens: native_tokens_cached,
-          cacheCreationTokens: native_tokens_cache_creation,
-          billableWebSearchCalls: billable_web_search_calls
-        })
-      )
-    }).transform(({ data }) => data)
-  )
-);
-var GatewayLanguageModel = class {
-  constructor(modelId, config3) {
-    this.modelId = modelId;
-    this.config = config3;
-    this.specificationVersion = "v3";
-    this.supportedUrls = { "*/*": [/.*/] };
-  }
-  get provider() {
-    return this.config.provider;
-  }
-  async getArgs(options) {
-    const { abortSignal: _abortSignal, ...optionsWithoutSignal } = options;
-    return {
-      args: this.maybeEncodeFileParts(optionsWithoutSignal),
-      warnings: []
-    };
-  }
-  async doGenerate(options) {
-    const { args, warnings } = await this.getArgs(options);
-    const { abortSignal } = options;
-    const resolvedHeaders = await resolve(this.config.headers());
-    try {
-      const {
-        responseHeaders,
-        value: responseBody,
-        rawValue: rawResponse
-      } = await postJsonToApi({
-        url: this.getUrl(),
-        headers: combineHeaders(
-          resolvedHeaders,
-          options.headers,
-          this.getModelConfigHeaders(this.modelId, false),
-          await resolve(this.config.o11yHeaders)
-        ),
-        body: args,
-        successfulResponseHandler: createJsonResponseHandler(external_exports.any()),
-        failedResponseHandler: createJsonErrorResponseHandler({
-          errorSchema: external_exports.any(),
-          errorToMessage: (data) => data
-        }),
-        ...abortSignal && { abortSignal },
-        fetch: this.config.fetch
-      });
-      return {
-        ...responseBody,
-        request: { body: args },
-        response: { headers: responseHeaders, body: rawResponse },
-        warnings
-      };
-    } catch (error48) {
-      throw await asGatewayError(error48, await parseAuthMethod(resolvedHeaders));
-    }
-  }
-  async doStream(options) {
-    const { args, warnings } = await this.getArgs(options);
-    const { abortSignal } = options;
-    const resolvedHeaders = await resolve(this.config.headers());
-    try {
-      const { value: response, responseHeaders } = await postJsonToApi({
-        url: this.getUrl(),
-        headers: combineHeaders(
-          resolvedHeaders,
-          options.headers,
-          this.getModelConfigHeaders(this.modelId, true),
-          await resolve(this.config.o11yHeaders)
-        ),
-        body: args,
-        successfulResponseHandler: createEventSourceResponseHandler(external_exports.any()),
-        failedResponseHandler: createJsonErrorResponseHandler({
-          errorSchema: external_exports.any(),
-          errorToMessage: (data) => data
-        }),
-        ...abortSignal && { abortSignal },
-        fetch: this.config.fetch
-      });
-      return {
-        stream: response.pipeThrough(
-          new TransformStream({
-            start(controller) {
-              if (warnings.length > 0) {
-                controller.enqueue({ type: "stream-start", warnings });
-              }
-            },
-            transform(chunk, controller) {
-              if (chunk.success) {
-                const streamPart = chunk.value;
-                if (streamPart.type === "raw" && !options.includeRawChunks) {
-                  return;
-                }
-                if (streamPart.type === "response-metadata" && streamPart.timestamp && typeof streamPart.timestamp === "string") {
-                  streamPart.timestamp = new Date(streamPart.timestamp);
-                }
-                controller.enqueue(streamPart);
-              } else {
-                controller.error(
-                  chunk.error
-                );
-              }
-            }
-          })
-        ),
-        request: { body: args },
-        response: { headers: responseHeaders }
-      };
-    } catch (error48) {
-      throw await asGatewayError(error48, await parseAuthMethod(resolvedHeaders));
-    }
-  }
-  isFilePart(part) {
-    return part && typeof part === "object" && "type" in part && part.type === "file";
-  }
-  /**
-   * Encodes file parts in the prompt to base64. Mutates the passed options
-   * instance directly to avoid copying the file data.
-   * @param options - The options to encode.
-   * @returns The options with the file parts encoded.
-   */
-  maybeEncodeFileParts(options) {
-    for (const message of options.prompt) {
-      for (const part of message.content) {
-        if (this.isFilePart(part)) {
-          const filePart = part;
-          if (filePart.data instanceof Uint8Array) {
-            const buffer = Uint8Array.from(filePart.data);
-            const base64Data = Buffer.from(buffer).toString("base64");
-            filePart.data = new URL(
-              `data:${filePart.mediaType || "application/octet-stream"};base64,${base64Data}`
-            );
-          }
-        }
-      }
-    }
-    return options;
-  }
-  getUrl() {
-    return `${this.config.baseURL}/language-model`;
-  }
-  getModelConfigHeaders(modelId, streaming) {
-    return {
-      "ai-language-model-specification-version": "3",
-      "ai-language-model-id": modelId,
-      "ai-language-model-streaming": String(streaming)
-    };
-  }
-};
-var GatewayEmbeddingModel = class {
-  constructor(modelId, config3) {
-    this.modelId = modelId;
-    this.config = config3;
-    this.specificationVersion = "v3";
-    this.maxEmbeddingsPerCall = 2048;
-    this.supportsParallelCalls = true;
-  }
-  get provider() {
-    return this.config.provider;
-  }
-  async doEmbed({
-    values,
-    headers,
-    abortSignal,
-    providerOptions
-  }) {
-    var _a93;
-    const resolvedHeaders = await resolve(this.config.headers());
-    try {
-      const {
-        responseHeaders,
-        value: responseBody,
-        rawValue
-      } = await postJsonToApi({
-        url: this.getUrl(),
-        headers: combineHeaders(
-          resolvedHeaders,
-          headers != null ? headers : {},
-          this.getModelConfigHeaders(),
-          await resolve(this.config.o11yHeaders)
-        ),
-        body: {
-          values,
-          ...providerOptions ? { providerOptions } : {}
-        },
-        successfulResponseHandler: createJsonResponseHandler(
-          gatewayEmbeddingResponseSchema
-        ),
-        failedResponseHandler: createJsonErrorResponseHandler({
-          errorSchema: external_exports.any(),
-          errorToMessage: (data) => data
-        }),
-        ...abortSignal && { abortSignal },
-        fetch: this.config.fetch
-      });
-      return {
-        embeddings: responseBody.embeddings,
-        usage: (_a93 = responseBody.usage) != null ? _a93 : void 0,
-        providerMetadata: responseBody.providerMetadata,
-        response: { headers: responseHeaders, body: rawValue },
-        warnings: []
-      };
-    } catch (error48) {
-      throw await asGatewayError(error48, await parseAuthMethod(resolvedHeaders));
-    }
-  }
-  getUrl() {
-    return `${this.config.baseURL}/embedding-model`;
-  }
-  getModelConfigHeaders() {
-    return {
-      "ai-embedding-model-specification-version": "3",
-      "ai-model-id": this.modelId
-    };
-  }
-};
-var gatewayEmbeddingResponseSchema = lazySchema(
-  () => zodSchema(
-    external_exports.object({
-      embeddings: external_exports.array(external_exports.array(external_exports.number())),
-      usage: external_exports.object({ tokens: external_exports.number() }).nullish(),
-      providerMetadata: external_exports.record(external_exports.string(), external_exports.record(external_exports.string(), external_exports.unknown())).optional()
-    })
-  )
-);
-var GatewayImageModel = class {
-  constructor(modelId, config3) {
-    this.modelId = modelId;
-    this.config = config3;
-    this.specificationVersion = "v3";
-    this.maxImagesPerCall = Number.MAX_SAFE_INTEGER;
-  }
-  get provider() {
-    return this.config.provider;
-  }
-  async doGenerate({
-    prompt,
-    n,
-    size,
-    aspectRatio,
-    seed,
-    files,
-    mask,
-    providerOptions,
-    headers,
-    abortSignal
-  }) {
-    var _a93, _b92, _c, _d;
-    const resolvedHeaders = await resolve(this.config.headers());
-    try {
-      const {
-        responseHeaders,
-        value: responseBody,
-        rawValue
-      } = await postJsonToApi({
-        url: this.getUrl(),
-        headers: combineHeaders(
-          resolvedHeaders,
-          headers != null ? headers : {},
-          this.getModelConfigHeaders(),
-          await resolve(this.config.o11yHeaders)
-        ),
-        body: {
-          prompt,
-          n,
-          ...size && { size },
-          ...aspectRatio && { aspectRatio },
-          ...seed && { seed },
-          ...providerOptions && { providerOptions },
-          ...files && {
-            files: files.map((file2) => maybeEncodeImageFile(file2))
-          },
-          ...mask && { mask: maybeEncodeImageFile(mask) }
-        },
-        successfulResponseHandler: createJsonResponseHandler(
-          gatewayImageResponseSchema
-        ),
-        failedResponseHandler: createJsonErrorResponseHandler({
-          errorSchema: external_exports.any(),
-          errorToMessage: (data) => data
-        }),
-        ...abortSignal && { abortSignal },
-        fetch: this.config.fetch
-      });
-      return {
-        images: responseBody.images,
-        // Always base64 strings from server
-        warnings: (_a93 = responseBody.warnings) != null ? _a93 : [],
-        providerMetadata: responseBody.providerMetadata,
-        response: {
-          timestamp: /* @__PURE__ */ new Date(),
-          modelId: this.modelId,
-          headers: responseHeaders
-        },
-        ...responseBody.usage != null && {
-          usage: {
-            inputTokens: (_b92 = responseBody.usage.inputTokens) != null ? _b92 : void 0,
-            outputTokens: (_c = responseBody.usage.outputTokens) != null ? _c : void 0,
-            totalTokens: (_d = responseBody.usage.totalTokens) != null ? _d : void 0
-          }
-        }
-      };
-    } catch (error48) {
-      throw await asGatewayError(error48, await parseAuthMethod(resolvedHeaders));
-    }
-  }
-  getUrl() {
-    return `${this.config.baseURL}/image-model`;
-  }
-  getModelConfigHeaders() {
-    return {
-      "ai-image-model-specification-version": "3",
-      "ai-model-id": this.modelId
-    };
-  }
-};
-function maybeEncodeImageFile(file2) {
-  if (file2.type === "file" && file2.data instanceof Uint8Array) {
-    return {
-      ...file2,
-      data: convertUint8ArrayToBase64(file2.data)
-    };
-  }
-  return file2;
-}
-var providerMetadataEntrySchema = external_exports.object({
-  images: external_exports.array(external_exports.unknown()).optional()
-}).catchall(external_exports.unknown());
-var gatewayImageWarningSchema = external_exports.discriminatedUnion("type", [
-  external_exports.object({
-    type: external_exports.literal("unsupported"),
-    feature: external_exports.string(),
-    details: external_exports.string().optional()
-  }),
-  external_exports.object({
-    type: external_exports.literal("compatibility"),
-    feature: external_exports.string(),
-    details: external_exports.string().optional()
-  }),
-  external_exports.object({
-    type: external_exports.literal("other"),
-    message: external_exports.string()
-  })
-]);
-var gatewayImageUsageSchema = external_exports.object({
-  inputTokens: external_exports.number().nullish(),
-  outputTokens: external_exports.number().nullish(),
-  totalTokens: external_exports.number().nullish()
-});
-var gatewayImageResponseSchema = external_exports.object({
-  images: external_exports.array(external_exports.string()),
-  // Always base64 strings over the wire
-  warnings: external_exports.array(gatewayImageWarningSchema).optional(),
-  providerMetadata: external_exports.record(external_exports.string(), providerMetadataEntrySchema).optional(),
-  usage: gatewayImageUsageSchema.optional()
-});
-var GatewayVideoModel = class {
-  constructor(modelId, config3) {
-    this.modelId = modelId;
-    this.config = config3;
-    this.specificationVersion = "v3";
-    this.maxVideosPerCall = Number.MAX_SAFE_INTEGER;
-  }
-  get provider() {
-    return this.config.provider;
-  }
-  async doGenerate({
-    prompt,
-    n,
-    aspectRatio,
-    resolution,
-    duration: duration3,
-    fps,
-    seed,
-    image,
-    providerOptions,
-    headers,
-    abortSignal
-  }) {
-    var _a93;
-    const resolvedHeaders = await resolve(this.config.headers());
-    try {
-      const { responseHeaders, value: responseBody } = await postJsonToApi({
-        url: this.getUrl(),
-        headers: combineHeaders(
-          resolvedHeaders,
-          headers != null ? headers : {},
-          this.getModelConfigHeaders(),
-          await resolve(this.config.o11yHeaders),
-          { accept: "text/event-stream" }
-        ),
-        body: {
-          prompt,
-          n,
-          ...aspectRatio && { aspectRatio },
-          ...resolution && { resolution },
-          ...duration3 && { duration: duration3 },
-          ...fps && { fps },
-          ...seed && { seed },
-          ...providerOptions && { providerOptions },
-          ...image && { image: maybeEncodeVideoFile(image) }
-        },
-        successfulResponseHandler: async ({
-          response,
-          url: url2,
-          requestBodyValues
-        }) => {
-          if (response.body == null) {
-            throw new APICallError({
-              message: "SSE response body is empty",
-              url: url2,
-              requestBodyValues,
-              statusCode: response.status
-            });
-          }
-          const eventStream = parseJsonEventStream({
-            stream: response.body,
-            schema: gatewayVideoEventSchema
-          });
-          const reader = eventStream.getReader();
-          const { done, value: parseResult } = await reader.read();
-          reader.releaseLock();
-          if (done || !parseResult) {
-            throw new APICallError({
-              message: "SSE stream ended without a data event",
-              url: url2,
-              requestBodyValues,
-              statusCode: response.status
-            });
-          }
-          if (!parseResult.success) {
-            throw new APICallError({
-              message: "Failed to parse video SSE event",
-              cause: parseResult.error,
-              url: url2,
-              requestBodyValues,
-              statusCode: response.status
-            });
-          }
-          const event = parseResult.value;
-          if (event.type === "error") {
-            throw new APICallError({
-              message: event.message,
-              statusCode: event.statusCode,
-              url: url2,
-              requestBodyValues,
-              responseHeaders: Object.fromEntries([...response.headers]),
-              responseBody: JSON.stringify(event),
-              data: {
-                error: {
-                  message: event.message,
-                  type: event.errorType,
-                  param: event.param
-                }
-              }
-            });
-          }
-          return {
-            value: {
-              videos: event.videos,
-              warnings: event.warnings,
-              providerMetadata: event.providerMetadata
-            },
-            responseHeaders: Object.fromEntries([...response.headers])
-          };
-        },
-        failedResponseHandler: createJsonErrorResponseHandler({
-          errorSchema: external_exports.any(),
-          errorToMessage: (data) => data
-        }),
-        ...abortSignal && { abortSignal },
-        fetch: this.config.fetch
-      });
-      return {
-        videos: responseBody.videos,
-        warnings: (_a93 = responseBody.warnings) != null ? _a93 : [],
-        providerMetadata: responseBody.providerMetadata,
-        response: {
-          timestamp: /* @__PURE__ */ new Date(),
-          modelId: this.modelId,
-          headers: responseHeaders
-        }
-      };
-    } catch (error48) {
-      throw await asGatewayError(error48, await parseAuthMethod(resolvedHeaders));
-    }
-  }
-  getUrl() {
-    return `${this.config.baseURL}/video-model`;
-  }
-  getModelConfigHeaders() {
-    return {
-      "ai-video-model-specification-version": "3",
-      "ai-model-id": this.modelId
-    };
-  }
-};
-function maybeEncodeVideoFile(file2) {
-  if (file2.type === "file" && file2.data instanceof Uint8Array) {
-    return {
-      ...file2,
-      data: convertUint8ArrayToBase64(file2.data)
-    };
-  }
-  return file2;
-}
-var providerMetadataEntrySchema2 = external_exports.object({
-  videos: external_exports.array(external_exports.unknown()).optional()
-}).catchall(external_exports.unknown());
-var gatewayVideoDataSchema = external_exports.union([
-  external_exports.object({
-    type: external_exports.literal("url"),
-    url: external_exports.string(),
-    mediaType: external_exports.string()
-  }),
-  external_exports.object({
-    type: external_exports.literal("base64"),
-    data: external_exports.string(),
-    mediaType: external_exports.string()
-  })
-]);
-var gatewayVideoWarningSchema = external_exports.discriminatedUnion("type", [
-  external_exports.object({
-    type: external_exports.literal("unsupported"),
-    feature: external_exports.string(),
-    details: external_exports.string().optional()
-  }),
-  external_exports.object({
-    type: external_exports.literal("compatibility"),
-    feature: external_exports.string(),
-    details: external_exports.string().optional()
-  }),
-  external_exports.object({
-    type: external_exports.literal("other"),
-    message: external_exports.string()
-  })
-]);
-var gatewayVideoEventSchema = external_exports.discriminatedUnion("type", [
-  external_exports.object({
-    type: external_exports.literal("result"),
-    videos: external_exports.array(gatewayVideoDataSchema),
-    warnings: external_exports.array(gatewayVideoWarningSchema).optional(),
-    providerMetadata: external_exports.record(external_exports.string(), providerMetadataEntrySchema2).optional()
-  }),
-  external_exports.object({
-    type: external_exports.literal("error"),
-    message: external_exports.string(),
-    errorType: external_exports.string(),
-    statusCode: external_exports.number(),
-    param: external_exports.unknown().nullable()
-  })
-]);
-var GatewayRerankingModel = class {
-  constructor(modelId, config3) {
-    this.modelId = modelId;
-    this.config = config3;
-    this.specificationVersion = "v3";
-  }
-  get provider() {
-    return this.config.provider;
-  }
-  async doRerank({
-    documents,
-    query,
-    topN,
-    headers,
-    abortSignal,
-    providerOptions
-  }) {
-    const resolvedHeaders = await resolve(this.config.headers());
-    try {
-      const {
-        responseHeaders,
-        value: responseBody,
-        rawValue
-      } = await postJsonToApi({
-        url: this.getUrl(),
-        headers: combineHeaders(
-          resolvedHeaders,
-          headers != null ? headers : {},
-          this.getModelConfigHeaders(),
-          await resolve(this.config.o11yHeaders)
-        ),
-        body: {
-          documents,
-          query,
-          ...topN != null ? { topN } : {},
-          ...providerOptions ? { providerOptions } : {}
-        },
-        successfulResponseHandler: createJsonResponseHandler(
-          gatewayRerankingResponseSchema
-        ),
-        failedResponseHandler: createJsonErrorResponseHandler({
-          errorSchema: external_exports.any(),
-          errorToMessage: (data) => data
-        }),
-        ...abortSignal && { abortSignal },
-        fetch: this.config.fetch
-      });
-      return {
-        ranking: responseBody.ranking,
-        providerMetadata: responseBody.providerMetadata,
-        response: { headers: responseHeaders, body: rawValue },
-        warnings: []
-      };
-    } catch (error48) {
-      throw await asGatewayError(error48, await parseAuthMethod(resolvedHeaders));
-    }
-  }
-  getUrl() {
-    return `${this.config.baseURL}/reranking-model`;
-  }
-  getModelConfigHeaders() {
-    return {
-      "ai-reranking-model-specification-version": "3",
-      "ai-model-id": this.modelId
-    };
-  }
-};
-var gatewayRerankingResponseSchema = lazySchema(
-  () => zodSchema(
-    external_exports.object({
-      ranking: external_exports.array(
-        external_exports.object({
-          index: external_exports.number(),
-          relevanceScore: external_exports.number()
-        })
-      ),
-      providerMetadata: external_exports.record(external_exports.string(), external_exports.record(external_exports.string(), external_exports.unknown())).optional()
-    })
-  )
-);
-var parallelSearchInputSchema = lazySchema(
-  () => zodSchema(
-    external_exports.object({
-      objective: external_exports.string().describe(
-        "Natural-language description of the web research goal, including source or freshness guidance and broader context from the task. Maximum 5000 characters."
-      ),
-      search_queries: external_exports.array(external_exports.string()).optional().describe(
-        "Optional search queries to supplement the objective. Maximum 200 characters per query."
-      ),
-      mode: external_exports.enum(["one-shot", "agentic"]).optional().describe(
-        'Mode preset: "one-shot" for comprehensive results with longer excerpts (default), "agentic" for concise, token-efficient results for multi-step workflows.'
-      ),
-      max_results: external_exports.number().optional().describe(
-        "Maximum number of results to return (1-20). Defaults to 10 if not specified."
-      ),
-      source_policy: external_exports.object({
-        include_domains: external_exports.array(external_exports.string()).optional().describe("List of domains to include in search results."),
-        exclude_domains: external_exports.array(external_exports.string()).optional().describe("List of domains to exclude from search results."),
-        after_date: external_exports.string().optional().describe(
-          "Only include results published after this date (ISO 8601 format)."
-        )
-      }).optional().describe(
-        "Source policy for controlling which domains to include/exclude and freshness."
-      ),
-      excerpts: external_exports.object({
-        max_chars_per_result: external_exports.number().optional().describe("Maximum characters per result."),
-        max_chars_total: external_exports.number().optional().describe("Maximum total characters across all results.")
-      }).optional().describe("Excerpt configuration for controlling result length."),
-      fetch_policy: external_exports.object({
-        max_age_seconds: external_exports.number().optional().describe(
-          "Maximum age in seconds for cached content. Set to 0 to always fetch fresh content."
-        )
-      }).optional().describe("Fetch policy for controlling content freshness.")
-    })
-  )
-);
-var parallelSearchOutputSchema = lazySchema(
-  () => zodSchema(
-    external_exports.union([
-      // Success response
-      external_exports.object({
-        searchId: external_exports.string(),
-        results: external_exports.array(
-          external_exports.object({
-            url: external_exports.string(),
-            title: external_exports.string(),
-            excerpt: external_exports.string(),
-            publishDate: external_exports.string().nullable().optional(),
-            relevanceScore: external_exports.number().optional()
-          })
-        )
-      }),
-      // Error response
-      external_exports.object({
-        error: external_exports.enum([
-          "api_error",
-          "rate_limit",
-          "timeout",
-          "invalid_input",
-          "configuration_error",
-          "unknown"
-        ]),
-        statusCode: external_exports.number().optional(),
-        message: external_exports.string()
-      })
-    ])
-  )
-);
-var parallelSearchToolFactory = createProviderToolFactoryWithOutputSchema({
-  id: "gateway.parallel_search",
-  inputSchema: parallelSearchInputSchema,
-  outputSchema: parallelSearchOutputSchema
-});
-var parallelSearch = (config3 = {}) => parallelSearchToolFactory(config3);
-var perplexitySearchInputSchema = lazySchema(
-  () => zodSchema(
-    external_exports.object({
-      query: external_exports.union([external_exports.string(), external_exports.array(external_exports.string())]).describe(
-        "Search query (string) or multiple queries (array of up to 5 strings). Multi-query searches return combined results from all queries."
-      ),
-      max_results: external_exports.number().optional().describe(
-        "Maximum number of search results to return (1-20, default: 10)"
-      ),
-      max_tokens_per_page: external_exports.number().optional().describe(
-        "Maximum number of tokens to extract per search result page (256-2048, default: 2048)"
-      ),
-      max_tokens: external_exports.number().optional().describe(
-        "Maximum total tokens across all search results (default: 25000, max: 1000000)"
-      ),
-      country: external_exports.string().optional().describe(
-        "Two-letter ISO 3166-1 alpha-2 country code for regional search results (e.g., 'US', 'GB', 'FR')"
-      ),
-      search_domain_filter: external_exports.array(external_exports.string()).optional().describe(
-        "List of domains to include or exclude from search results (max 20). To include: ['nature.com', 'science.org']. To exclude: ['-example.com', '-spam.net']"
-      ),
-      search_language_filter: external_exports.array(external_exports.string()).optional().describe(
-        "List of ISO 639-1 language codes to filter results (max 10, lowercase). Examples: ['en', 'fr', 'de']"
-      ),
-      search_after_date: external_exports.string().optional().describe(
-        "Include only results published after this date. Format: 'MM/DD/YYYY' (e.g., '3/1/2025'). Cannot be used with search_recency_filter."
-      ),
-      search_before_date: external_exports.string().optional().describe(
-        "Include only results published before this date. Format: 'MM/DD/YYYY' (e.g., '3/15/2025'). Cannot be used with search_recency_filter."
-      ),
-      last_updated_after_filter: external_exports.string().optional().describe(
-        "Include only results last updated after this date. Format: 'MM/DD/YYYY' (e.g., '3/1/2025'). Cannot be used with search_recency_filter."
-      ),
-      last_updated_before_filter: external_exports.string().optional().describe(
-        "Include only results last updated before this date. Format: 'MM/DD/YYYY' (e.g., '3/15/2025'). Cannot be used with search_recency_filter."
-      ),
-      search_recency_filter: external_exports.enum(["day", "week", "month", "year"]).optional().describe(
-        "Filter results by relative time period. Cannot be used with search_after_date or search_before_date."
-      )
-    })
-  )
-);
-var perplexitySearchOutputSchema = lazySchema(
-  () => zodSchema(
-    external_exports.union([
-      // Success response
-      external_exports.object({
-        results: external_exports.array(
-          external_exports.object({
-            title: external_exports.string(),
-            url: external_exports.string(),
-            snippet: external_exports.string(),
-            date: external_exports.string().optional(),
-            lastUpdated: external_exports.string().optional()
-          })
-        ),
-        id: external_exports.string()
-      }),
-      // Error response
-      external_exports.object({
-        error: external_exports.enum([
-          "api_error",
-          "rate_limit",
-          "timeout",
-          "invalid_input",
-          "unknown"
-        ]),
-        statusCode: external_exports.number().optional(),
-        message: external_exports.string()
-      })
-    ])
-  )
-);
-var perplexitySearchToolFactory = createProviderToolFactoryWithOutputSchema({
-  id: "gateway.perplexity_search",
-  inputSchema: perplexitySearchInputSchema,
-  outputSchema: perplexitySearchOutputSchema
-});
-var perplexitySearch = (config3 = {}) => perplexitySearchToolFactory(config3);
-var gatewayTools = {
-  /**
-   * Search the web using Parallel AI's Search API for LLM-optimized excerpts.
-   *
-   * Takes a natural language objective and returns relevant excerpts,
-   * replacing multiple keyword searches with a single call for broad
-   * or complex queries. Supports different search types for depth vs
-   * breadth tradeoffs.
-   */
-  parallelSearch,
-  /**
-   * Search the web using Perplexity's Search API for real-time information,
-   * news, research papers, and articles.
-   *
-   * Provides ranked search results with advanced filtering options including
-   * domain, language, date range, and recency filters.
-   */
-  perplexitySearch
-};
-async function getVercelRequestId() {
-  var _a93;
-  return (_a93 = (0, import_oidc.getContext)().headers) == null ? void 0 : _a93["x-vercel-id"];
-}
-var VERSION2 = true ? "3.0.104" : "0.0.0-test";
-var AI_GATEWAY_PROTOCOL_VERSION = "0.0.1";
-function createGatewayProvider(options = {}) {
-  var _a93, _b92;
-  let pendingMetadata = null;
-  let metadataCache = null;
-  const cacheRefreshMillis = (_a93 = options.metadataCacheRefreshMillis) != null ? _a93 : 1e3 * 60 * 5;
-  let lastFetchTime = 0;
-  const baseURL = (_b92 = withoutTrailingSlash(options.baseURL)) != null ? _b92 : "https://ai-gateway.vercel.sh/v3/ai";
-  const getHeaders = async () => {
-    try {
-      const auth = await getGatewayAuthToken(options);
-      return withUserAgentSuffix(
-        {
-          Authorization: `Bearer ${auth.token}`,
-          "ai-gateway-protocol-version": AI_GATEWAY_PROTOCOL_VERSION,
-          [GATEWAY_AUTH_METHOD_HEADER]: auth.authMethod,
-          ...options.headers
-        },
-        `ai-sdk/gateway/${VERSION2}`
-      );
-    } catch (error48) {
-      throw GatewayAuthenticationError.createContextualError({
-        apiKeyProvided: false,
-        oidcTokenProvided: false,
-        statusCode: 401,
-        cause: error48
-      });
-    }
-  };
-  const createO11yHeaders = () => {
-    const deploymentId = loadOptionalSetting({
-      settingValue: void 0,
-      environmentVariableName: "VERCEL_DEPLOYMENT_ID"
-    });
-    const environment = loadOptionalSetting({
-      settingValue: void 0,
-      environmentVariableName: "VERCEL_ENV"
-    });
-    const region = loadOptionalSetting({
-      settingValue: void 0,
-      environmentVariableName: "VERCEL_REGION"
-    });
-    const projectId = loadOptionalSetting({
-      settingValue: void 0,
-      environmentVariableName: "VERCEL_PROJECT_ID"
-    });
-    return async () => {
-      const requestId = await getVercelRequestId();
-      return {
-        ...deploymentId && { "ai-o11y-deployment-id": deploymentId },
-        ...environment && { "ai-o11y-environment": environment },
-        ...region && { "ai-o11y-region": region },
-        ...requestId && { "ai-o11y-request-id": requestId },
-        ...projectId && { "ai-o11y-project-id": projectId }
-      };
-    };
-  };
-  const createLanguageModel = (modelId) => {
-    return new GatewayLanguageModel(modelId, {
-      provider: "gateway",
-      baseURL,
-      headers: getHeaders,
-      fetch: options.fetch,
-      o11yHeaders: createO11yHeaders()
-    });
-  };
-  const getAvailableModels = async () => {
-    var _a103, _b102, _c;
-    const now2 = (_c = (_b102 = (_a103 = options._internal) == null ? void 0 : _a103.currentDate) == null ? void 0 : _b102.call(_a103).getTime()) != null ? _c : Date.now();
-    if (!pendingMetadata || now2 - lastFetchTime > cacheRefreshMillis) {
-      lastFetchTime = now2;
-      pendingMetadata = new GatewayFetchMetadata({
-        baseURL,
-        headers: getHeaders,
-        fetch: options.fetch
-      }).getAvailableModels().then((metadata) => {
-        metadataCache = metadata;
-        return metadata;
-      }).catch(async (error48) => {
-        throw await asGatewayError(
-          error48,
-          await parseAuthMethod(await getHeaders())
-        );
-      });
-    }
-    return metadataCache ? Promise.resolve(metadataCache) : pendingMetadata;
-  };
-  const getCredits = async () => {
-    return new GatewayFetchMetadata({
-      baseURL,
-      headers: getHeaders,
-      fetch: options.fetch
-    }).getCredits().catch(async (error48) => {
-      throw await asGatewayError(
-        error48,
-        await parseAuthMethod(await getHeaders())
-      );
-    });
-  };
-  const getSpendReport = async (params) => {
-    return new GatewaySpendReport({
-      baseURL,
-      headers: getHeaders,
-      fetch: options.fetch
-    }).getSpendReport(params).catch(async (error48) => {
-      throw await asGatewayError(
-        error48,
-        await parseAuthMethod(await getHeaders())
-      );
-    });
-  };
-  const getGenerationInfo = async (params) => {
-    return new GatewayGenerationInfoFetcher({
-      baseURL,
-      headers: getHeaders,
-      fetch: options.fetch
-    }).getGenerationInfo(params).catch(async (error48) => {
-      throw await asGatewayError(
-        error48,
-        await parseAuthMethod(await getHeaders())
-      );
-    });
-  };
-  const provider = function(modelId) {
-    if (new.target) {
-      throw new Error(
-        "The Gateway Provider model function cannot be called with the new keyword."
-      );
-    }
-    return createLanguageModel(modelId);
-  };
-  provider.specificationVersion = "v3";
-  provider.getAvailableModels = getAvailableModels;
-  provider.getCredits = getCredits;
-  provider.getSpendReport = getSpendReport;
-  provider.getGenerationInfo = getGenerationInfo;
-  provider.imageModel = (modelId) => {
-    return new GatewayImageModel(modelId, {
-      provider: "gateway",
-      baseURL,
-      headers: getHeaders,
-      fetch: options.fetch,
-      o11yHeaders: createO11yHeaders()
-    });
-  };
-  provider.languageModel = createLanguageModel;
-  const createEmbeddingModel = (modelId) => {
-    return new GatewayEmbeddingModel(modelId, {
-      provider: "gateway",
-      baseURL,
-      headers: getHeaders,
-      fetch: options.fetch,
-      o11yHeaders: createO11yHeaders()
-    });
-  };
-  provider.embeddingModel = createEmbeddingModel;
-  provider.textEmbeddingModel = createEmbeddingModel;
-  provider.videoModel = (modelId) => {
-    return new GatewayVideoModel(modelId, {
-      provider: "gateway",
-      baseURL,
-      headers: getHeaders,
-      fetch: options.fetch,
-      o11yHeaders: createO11yHeaders()
-    });
-  };
-  const createRerankingModel = (modelId) => {
-    return new GatewayRerankingModel(modelId, {
-      provider: "gateway",
-      baseURL,
-      headers: getHeaders,
-      fetch: options.fetch,
-      o11yHeaders: createO11yHeaders()
-    });
-  };
-  provider.rerankingModel = createRerankingModel;
-  provider.reranking = createRerankingModel;
-  provider.chat = provider.languageModel;
-  provider.embedding = provider.embeddingModel;
-  provider.image = provider.imageModel;
-  provider.video = provider.videoModel;
-  provider.tools = gatewayTools;
-  return provider;
-}
-var gateway = createGatewayProvider();
-async function getGatewayAuthToken(options) {
-  const apiKey = loadOptionalSetting({
-    settingValue: options.apiKey,
-    environmentVariableName: "AI_GATEWAY_API_KEY"
-  });
-  if (apiKey) {
-    return {
-      token: apiKey,
-      authMethod: "api-key"
-    };
-  }
-  const oidcToken = await (0, import_oidc2.getVercelOidcToken)();
-  return {
-    token: oidcToken,
-    authMethod: "oidc"
-  };
-}
-
 // node_modules/@ai-sdk/openai-compatible/dist/index.mjs
 function toCamelCase(str) {
   return str.replace(/[_-]([a-z])/g, (g) => g[1].toUpperCase());
@@ -24380,7 +22676,7 @@ async function fileToBlob(file2) {
   const data = file2.data instanceof Uint8Array ? file2.data : convertBase64ToUint8Array(file2.data);
   return new Blob([data], { type: file2.mediaType });
 }
-var VERSION3 = true ? "2.0.41" : "0.0.0-test";
+var VERSION2 = true ? "2.0.41" : "0.0.0-test";
 function createOpenAICompatible(options) {
   const baseURL = withoutTrailingSlash(options.baseURL);
   const providerName = options.name;
@@ -24388,7 +22684,7 @@ function createOpenAICompatible(options) {
     ...options.apiKey && { Authorization: `Bearer ${options.apiKey}` },
     ...options.headers
   };
-  const getHeaders = () => withUserAgentSuffix(headers, `ai-sdk/openai-compatible/${VERSION3}`);
+  const getHeaders = () => withUserAgentSuffix(headers, `ai-sdk/openai-compatible/${VERSION2}`);
   const getCommonModelConfig = (modelType) => ({
     provider: `${providerName}.${modelType}`,
     url: ({ path }) => {
@@ -24426,6 +22722,1710 @@ function createOpenAICompatible(options) {
   provider.textEmbeddingModel = createEmbeddingModel;
   provider.imageModel = createImageModel;
   return provider;
+}
+
+// node_modules/@ai-sdk/gateway/dist/index.mjs
+var import_oidc = __toESM(require_dist(), 1);
+var import_oidc2 = __toESM(require_dist(), 1);
+var marker16 = "vercel.ai.gateway.error";
+var symbol17 = Symbol.for(marker16);
+var _a17;
+var _b16;
+var GatewayError = class _GatewayError extends (_b16 = Error, _a17 = symbol17, _b16) {
+  constructor({
+    message,
+    statusCode = 500,
+    cause,
+    generationId
+  }) {
+    super(generationId ? `${message} [${generationId}]` : message);
+    this[_a17] = true;
+    this.statusCode = statusCode;
+    this.cause = cause;
+    this.generationId = generationId;
+  }
+  /**
+   * Checks if the given error is a Gateway Error.
+   * @param {unknown} error - The error to check.
+   * @returns {boolean} True if the error is a Gateway Error, false otherwise.
+   */
+  static isInstance(error48) {
+    return _GatewayError.hasMarker(error48);
+  }
+  static hasMarker(error48) {
+    return typeof error48 === "object" && error48 !== null && symbol17 in error48 && error48[symbol17] === true;
+  }
+};
+var name15 = "GatewayAuthenticationError";
+var marker22 = `vercel.ai.gateway.error.${name15}`;
+var symbol22 = Symbol.for(marker22);
+var _a22;
+var _b22;
+var GatewayAuthenticationError = class _GatewayAuthenticationError extends (_b22 = GatewayError, _a22 = symbol22, _b22) {
+  constructor({
+    message = "Authentication failed",
+    statusCode = 401,
+    cause,
+    generationId
+  } = {}) {
+    super({ message, statusCode, cause, generationId });
+    this[_a22] = true;
+    this.name = name15;
+    this.type = "authentication_error";
+  }
+  static isInstance(error48) {
+    return GatewayError.hasMarker(error48) && symbol22 in error48;
+  }
+  /**
+   * Creates a contextual error message when authentication fails
+   */
+  static createContextualError({
+    apiKeyProvided,
+    oidcTokenProvided,
+    message = "Authentication failed",
+    statusCode = 401,
+    cause,
+    generationId
+  }) {
+    let contextualMessage;
+    if (apiKeyProvided) {
+      contextualMessage = `AI Gateway authentication failed: Invalid API key.
+
+Create a new API key: https://vercel.com/d?to=%2F%5Bteam%5D%2F%7E%2Fai%2Fapi-keys
+
+Provide via 'apiKey' option or 'AI_GATEWAY_API_KEY' environment variable.`;
+    } else if (oidcTokenProvided) {
+      contextualMessage = `AI Gateway authentication failed: Invalid OIDC token.
+
+Run 'npx vercel link' to link your project, then 'vc env pull' to fetch the token.
+
+Alternatively, use an API key: https://vercel.com/d?to=%2F%5Bteam%5D%2F%7E%2Fai%2Fapi-keys`;
+    } else {
+      contextualMessage = `AI Gateway authentication failed: No authentication provided.
+
+Option 1 - API key:
+Create an API key: https://vercel.com/d?to=%2F%5Bteam%5D%2F%7E%2Fai%2Fapi-keys
+Provide via 'apiKey' option or 'AI_GATEWAY_API_KEY' environment variable.
+
+Option 2 - OIDC token:
+Run 'npx vercel link' to link your project, then 'vc env pull' to fetch the token.`;
+    }
+    return new _GatewayAuthenticationError({
+      message: contextualMessage,
+      statusCode,
+      cause,
+      generationId
+    });
+  }
+};
+var name22 = "GatewayInvalidRequestError";
+var marker32 = `vercel.ai.gateway.error.${name22}`;
+var symbol32 = Symbol.for(marker32);
+var _a32;
+var _b32;
+var GatewayInvalidRequestError = class extends (_b32 = GatewayError, _a32 = symbol32, _b32) {
+  constructor({
+    message = "Invalid request",
+    statusCode = 400,
+    cause,
+    generationId
+  } = {}) {
+    super({ message, statusCode, cause, generationId });
+    this[_a32] = true;
+    this.name = name22;
+    this.type = "invalid_request_error";
+  }
+  static isInstance(error48) {
+    return GatewayError.hasMarker(error48) && symbol32 in error48;
+  }
+};
+var name32 = "GatewayRateLimitError";
+var marker42 = `vercel.ai.gateway.error.${name32}`;
+var symbol42 = Symbol.for(marker42);
+var _a42;
+var _b42;
+var GatewayRateLimitError = class extends (_b42 = GatewayError, _a42 = symbol42, _b42) {
+  constructor({
+    message = "Rate limit exceeded",
+    statusCode = 429,
+    cause,
+    generationId
+  } = {}) {
+    super({ message, statusCode, cause, generationId });
+    this[_a42] = true;
+    this.name = name32;
+    this.type = "rate_limit_exceeded";
+  }
+  static isInstance(error48) {
+    return GatewayError.hasMarker(error48) && symbol42 in error48;
+  }
+};
+var name42 = "GatewayModelNotFoundError";
+var marker52 = `vercel.ai.gateway.error.${name42}`;
+var symbol52 = Symbol.for(marker52);
+var modelNotFoundParamSchema = lazySchema(
+  () => zodSchema(
+    external_exports.object({
+      modelId: external_exports.string()
+    })
+  )
+);
+var _a52;
+var _b52;
+var GatewayModelNotFoundError = class extends (_b52 = GatewayError, _a52 = symbol52, _b52) {
+  constructor({
+    message = "Model not found",
+    statusCode = 404,
+    modelId,
+    cause,
+    generationId
+  } = {}) {
+    super({ message, statusCode, cause, generationId });
+    this[_a52] = true;
+    this.name = name42;
+    this.type = "model_not_found";
+    this.modelId = modelId;
+  }
+  static isInstance(error48) {
+    return GatewayError.hasMarker(error48) && symbol52 in error48;
+  }
+};
+var name52 = "GatewayInternalServerError";
+var marker62 = `vercel.ai.gateway.error.${name52}`;
+var symbol62 = Symbol.for(marker62);
+var _a62;
+var _b62;
+var GatewayInternalServerError = class extends (_b62 = GatewayError, _a62 = symbol62, _b62) {
+  constructor({
+    message = "Internal server error",
+    statusCode = 500,
+    cause,
+    generationId
+  } = {}) {
+    super({ message, statusCode, cause, generationId });
+    this[_a62] = true;
+    this.name = name52;
+    this.type = "internal_server_error";
+  }
+  static isInstance(error48) {
+    return GatewayError.hasMarker(error48) && symbol62 in error48;
+  }
+};
+var name62 = "GatewayResponseError";
+var marker72 = `vercel.ai.gateway.error.${name62}`;
+var symbol72 = Symbol.for(marker72);
+var _a72;
+var _b72;
+var GatewayResponseError = class extends (_b72 = GatewayError, _a72 = symbol72, _b72) {
+  constructor({
+    message = "Invalid response from Gateway",
+    statusCode = 502,
+    response,
+    validationError,
+    cause,
+    generationId
+  } = {}) {
+    super({ message, statusCode, cause, generationId });
+    this[_a72] = true;
+    this.name = name62;
+    this.type = "response_error";
+    this.response = response;
+    this.validationError = validationError;
+  }
+  static isInstance(error48) {
+    return GatewayError.hasMarker(error48) && symbol72 in error48;
+  }
+};
+async function createGatewayErrorFromResponse({
+  response,
+  statusCode,
+  defaultMessage = "Gateway request failed",
+  cause,
+  authMethod
+}) {
+  var _a93;
+  const parseResult = await safeValidateTypes({
+    value: response,
+    schema: gatewayErrorResponseSchema
+  });
+  if (!parseResult.success) {
+    const rawGenerationId = typeof response === "object" && response !== null && "generationId" in response ? response.generationId : void 0;
+    return new GatewayResponseError({
+      message: `Invalid error response format: ${defaultMessage}`,
+      statusCode,
+      response,
+      validationError: parseResult.error,
+      cause,
+      generationId: rawGenerationId
+    });
+  }
+  const validatedResponse = parseResult.value;
+  const errorType = validatedResponse.error.type;
+  const message = validatedResponse.error.message;
+  const generationId = (_a93 = validatedResponse.generationId) != null ? _a93 : void 0;
+  switch (errorType) {
+    case "authentication_error":
+      return GatewayAuthenticationError.createContextualError({
+        apiKeyProvided: authMethod === "api-key",
+        oidcTokenProvided: authMethod === "oidc",
+        statusCode,
+        cause,
+        generationId
+      });
+    case "invalid_request_error":
+      return new GatewayInvalidRequestError({
+        message,
+        statusCode,
+        cause,
+        generationId
+      });
+    case "rate_limit_exceeded":
+      return new GatewayRateLimitError({
+        message,
+        statusCode,
+        cause,
+        generationId
+      });
+    case "model_not_found": {
+      const modelResult = await safeValidateTypes({
+        value: validatedResponse.error.param,
+        schema: modelNotFoundParamSchema
+      });
+      return new GatewayModelNotFoundError({
+        message,
+        statusCode,
+        modelId: modelResult.success ? modelResult.value.modelId : void 0,
+        cause,
+        generationId
+      });
+    }
+    case "internal_server_error":
+      return new GatewayInternalServerError({
+        message,
+        statusCode,
+        cause,
+        generationId
+      });
+    default:
+      return new GatewayInternalServerError({
+        message,
+        statusCode,
+        cause,
+        generationId
+      });
+  }
+}
+var gatewayErrorResponseSchema = lazySchema(
+  () => zodSchema(
+    external_exports.object({
+      error: external_exports.object({
+        message: external_exports.string(),
+        type: external_exports.string().nullish(),
+        param: external_exports.unknown().nullish(),
+        code: external_exports.union([external_exports.string(), external_exports.number()]).nullish()
+      }),
+      generationId: external_exports.string().nullish()
+    })
+  )
+);
+var name72 = "GatewayTimeoutError";
+var marker82 = `vercel.ai.gateway.error.${name72}`;
+var symbol82 = Symbol.for(marker82);
+var _a82;
+var _b82;
+var GatewayTimeoutError = class _GatewayTimeoutError extends (_b82 = GatewayError, _a82 = symbol82, _b82) {
+  constructor({
+    message = "Request timed out",
+    statusCode = 408,
+    cause,
+    generationId
+  } = {}) {
+    super({ message, statusCode, cause, generationId });
+    this[_a82] = true;
+    this.name = name72;
+    this.type = "timeout_error";
+  }
+  static isInstance(error48) {
+    return GatewayError.hasMarker(error48) && symbol82 in error48;
+  }
+  /**
+   * Creates a helpful timeout error message with troubleshooting guidance
+   */
+  static createTimeoutError({
+    originalMessage,
+    statusCode = 408,
+    cause,
+    generationId
+  }) {
+    const message = `Gateway request timed out: ${originalMessage}
+
+    This is a client-side timeout. To resolve this, increase your timeout configuration: https://vercel.com/docs/ai-gateway/capabilities/video-generation#extending-timeouts-for-node.js`;
+    return new _GatewayTimeoutError({
+      message,
+      statusCode,
+      cause,
+      generationId
+    });
+  }
+};
+function isTimeoutError(error48) {
+  if (!(error48 instanceof Error)) {
+    return false;
+  }
+  const errorCode = error48.code;
+  if (typeof errorCode === "string") {
+    const undiciTimeoutCodes = [
+      "UND_ERR_HEADERS_TIMEOUT",
+      "UND_ERR_BODY_TIMEOUT",
+      "UND_ERR_CONNECT_TIMEOUT"
+    ];
+    return undiciTimeoutCodes.includes(errorCode);
+  }
+  return false;
+}
+async function asGatewayError(error48, authMethod) {
+  var _a93;
+  if (GatewayError.isInstance(error48)) {
+    return error48;
+  }
+  if (isTimeoutError(error48)) {
+    return GatewayTimeoutError.createTimeoutError({
+      originalMessage: error48 instanceof Error ? error48.message : "Unknown error",
+      cause: error48
+    });
+  }
+  if (APICallError.isInstance(error48)) {
+    if (error48.cause && isTimeoutError(error48.cause)) {
+      return GatewayTimeoutError.createTimeoutError({
+        originalMessage: error48.message,
+        cause: error48
+      });
+    }
+    return await createGatewayErrorFromResponse({
+      response: extractApiCallResponse(error48),
+      statusCode: (_a93 = error48.statusCode) != null ? _a93 : 500,
+      defaultMessage: "Gateway request failed",
+      cause: error48,
+      authMethod
+    });
+  }
+  return await createGatewayErrorFromResponse({
+    response: {},
+    statusCode: 500,
+    defaultMessage: error48 instanceof Error ? `Gateway request failed: ${error48.message}` : "Unknown Gateway error",
+    cause: error48,
+    authMethod
+  });
+}
+function extractApiCallResponse(error48) {
+  if (error48.data !== void 0) {
+    return error48.data;
+  }
+  if (error48.responseBody != null) {
+    try {
+      return JSON.parse(error48.responseBody);
+    } catch (e) {
+      return error48.responseBody;
+    }
+  }
+  return {};
+}
+var GATEWAY_AUTH_METHOD_HEADER = "ai-gateway-auth-method";
+async function parseAuthMethod(headers) {
+  const result = await safeValidateTypes({
+    value: headers[GATEWAY_AUTH_METHOD_HEADER],
+    schema: gatewayAuthMethodSchema
+  });
+  return result.success ? result.value : void 0;
+}
+var gatewayAuthMethodSchema = lazySchema(
+  () => zodSchema(external_exports.union([external_exports.literal("api-key"), external_exports.literal("oidc")]))
+);
+var KNOWN_MODEL_TYPES = [
+  "embedding",
+  "image",
+  "language",
+  "reranking",
+  "video"
+];
+var GatewayFetchMetadata = class {
+  constructor(config3) {
+    this.config = config3;
+  }
+  async getAvailableModels() {
+    try {
+      const { value } = await getFromApi({
+        url: `${this.config.baseURL}/config`,
+        headers: await resolve(this.config.headers()),
+        successfulResponseHandler: createJsonResponseHandler(
+          gatewayAvailableModelsResponseSchema
+        ),
+        failedResponseHandler: createJsonErrorResponseHandler({
+          errorSchema: external_exports.any(),
+          errorToMessage: (data) => data
+        }),
+        fetch: this.config.fetch
+      });
+      return value;
+    } catch (error48) {
+      throw await asGatewayError(error48);
+    }
+  }
+  async getCredits() {
+    try {
+      const baseUrl = new URL(this.config.baseURL);
+      const { value } = await getFromApi({
+        url: `${baseUrl.origin}/v1/credits`,
+        headers: await resolve(this.config.headers()),
+        successfulResponseHandler: createJsonResponseHandler(
+          gatewayCreditsResponseSchema
+        ),
+        failedResponseHandler: createJsonErrorResponseHandler({
+          errorSchema: external_exports.any(),
+          errorToMessage: (data) => data
+        }),
+        fetch: this.config.fetch
+      });
+      return value;
+    } catch (error48) {
+      throw await asGatewayError(error48);
+    }
+  }
+};
+var gatewayAvailableModelsResponseSchema = lazySchema(
+  () => zodSchema(
+    external_exports.object({
+      models: external_exports.array(
+        external_exports.object({
+          id: external_exports.string(),
+          name: external_exports.string(),
+          description: external_exports.string().nullish(),
+          pricing: external_exports.object({
+            input: external_exports.string(),
+            output: external_exports.string(),
+            input_cache_read: external_exports.string().nullish(),
+            input_cache_write: external_exports.string().nullish()
+          }).transform(
+            ({ input, output, input_cache_read, input_cache_write }) => ({
+              input,
+              output,
+              ...input_cache_read ? { cachedInputTokens: input_cache_read } : {},
+              ...input_cache_write ? { cacheCreationInputTokens: input_cache_write } : {}
+            })
+          ).nullish(),
+          specification: external_exports.object({
+            specificationVersion: external_exports.literal("v3"),
+            provider: external_exports.string(),
+            modelId: external_exports.string()
+          }),
+          modelType: external_exports.string().nullish()
+        })
+      ).transform(
+        (models) => models.filter(
+          (m) => m.modelType == null || KNOWN_MODEL_TYPES.includes(m.modelType)
+        )
+      )
+    })
+  )
+);
+var gatewayCreditsResponseSchema = lazySchema(
+  () => zodSchema(
+    external_exports.object({
+      balance: external_exports.string(),
+      total_used: external_exports.string()
+    }).transform(({ balance, total_used }) => ({
+      balance,
+      totalUsed: total_used
+    }))
+  )
+);
+var GatewaySpendReport = class {
+  constructor(config3) {
+    this.config = config3;
+  }
+  async getSpendReport(params) {
+    try {
+      const baseUrl = new URL(this.config.baseURL);
+      const searchParams = new URLSearchParams();
+      searchParams.set("start_date", params.startDate);
+      searchParams.set("end_date", params.endDate);
+      if (params.groupBy) {
+        searchParams.set("group_by", params.groupBy);
+      }
+      if (params.datePart) {
+        searchParams.set("date_part", params.datePart);
+      }
+      if (params.userId) {
+        searchParams.set("user_id", params.userId);
+      }
+      if (params.model) {
+        searchParams.set("model", params.model);
+      }
+      if (params.provider) {
+        searchParams.set("provider", params.provider);
+      }
+      if (params.credentialType) {
+        searchParams.set("credential_type", params.credentialType);
+      }
+      if (params.tags && params.tags.length > 0) {
+        searchParams.set("tags", params.tags.join(","));
+      }
+      const { value } = await getFromApi({
+        url: `${baseUrl.origin}/v1/report?${searchParams.toString()}`,
+        headers: await resolve(this.config.headers()),
+        successfulResponseHandler: createJsonResponseHandler(
+          gatewaySpendReportResponseSchema
+        ),
+        failedResponseHandler: createJsonErrorResponseHandler({
+          errorSchema: external_exports.any(),
+          errorToMessage: (data) => data
+        }),
+        fetch: this.config.fetch
+      });
+      return value;
+    } catch (error48) {
+      throw await asGatewayError(error48);
+    }
+  }
+};
+var gatewaySpendReportResponseSchema = lazySchema(
+  () => zodSchema(
+    external_exports.object({
+      results: external_exports.array(
+        external_exports.object({
+          day: external_exports.string().optional(),
+          hour: external_exports.string().optional(),
+          user: external_exports.string().optional(),
+          model: external_exports.string().optional(),
+          tag: external_exports.string().optional(),
+          provider: external_exports.string().optional(),
+          credential_type: external_exports.enum(["byok", "system"]).optional(),
+          total_cost: external_exports.number(),
+          market_cost: external_exports.number().optional(),
+          input_tokens: external_exports.number().optional(),
+          output_tokens: external_exports.number().optional(),
+          cached_input_tokens: external_exports.number().optional(),
+          cache_creation_input_tokens: external_exports.number().optional(),
+          reasoning_tokens: external_exports.number().optional(),
+          request_count: external_exports.number().optional()
+        }).transform(
+          ({
+            credential_type,
+            total_cost,
+            market_cost,
+            input_tokens,
+            output_tokens,
+            cached_input_tokens,
+            cache_creation_input_tokens,
+            reasoning_tokens,
+            request_count,
+            ...rest
+          }) => ({
+            ...rest,
+            ...credential_type !== void 0 ? { credentialType: credential_type } : {},
+            totalCost: total_cost,
+            ...market_cost !== void 0 ? { marketCost: market_cost } : {},
+            ...input_tokens !== void 0 ? { inputTokens: input_tokens } : {},
+            ...output_tokens !== void 0 ? { outputTokens: output_tokens } : {},
+            ...cached_input_tokens !== void 0 ? { cachedInputTokens: cached_input_tokens } : {},
+            ...cache_creation_input_tokens !== void 0 ? { cacheCreationInputTokens: cache_creation_input_tokens } : {},
+            ...reasoning_tokens !== void 0 ? { reasoningTokens: reasoning_tokens } : {},
+            ...request_count !== void 0 ? { requestCount: request_count } : {}
+          })
+        )
+      )
+    })
+  )
+);
+var GatewayGenerationInfoFetcher = class {
+  constructor(config3) {
+    this.config = config3;
+  }
+  async getGenerationInfo(params) {
+    try {
+      const baseUrl = new URL(this.config.baseURL);
+      const { value } = await getFromApi({
+        url: `${baseUrl.origin}/v1/generation?id=${encodeURIComponent(params.id)}`,
+        headers: await resolve(this.config.headers()),
+        successfulResponseHandler: createJsonResponseHandler(
+          gatewayGenerationInfoResponseSchema
+        ),
+        failedResponseHandler: createJsonErrorResponseHandler({
+          errorSchema: external_exports.any(),
+          errorToMessage: (data) => data
+        }),
+        fetch: this.config.fetch
+      });
+      return value;
+    } catch (error48) {
+      throw await asGatewayError(error48);
+    }
+  }
+};
+var gatewayGenerationInfoResponseSchema = lazySchema(
+  () => zodSchema(
+    external_exports.object({
+      data: external_exports.object({
+        id: external_exports.string(),
+        total_cost: external_exports.number(),
+        upstream_inference_cost: external_exports.number(),
+        usage: external_exports.number(),
+        created_at: external_exports.string(),
+        model: external_exports.string(),
+        is_byok: external_exports.boolean(),
+        provider_name: external_exports.string(),
+        streamed: external_exports.boolean(),
+        finish_reason: external_exports.string(),
+        latency: external_exports.number(),
+        generation_time: external_exports.number(),
+        native_tokens_prompt: external_exports.number(),
+        native_tokens_completion: external_exports.number(),
+        native_tokens_reasoning: external_exports.number(),
+        native_tokens_cached: external_exports.number(),
+        native_tokens_cache_creation: external_exports.number(),
+        billable_web_search_calls: external_exports.number()
+      }).transform(
+        ({
+          total_cost,
+          upstream_inference_cost,
+          created_at,
+          is_byok,
+          provider_name,
+          finish_reason,
+          generation_time,
+          native_tokens_prompt,
+          native_tokens_completion,
+          native_tokens_reasoning,
+          native_tokens_cached,
+          native_tokens_cache_creation,
+          billable_web_search_calls,
+          ...rest
+        }) => ({
+          ...rest,
+          totalCost: total_cost,
+          upstreamInferenceCost: upstream_inference_cost,
+          createdAt: created_at,
+          isByok: is_byok,
+          providerName: provider_name,
+          finishReason: finish_reason,
+          generationTime: generation_time,
+          promptTokens: native_tokens_prompt,
+          completionTokens: native_tokens_completion,
+          reasoningTokens: native_tokens_reasoning,
+          cachedTokens: native_tokens_cached,
+          cacheCreationTokens: native_tokens_cache_creation,
+          billableWebSearchCalls: billable_web_search_calls
+        })
+      )
+    }).transform(({ data }) => data)
+  )
+);
+var GatewayLanguageModel = class {
+  constructor(modelId, config3) {
+    this.modelId = modelId;
+    this.config = config3;
+    this.specificationVersion = "v3";
+    this.supportedUrls = { "*/*": [/.*/] };
+  }
+  get provider() {
+    return this.config.provider;
+  }
+  async getArgs(options) {
+    const { abortSignal: _abortSignal, ...optionsWithoutSignal } = options;
+    return {
+      args: this.maybeEncodeFileParts(optionsWithoutSignal),
+      warnings: []
+    };
+  }
+  async doGenerate(options) {
+    const { args, warnings } = await this.getArgs(options);
+    const { abortSignal } = options;
+    const resolvedHeaders = await resolve(this.config.headers());
+    try {
+      const {
+        responseHeaders,
+        value: responseBody,
+        rawValue: rawResponse
+      } = await postJsonToApi({
+        url: this.getUrl(),
+        headers: combineHeaders(
+          resolvedHeaders,
+          options.headers,
+          this.getModelConfigHeaders(this.modelId, false),
+          await resolve(this.config.o11yHeaders)
+        ),
+        body: args,
+        successfulResponseHandler: createJsonResponseHandler(external_exports.any()),
+        failedResponseHandler: createJsonErrorResponseHandler({
+          errorSchema: external_exports.any(),
+          errorToMessage: (data) => data
+        }),
+        ...abortSignal && { abortSignal },
+        fetch: this.config.fetch
+      });
+      return {
+        ...responseBody,
+        request: { body: args },
+        response: { headers: responseHeaders, body: rawResponse },
+        warnings
+      };
+    } catch (error48) {
+      throw await asGatewayError(error48, await parseAuthMethod(resolvedHeaders));
+    }
+  }
+  async doStream(options) {
+    const { args, warnings } = await this.getArgs(options);
+    const { abortSignal } = options;
+    const resolvedHeaders = await resolve(this.config.headers());
+    try {
+      const { value: response, responseHeaders } = await postJsonToApi({
+        url: this.getUrl(),
+        headers: combineHeaders(
+          resolvedHeaders,
+          options.headers,
+          this.getModelConfigHeaders(this.modelId, true),
+          await resolve(this.config.o11yHeaders)
+        ),
+        body: args,
+        successfulResponseHandler: createEventSourceResponseHandler(external_exports.any()),
+        failedResponseHandler: createJsonErrorResponseHandler({
+          errorSchema: external_exports.any(),
+          errorToMessage: (data) => data
+        }),
+        ...abortSignal && { abortSignal },
+        fetch: this.config.fetch
+      });
+      return {
+        stream: response.pipeThrough(
+          new TransformStream({
+            start(controller) {
+              if (warnings.length > 0) {
+                controller.enqueue({ type: "stream-start", warnings });
+              }
+            },
+            transform(chunk, controller) {
+              if (chunk.success) {
+                const streamPart = chunk.value;
+                if (streamPart.type === "raw" && !options.includeRawChunks) {
+                  return;
+                }
+                if (streamPart.type === "response-metadata" && streamPart.timestamp && typeof streamPart.timestamp === "string") {
+                  streamPart.timestamp = new Date(streamPart.timestamp);
+                }
+                controller.enqueue(streamPart);
+              } else {
+                controller.error(
+                  chunk.error
+                );
+              }
+            }
+          })
+        ),
+        request: { body: args },
+        response: { headers: responseHeaders }
+      };
+    } catch (error48) {
+      throw await asGatewayError(error48, await parseAuthMethod(resolvedHeaders));
+    }
+  }
+  isFilePart(part) {
+    return part && typeof part === "object" && "type" in part && part.type === "file";
+  }
+  /**
+   * Encodes file parts in the prompt to base64. Mutates the passed options
+   * instance directly to avoid copying the file data.
+   * @param options - The options to encode.
+   * @returns The options with the file parts encoded.
+   */
+  maybeEncodeFileParts(options) {
+    for (const message of options.prompt) {
+      for (const part of message.content) {
+        if (this.isFilePart(part)) {
+          const filePart = part;
+          if (filePart.data instanceof Uint8Array) {
+            const buffer = Uint8Array.from(filePart.data);
+            const base64Data = Buffer.from(buffer).toString("base64");
+            filePart.data = new URL(
+              `data:${filePart.mediaType || "application/octet-stream"};base64,${base64Data}`
+            );
+          }
+        }
+      }
+    }
+    return options;
+  }
+  getUrl() {
+    return `${this.config.baseURL}/language-model`;
+  }
+  getModelConfigHeaders(modelId, streaming) {
+    return {
+      "ai-language-model-specification-version": "3",
+      "ai-language-model-id": modelId,
+      "ai-language-model-streaming": String(streaming)
+    };
+  }
+};
+var GatewayEmbeddingModel = class {
+  constructor(modelId, config3) {
+    this.modelId = modelId;
+    this.config = config3;
+    this.specificationVersion = "v3";
+    this.maxEmbeddingsPerCall = 2048;
+    this.supportsParallelCalls = true;
+  }
+  get provider() {
+    return this.config.provider;
+  }
+  async doEmbed({
+    values,
+    headers,
+    abortSignal,
+    providerOptions
+  }) {
+    var _a93;
+    const resolvedHeaders = await resolve(this.config.headers());
+    try {
+      const {
+        responseHeaders,
+        value: responseBody,
+        rawValue
+      } = await postJsonToApi({
+        url: this.getUrl(),
+        headers: combineHeaders(
+          resolvedHeaders,
+          headers != null ? headers : {},
+          this.getModelConfigHeaders(),
+          await resolve(this.config.o11yHeaders)
+        ),
+        body: {
+          values,
+          ...providerOptions ? { providerOptions } : {}
+        },
+        successfulResponseHandler: createJsonResponseHandler(
+          gatewayEmbeddingResponseSchema
+        ),
+        failedResponseHandler: createJsonErrorResponseHandler({
+          errorSchema: external_exports.any(),
+          errorToMessage: (data) => data
+        }),
+        ...abortSignal && { abortSignal },
+        fetch: this.config.fetch
+      });
+      return {
+        embeddings: responseBody.embeddings,
+        usage: (_a93 = responseBody.usage) != null ? _a93 : void 0,
+        providerMetadata: responseBody.providerMetadata,
+        response: { headers: responseHeaders, body: rawValue },
+        warnings: []
+      };
+    } catch (error48) {
+      throw await asGatewayError(error48, await parseAuthMethod(resolvedHeaders));
+    }
+  }
+  getUrl() {
+    return `${this.config.baseURL}/embedding-model`;
+  }
+  getModelConfigHeaders() {
+    return {
+      "ai-embedding-model-specification-version": "3",
+      "ai-model-id": this.modelId
+    };
+  }
+};
+var gatewayEmbeddingResponseSchema = lazySchema(
+  () => zodSchema(
+    external_exports.object({
+      embeddings: external_exports.array(external_exports.array(external_exports.number())),
+      usage: external_exports.object({ tokens: external_exports.number() }).nullish(),
+      providerMetadata: external_exports.record(external_exports.string(), external_exports.record(external_exports.string(), external_exports.unknown())).optional()
+    })
+  )
+);
+var GatewayImageModel = class {
+  constructor(modelId, config3) {
+    this.modelId = modelId;
+    this.config = config3;
+    this.specificationVersion = "v3";
+    this.maxImagesPerCall = Number.MAX_SAFE_INTEGER;
+  }
+  get provider() {
+    return this.config.provider;
+  }
+  async doGenerate({
+    prompt,
+    n,
+    size,
+    aspectRatio,
+    seed,
+    files,
+    mask,
+    providerOptions,
+    headers,
+    abortSignal
+  }) {
+    var _a93, _b92, _c, _d;
+    const resolvedHeaders = await resolve(this.config.headers());
+    try {
+      const {
+        responseHeaders,
+        value: responseBody,
+        rawValue
+      } = await postJsonToApi({
+        url: this.getUrl(),
+        headers: combineHeaders(
+          resolvedHeaders,
+          headers != null ? headers : {},
+          this.getModelConfigHeaders(),
+          await resolve(this.config.o11yHeaders)
+        ),
+        body: {
+          prompt,
+          n,
+          ...size && { size },
+          ...aspectRatio && { aspectRatio },
+          ...seed && { seed },
+          ...providerOptions && { providerOptions },
+          ...files && {
+            files: files.map((file2) => maybeEncodeImageFile(file2))
+          },
+          ...mask && { mask: maybeEncodeImageFile(mask) }
+        },
+        successfulResponseHandler: createJsonResponseHandler(
+          gatewayImageResponseSchema
+        ),
+        failedResponseHandler: createJsonErrorResponseHandler({
+          errorSchema: external_exports.any(),
+          errorToMessage: (data) => data
+        }),
+        ...abortSignal && { abortSignal },
+        fetch: this.config.fetch
+      });
+      return {
+        images: responseBody.images,
+        // Always base64 strings from server
+        warnings: (_a93 = responseBody.warnings) != null ? _a93 : [],
+        providerMetadata: responseBody.providerMetadata,
+        response: {
+          timestamp: /* @__PURE__ */ new Date(),
+          modelId: this.modelId,
+          headers: responseHeaders
+        },
+        ...responseBody.usage != null && {
+          usage: {
+            inputTokens: (_b92 = responseBody.usage.inputTokens) != null ? _b92 : void 0,
+            outputTokens: (_c = responseBody.usage.outputTokens) != null ? _c : void 0,
+            totalTokens: (_d = responseBody.usage.totalTokens) != null ? _d : void 0
+          }
+        }
+      };
+    } catch (error48) {
+      throw await asGatewayError(error48, await parseAuthMethod(resolvedHeaders));
+    }
+  }
+  getUrl() {
+    return `${this.config.baseURL}/image-model`;
+  }
+  getModelConfigHeaders() {
+    return {
+      "ai-image-model-specification-version": "3",
+      "ai-model-id": this.modelId
+    };
+  }
+};
+function maybeEncodeImageFile(file2) {
+  if (file2.type === "file" && file2.data instanceof Uint8Array) {
+    return {
+      ...file2,
+      data: convertUint8ArrayToBase64(file2.data)
+    };
+  }
+  return file2;
+}
+var providerMetadataEntrySchema = external_exports.object({
+  images: external_exports.array(external_exports.unknown()).optional()
+}).catchall(external_exports.unknown());
+var gatewayImageWarningSchema = external_exports.discriminatedUnion("type", [
+  external_exports.object({
+    type: external_exports.literal("unsupported"),
+    feature: external_exports.string(),
+    details: external_exports.string().optional()
+  }),
+  external_exports.object({
+    type: external_exports.literal("compatibility"),
+    feature: external_exports.string(),
+    details: external_exports.string().optional()
+  }),
+  external_exports.object({
+    type: external_exports.literal("other"),
+    message: external_exports.string()
+  })
+]);
+var gatewayImageUsageSchema = external_exports.object({
+  inputTokens: external_exports.number().nullish(),
+  outputTokens: external_exports.number().nullish(),
+  totalTokens: external_exports.number().nullish()
+});
+var gatewayImageResponseSchema = external_exports.object({
+  images: external_exports.array(external_exports.string()),
+  // Always base64 strings over the wire
+  warnings: external_exports.array(gatewayImageWarningSchema).optional(),
+  providerMetadata: external_exports.record(external_exports.string(), providerMetadataEntrySchema).optional(),
+  usage: gatewayImageUsageSchema.optional()
+});
+var GatewayVideoModel = class {
+  constructor(modelId, config3) {
+    this.modelId = modelId;
+    this.config = config3;
+    this.specificationVersion = "v3";
+    this.maxVideosPerCall = Number.MAX_SAFE_INTEGER;
+  }
+  get provider() {
+    return this.config.provider;
+  }
+  async doGenerate({
+    prompt,
+    n,
+    aspectRatio,
+    resolution,
+    duration: duration3,
+    fps,
+    seed,
+    image,
+    providerOptions,
+    headers,
+    abortSignal
+  }) {
+    var _a93;
+    const resolvedHeaders = await resolve(this.config.headers());
+    try {
+      const { responseHeaders, value: responseBody } = await postJsonToApi({
+        url: this.getUrl(),
+        headers: combineHeaders(
+          resolvedHeaders,
+          headers != null ? headers : {},
+          this.getModelConfigHeaders(),
+          await resolve(this.config.o11yHeaders),
+          { accept: "text/event-stream" }
+        ),
+        body: {
+          prompt,
+          n,
+          ...aspectRatio && { aspectRatio },
+          ...resolution && { resolution },
+          ...duration3 && { duration: duration3 },
+          ...fps && { fps },
+          ...seed && { seed },
+          ...providerOptions && { providerOptions },
+          ...image && { image: maybeEncodeVideoFile(image) }
+        },
+        successfulResponseHandler: async ({
+          response,
+          url: url2,
+          requestBodyValues
+        }) => {
+          if (response.body == null) {
+            throw new APICallError({
+              message: "SSE response body is empty",
+              url: url2,
+              requestBodyValues,
+              statusCode: response.status
+            });
+          }
+          const eventStream = parseJsonEventStream({
+            stream: response.body,
+            schema: gatewayVideoEventSchema
+          });
+          const reader = eventStream.getReader();
+          const { done, value: parseResult } = await reader.read();
+          reader.releaseLock();
+          if (done || !parseResult) {
+            throw new APICallError({
+              message: "SSE stream ended without a data event",
+              url: url2,
+              requestBodyValues,
+              statusCode: response.status
+            });
+          }
+          if (!parseResult.success) {
+            throw new APICallError({
+              message: "Failed to parse video SSE event",
+              cause: parseResult.error,
+              url: url2,
+              requestBodyValues,
+              statusCode: response.status
+            });
+          }
+          const event = parseResult.value;
+          if (event.type === "error") {
+            throw new APICallError({
+              message: event.message,
+              statusCode: event.statusCode,
+              url: url2,
+              requestBodyValues,
+              responseHeaders: Object.fromEntries([...response.headers]),
+              responseBody: JSON.stringify(event),
+              data: {
+                error: {
+                  message: event.message,
+                  type: event.errorType,
+                  param: event.param
+                }
+              }
+            });
+          }
+          return {
+            value: {
+              videos: event.videos,
+              warnings: event.warnings,
+              providerMetadata: event.providerMetadata
+            },
+            responseHeaders: Object.fromEntries([...response.headers])
+          };
+        },
+        failedResponseHandler: createJsonErrorResponseHandler({
+          errorSchema: external_exports.any(),
+          errorToMessage: (data) => data
+        }),
+        ...abortSignal && { abortSignal },
+        fetch: this.config.fetch
+      });
+      return {
+        videos: responseBody.videos,
+        warnings: (_a93 = responseBody.warnings) != null ? _a93 : [],
+        providerMetadata: responseBody.providerMetadata,
+        response: {
+          timestamp: /* @__PURE__ */ new Date(),
+          modelId: this.modelId,
+          headers: responseHeaders
+        }
+      };
+    } catch (error48) {
+      throw await asGatewayError(error48, await parseAuthMethod(resolvedHeaders));
+    }
+  }
+  getUrl() {
+    return `${this.config.baseURL}/video-model`;
+  }
+  getModelConfigHeaders() {
+    return {
+      "ai-video-model-specification-version": "3",
+      "ai-model-id": this.modelId
+    };
+  }
+};
+function maybeEncodeVideoFile(file2) {
+  if (file2.type === "file" && file2.data instanceof Uint8Array) {
+    return {
+      ...file2,
+      data: convertUint8ArrayToBase64(file2.data)
+    };
+  }
+  return file2;
+}
+var providerMetadataEntrySchema2 = external_exports.object({
+  videos: external_exports.array(external_exports.unknown()).optional()
+}).catchall(external_exports.unknown());
+var gatewayVideoDataSchema = external_exports.union([
+  external_exports.object({
+    type: external_exports.literal("url"),
+    url: external_exports.string(),
+    mediaType: external_exports.string()
+  }),
+  external_exports.object({
+    type: external_exports.literal("base64"),
+    data: external_exports.string(),
+    mediaType: external_exports.string()
+  })
+]);
+var gatewayVideoWarningSchema = external_exports.discriminatedUnion("type", [
+  external_exports.object({
+    type: external_exports.literal("unsupported"),
+    feature: external_exports.string(),
+    details: external_exports.string().optional()
+  }),
+  external_exports.object({
+    type: external_exports.literal("compatibility"),
+    feature: external_exports.string(),
+    details: external_exports.string().optional()
+  }),
+  external_exports.object({
+    type: external_exports.literal("other"),
+    message: external_exports.string()
+  })
+]);
+var gatewayVideoEventSchema = external_exports.discriminatedUnion("type", [
+  external_exports.object({
+    type: external_exports.literal("result"),
+    videos: external_exports.array(gatewayVideoDataSchema),
+    warnings: external_exports.array(gatewayVideoWarningSchema).optional(),
+    providerMetadata: external_exports.record(external_exports.string(), providerMetadataEntrySchema2).optional()
+  }),
+  external_exports.object({
+    type: external_exports.literal("error"),
+    message: external_exports.string(),
+    errorType: external_exports.string(),
+    statusCode: external_exports.number(),
+    param: external_exports.unknown().nullable()
+  })
+]);
+var GatewayRerankingModel = class {
+  constructor(modelId, config3) {
+    this.modelId = modelId;
+    this.config = config3;
+    this.specificationVersion = "v3";
+  }
+  get provider() {
+    return this.config.provider;
+  }
+  async doRerank({
+    documents,
+    query,
+    topN,
+    headers,
+    abortSignal,
+    providerOptions
+  }) {
+    const resolvedHeaders = await resolve(this.config.headers());
+    try {
+      const {
+        responseHeaders,
+        value: responseBody,
+        rawValue
+      } = await postJsonToApi({
+        url: this.getUrl(),
+        headers: combineHeaders(
+          resolvedHeaders,
+          headers != null ? headers : {},
+          this.getModelConfigHeaders(),
+          await resolve(this.config.o11yHeaders)
+        ),
+        body: {
+          documents,
+          query,
+          ...topN != null ? { topN } : {},
+          ...providerOptions ? { providerOptions } : {}
+        },
+        successfulResponseHandler: createJsonResponseHandler(
+          gatewayRerankingResponseSchema
+        ),
+        failedResponseHandler: createJsonErrorResponseHandler({
+          errorSchema: external_exports.any(),
+          errorToMessage: (data) => data
+        }),
+        ...abortSignal && { abortSignal },
+        fetch: this.config.fetch
+      });
+      return {
+        ranking: responseBody.ranking,
+        providerMetadata: responseBody.providerMetadata,
+        response: { headers: responseHeaders, body: rawValue },
+        warnings: []
+      };
+    } catch (error48) {
+      throw await asGatewayError(error48, await parseAuthMethod(resolvedHeaders));
+    }
+  }
+  getUrl() {
+    return `${this.config.baseURL}/reranking-model`;
+  }
+  getModelConfigHeaders() {
+    return {
+      "ai-reranking-model-specification-version": "3",
+      "ai-model-id": this.modelId
+    };
+  }
+};
+var gatewayRerankingResponseSchema = lazySchema(
+  () => zodSchema(
+    external_exports.object({
+      ranking: external_exports.array(
+        external_exports.object({
+          index: external_exports.number(),
+          relevanceScore: external_exports.number()
+        })
+      ),
+      providerMetadata: external_exports.record(external_exports.string(), external_exports.record(external_exports.string(), external_exports.unknown())).optional()
+    })
+  )
+);
+var parallelSearchInputSchema = lazySchema(
+  () => zodSchema(
+    external_exports.object({
+      objective: external_exports.string().describe(
+        "Natural-language description of the web research goal, including source or freshness guidance and broader context from the task. Maximum 5000 characters."
+      ),
+      search_queries: external_exports.array(external_exports.string()).optional().describe(
+        "Optional search queries to supplement the objective. Maximum 200 characters per query."
+      ),
+      mode: external_exports.enum(["one-shot", "agentic"]).optional().describe(
+        'Mode preset: "one-shot" for comprehensive results with longer excerpts (default), "agentic" for concise, token-efficient results for multi-step workflows.'
+      ),
+      max_results: external_exports.number().optional().describe(
+        "Maximum number of results to return (1-20). Defaults to 10 if not specified."
+      ),
+      source_policy: external_exports.object({
+        include_domains: external_exports.array(external_exports.string()).optional().describe("List of domains to include in search results."),
+        exclude_domains: external_exports.array(external_exports.string()).optional().describe("List of domains to exclude from search results."),
+        after_date: external_exports.string().optional().describe(
+          "Only include results published after this date (ISO 8601 format)."
+        )
+      }).optional().describe(
+        "Source policy for controlling which domains to include/exclude and freshness."
+      ),
+      excerpts: external_exports.object({
+        max_chars_per_result: external_exports.number().optional().describe("Maximum characters per result."),
+        max_chars_total: external_exports.number().optional().describe("Maximum total characters across all results.")
+      }).optional().describe("Excerpt configuration for controlling result length."),
+      fetch_policy: external_exports.object({
+        max_age_seconds: external_exports.number().optional().describe(
+          "Maximum age in seconds for cached content. Set to 0 to always fetch fresh content."
+        )
+      }).optional().describe("Fetch policy for controlling content freshness.")
+    })
+  )
+);
+var parallelSearchOutputSchema = lazySchema(
+  () => zodSchema(
+    external_exports.union([
+      // Success response
+      external_exports.object({
+        searchId: external_exports.string(),
+        results: external_exports.array(
+          external_exports.object({
+            url: external_exports.string(),
+            title: external_exports.string(),
+            excerpt: external_exports.string(),
+            publishDate: external_exports.string().nullable().optional(),
+            relevanceScore: external_exports.number().optional()
+          })
+        )
+      }),
+      // Error response
+      external_exports.object({
+        error: external_exports.enum([
+          "api_error",
+          "rate_limit",
+          "timeout",
+          "invalid_input",
+          "configuration_error",
+          "unknown"
+        ]),
+        statusCode: external_exports.number().optional(),
+        message: external_exports.string()
+      })
+    ])
+  )
+);
+var parallelSearchToolFactory = createProviderToolFactoryWithOutputSchema({
+  id: "gateway.parallel_search",
+  inputSchema: parallelSearchInputSchema,
+  outputSchema: parallelSearchOutputSchema
+});
+var parallelSearch = (config3 = {}) => parallelSearchToolFactory(config3);
+var perplexitySearchInputSchema = lazySchema(
+  () => zodSchema(
+    external_exports.object({
+      query: external_exports.union([external_exports.string(), external_exports.array(external_exports.string())]).describe(
+        "Search query (string) or multiple queries (array of up to 5 strings). Multi-query searches return combined results from all queries."
+      ),
+      max_results: external_exports.number().optional().describe(
+        "Maximum number of search results to return (1-20, default: 10)"
+      ),
+      max_tokens_per_page: external_exports.number().optional().describe(
+        "Maximum number of tokens to extract per search result page (256-2048, default: 2048)"
+      ),
+      max_tokens: external_exports.number().optional().describe(
+        "Maximum total tokens across all search results (default: 25000, max: 1000000)"
+      ),
+      country: external_exports.string().optional().describe(
+        "Two-letter ISO 3166-1 alpha-2 country code for regional search results (e.g., 'US', 'GB', 'FR')"
+      ),
+      search_domain_filter: external_exports.array(external_exports.string()).optional().describe(
+        "List of domains to include or exclude from search results (max 20). To include: ['nature.com', 'science.org']. To exclude: ['-example.com', '-spam.net']"
+      ),
+      search_language_filter: external_exports.array(external_exports.string()).optional().describe(
+        "List of ISO 639-1 language codes to filter results (max 10, lowercase). Examples: ['en', 'fr', 'de']"
+      ),
+      search_after_date: external_exports.string().optional().describe(
+        "Include only results published after this date. Format: 'MM/DD/YYYY' (e.g., '3/1/2025'). Cannot be used with search_recency_filter."
+      ),
+      search_before_date: external_exports.string().optional().describe(
+        "Include only results published before this date. Format: 'MM/DD/YYYY' (e.g., '3/15/2025'). Cannot be used with search_recency_filter."
+      ),
+      last_updated_after_filter: external_exports.string().optional().describe(
+        "Include only results last updated after this date. Format: 'MM/DD/YYYY' (e.g., '3/1/2025'). Cannot be used with search_recency_filter."
+      ),
+      last_updated_before_filter: external_exports.string().optional().describe(
+        "Include only results last updated before this date. Format: 'MM/DD/YYYY' (e.g., '3/15/2025'). Cannot be used with search_recency_filter."
+      ),
+      search_recency_filter: external_exports.enum(["day", "week", "month", "year"]).optional().describe(
+        "Filter results by relative time period. Cannot be used with search_after_date or search_before_date."
+      )
+    })
+  )
+);
+var perplexitySearchOutputSchema = lazySchema(
+  () => zodSchema(
+    external_exports.union([
+      // Success response
+      external_exports.object({
+        results: external_exports.array(
+          external_exports.object({
+            title: external_exports.string(),
+            url: external_exports.string(),
+            snippet: external_exports.string(),
+            date: external_exports.string().optional(),
+            lastUpdated: external_exports.string().optional()
+          })
+        ),
+        id: external_exports.string()
+      }),
+      // Error response
+      external_exports.object({
+        error: external_exports.enum([
+          "api_error",
+          "rate_limit",
+          "timeout",
+          "invalid_input",
+          "unknown"
+        ]),
+        statusCode: external_exports.number().optional(),
+        message: external_exports.string()
+      })
+    ])
+  )
+);
+var perplexitySearchToolFactory = createProviderToolFactoryWithOutputSchema({
+  id: "gateway.perplexity_search",
+  inputSchema: perplexitySearchInputSchema,
+  outputSchema: perplexitySearchOutputSchema
+});
+var perplexitySearch = (config3 = {}) => perplexitySearchToolFactory(config3);
+var gatewayTools = {
+  /**
+   * Search the web using Parallel AI's Search API for LLM-optimized excerpts.
+   *
+   * Takes a natural language objective and returns relevant excerpts,
+   * replacing multiple keyword searches with a single call for broad
+   * or complex queries. Supports different search types for depth vs
+   * breadth tradeoffs.
+   */
+  parallelSearch,
+  /**
+   * Search the web using Perplexity's Search API for real-time information,
+   * news, research papers, and articles.
+   *
+   * Provides ranked search results with advanced filtering options including
+   * domain, language, date range, and recency filters.
+   */
+  perplexitySearch
+};
+async function getVercelRequestId() {
+  var _a93;
+  return (_a93 = (0, import_oidc.getContext)().headers) == null ? void 0 : _a93["x-vercel-id"];
+}
+var VERSION3 = true ? "3.0.104" : "0.0.0-test";
+var AI_GATEWAY_PROTOCOL_VERSION = "0.0.1";
+function createGatewayProvider(options = {}) {
+  var _a93, _b92;
+  let pendingMetadata = null;
+  let metadataCache = null;
+  const cacheRefreshMillis = (_a93 = options.metadataCacheRefreshMillis) != null ? _a93 : 1e3 * 60 * 5;
+  let lastFetchTime = 0;
+  const baseURL = (_b92 = withoutTrailingSlash(options.baseURL)) != null ? _b92 : "https://ai-gateway.vercel.sh/v3/ai";
+  const getHeaders = async () => {
+    try {
+      const auth = await getGatewayAuthToken(options);
+      return withUserAgentSuffix(
+        {
+          Authorization: `Bearer ${auth.token}`,
+          "ai-gateway-protocol-version": AI_GATEWAY_PROTOCOL_VERSION,
+          [GATEWAY_AUTH_METHOD_HEADER]: auth.authMethod,
+          ...options.headers
+        },
+        `ai-sdk/gateway/${VERSION3}`
+      );
+    } catch (error48) {
+      throw GatewayAuthenticationError.createContextualError({
+        apiKeyProvided: false,
+        oidcTokenProvided: false,
+        statusCode: 401,
+        cause: error48
+      });
+    }
+  };
+  const createO11yHeaders = () => {
+    const deploymentId = loadOptionalSetting({
+      settingValue: void 0,
+      environmentVariableName: "VERCEL_DEPLOYMENT_ID"
+    });
+    const environment = loadOptionalSetting({
+      settingValue: void 0,
+      environmentVariableName: "VERCEL_ENV"
+    });
+    const region = loadOptionalSetting({
+      settingValue: void 0,
+      environmentVariableName: "VERCEL_REGION"
+    });
+    const projectId = loadOptionalSetting({
+      settingValue: void 0,
+      environmentVariableName: "VERCEL_PROJECT_ID"
+    });
+    return async () => {
+      const requestId = await getVercelRequestId();
+      return {
+        ...deploymentId && { "ai-o11y-deployment-id": deploymentId },
+        ...environment && { "ai-o11y-environment": environment },
+        ...region && { "ai-o11y-region": region },
+        ...requestId && { "ai-o11y-request-id": requestId },
+        ...projectId && { "ai-o11y-project-id": projectId }
+      };
+    };
+  };
+  const createLanguageModel = (modelId) => {
+    return new GatewayLanguageModel(modelId, {
+      provider: "gateway",
+      baseURL,
+      headers: getHeaders,
+      fetch: options.fetch,
+      o11yHeaders: createO11yHeaders()
+    });
+  };
+  const getAvailableModels = async () => {
+    var _a103, _b102, _c;
+    const now2 = (_c = (_b102 = (_a103 = options._internal) == null ? void 0 : _a103.currentDate) == null ? void 0 : _b102.call(_a103).getTime()) != null ? _c : Date.now();
+    if (!pendingMetadata || now2 - lastFetchTime > cacheRefreshMillis) {
+      lastFetchTime = now2;
+      pendingMetadata = new GatewayFetchMetadata({
+        baseURL,
+        headers: getHeaders,
+        fetch: options.fetch
+      }).getAvailableModels().then((metadata) => {
+        metadataCache = metadata;
+        return metadata;
+      }).catch(async (error48) => {
+        throw await asGatewayError(
+          error48,
+          await parseAuthMethod(await getHeaders())
+        );
+      });
+    }
+    return metadataCache ? Promise.resolve(metadataCache) : pendingMetadata;
+  };
+  const getCredits = async () => {
+    return new GatewayFetchMetadata({
+      baseURL,
+      headers: getHeaders,
+      fetch: options.fetch
+    }).getCredits().catch(async (error48) => {
+      throw await asGatewayError(
+        error48,
+        await parseAuthMethod(await getHeaders())
+      );
+    });
+  };
+  const getSpendReport = async (params) => {
+    return new GatewaySpendReport({
+      baseURL,
+      headers: getHeaders,
+      fetch: options.fetch
+    }).getSpendReport(params).catch(async (error48) => {
+      throw await asGatewayError(
+        error48,
+        await parseAuthMethod(await getHeaders())
+      );
+    });
+  };
+  const getGenerationInfo = async (params) => {
+    return new GatewayGenerationInfoFetcher({
+      baseURL,
+      headers: getHeaders,
+      fetch: options.fetch
+    }).getGenerationInfo(params).catch(async (error48) => {
+      throw await asGatewayError(
+        error48,
+        await parseAuthMethod(await getHeaders())
+      );
+    });
+  };
+  const provider = function(modelId) {
+    if (new.target) {
+      throw new Error(
+        "The Gateway Provider model function cannot be called with the new keyword."
+      );
+    }
+    return createLanguageModel(modelId);
+  };
+  provider.specificationVersion = "v3";
+  provider.getAvailableModels = getAvailableModels;
+  provider.getCredits = getCredits;
+  provider.getSpendReport = getSpendReport;
+  provider.getGenerationInfo = getGenerationInfo;
+  provider.imageModel = (modelId) => {
+    return new GatewayImageModel(modelId, {
+      provider: "gateway",
+      baseURL,
+      headers: getHeaders,
+      fetch: options.fetch,
+      o11yHeaders: createO11yHeaders()
+    });
+  };
+  provider.languageModel = createLanguageModel;
+  const createEmbeddingModel = (modelId) => {
+    return new GatewayEmbeddingModel(modelId, {
+      provider: "gateway",
+      baseURL,
+      headers: getHeaders,
+      fetch: options.fetch,
+      o11yHeaders: createO11yHeaders()
+    });
+  };
+  provider.embeddingModel = createEmbeddingModel;
+  provider.textEmbeddingModel = createEmbeddingModel;
+  provider.videoModel = (modelId) => {
+    return new GatewayVideoModel(modelId, {
+      provider: "gateway",
+      baseURL,
+      headers: getHeaders,
+      fetch: options.fetch,
+      o11yHeaders: createO11yHeaders()
+    });
+  };
+  const createRerankingModel = (modelId) => {
+    return new GatewayRerankingModel(modelId, {
+      provider: "gateway",
+      baseURL,
+      headers: getHeaders,
+      fetch: options.fetch,
+      o11yHeaders: createO11yHeaders()
+    });
+  };
+  provider.rerankingModel = createRerankingModel;
+  provider.reranking = createRerankingModel;
+  provider.chat = provider.languageModel;
+  provider.embedding = provider.embeddingModel;
+  provider.image = provider.imageModel;
+  provider.video = provider.videoModel;
+  provider.tools = gatewayTools;
+  return provider;
+}
+var gateway = createGatewayProvider();
+async function getGatewayAuthToken(options) {
+  const apiKey = loadOptionalSetting({
+    settingValue: options.apiKey,
+    environmentVariableName: "AI_GATEWAY_API_KEY"
+  });
+  if (apiKey) {
+    return {
+      token: apiKey,
+      authMethod: "api-key"
+    };
+  }
+  const oidcToken = await (0, import_oidc2.getVercelOidcToken)();
+  return {
+    token: oidcToken,
+    authMethod: "oidc"
+  };
 }
 
 // node_modules/@opentelemetry/api/build/esm/platform/node/globalThis.js
@@ -29762,7 +29762,14 @@ var defaultDownload2 = createDownload();
 
 // api-src/ai/copilot.ts
 var DEFAULT_NVIDIA_BASE_URL = "https://integrate.api.nvidia.com/v1";
-var DEFAULT_NVIDIA_MODEL = "nvidia/llama-3.1-nemotron-ultra-253b-v1";
+var DEFAULT_NVIDIA_MODEL = "mistralai/mistral-large-3-675b-instruct-2512";
+var KOREAN_CHAT_SYSTEM_PROMPT = [
+  "You are a Korean inline autocomplete engine for a document editor.",
+  "Return only the next few Korean words that naturally continue the current unfinished sentence.",
+  "Do not introduce a new topic, goal, strategy, mission, opinion, summary, or explanation.",
+  'If the current text already ends naturally, ends with punctuation, or the next words are uncertain, return exactly "0".',
+  "Never translate Korean text into English."
+].join("\n");
 var config2 = { maxDuration: 30 };
 async function handler(req, res) {
   if (req.method !== "POST") {
@@ -29771,32 +29778,28 @@ async function handler(req, res) {
   }
   try {
     const {
-      apiKey: key,
-      model = "openai/gpt-4o-mini",
       nvidiaApiKey,
       nvidiaBaseURL,
       prompt,
-      provider,
       system
     } = await readJson(req);
     const resolvedModel = resolveModel({
-      apiKey: key,
-      model,
       nvidiaApiKey,
-      nvidiaBaseURL,
-      provider
+      nvidiaBaseURL
     });
     if (!resolvedModel) {
       return sendJson(res, 401, {
-        error: provider === "nvidia" ? "Missing NVIDIA NIM API key." : "Missing AI Gateway API key."
+        error: "Missing NVIDIA NIM API key."
       });
     }
     const result = await generateText({
-      maxOutputTokens: 50,
+      maxOutputTokens: 24,
       model: resolvedModel,
       prompt,
-      system,
-      temperature: 0.7
+      system: [KOREAN_CHAT_SYSTEM_PROMPT, system].filter(Boolean).join("\n\n"),
+      stopSequences: ["\n"],
+      temperature: 0.2,
+      topP: 0.75
     });
     return sendJson(res, 200, result);
   } catch (error48) {
@@ -29820,29 +29823,17 @@ function sendJson(res, statusCode, body) {
   res.setHeader("Content-Type", "application/json; charset=utf-8");
   res.end(JSON.stringify(body));
 }
-function normalizeGatewayModel(model) {
-  return model.includes("/") ? model : `openai/${model}`;
-}
 function resolveModel({
-  apiKey,
-  model,
   nvidiaApiKey,
-  nvidiaBaseURL,
-  provider
+  nvidiaBaseURL
 }) {
-  if (provider === "nvidia" || process.env.AI_PROVIDER === "nvidia") {
-    const key2 = nvidiaApiKey || process.env.NVIDIA_API_KEY;
-    if (!key2) return null;
-    const modelId = provider === "nvidia" || model?.startsWith("nvidia/") ? model || process.env.NVIDIA_MODEL || DEFAULT_NVIDIA_MODEL : process.env.NVIDIA_MODEL || DEFAULT_NVIDIA_MODEL;
-    return createOpenAICompatible({
-      apiKey: key2,
-      baseURL: nvidiaBaseURL || process.env.NVIDIA_BASE_URL || DEFAULT_NVIDIA_BASE_URL,
-      name: "nvidia"
-    }).chatModel(modelId);
-  }
-  const key = apiKey || process.env.AI_GATEWAY_API_KEY;
+  const key = nvidiaApiKey || process.env.NVIDIA_API_KEY;
   if (!key) return null;
-  return createGatewayProvider({ apiKey: key })(normalizeGatewayModel(model));
+  return createOpenAICompatible({
+    apiKey: key,
+    baseURL: nvidiaBaseURL || process.env.NVIDIA_BASE_URL || DEFAULT_NVIDIA_BASE_URL,
+    name: "nvidia"
+  }).chatModel(DEFAULT_NVIDIA_MODEL);
 }
 export {
   config2 as config,
