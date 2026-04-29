@@ -49,6 +49,13 @@ export interface IssueComment {
   author_name?: string
   body: string
   commented_at: string
+  updated_by?: string
+  updated_by_name?: string
+  updated_at?: string
+  deleted_by?: string
+  deleted_by_name?: string
+  deleted_at?: string
+  is_deleted: boolean
   created_at: string
 }
 

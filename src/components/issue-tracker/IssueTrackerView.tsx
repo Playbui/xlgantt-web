@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { ArrowLeft, MessageSquareText, Plus, Save, Search, Trash2 } from 'lucide-react'
+import { ArrowLeft, MessageSquareText, Pencil, Plus, Save, Search, Trash2, X } from 'lucide-react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { Button } from '@/components/ui/button'
 import { RichContentEditor } from '@/components/task-workspace/RichContentEditor'
@@ -123,6 +123,8 @@ export function IssueTrackerView() {
   const updateIssue = useIssueStore((s) => s.updateIssue)
   const deleteIssue = useIssueStore((s) => s.deleteIssue)
   const addComment = useIssueStore((s) => s.addComment)
+  const updateComment = useIssueStore((s) => s.updateComment)
+  const deleteComment = useIssueStore((s) => s.deleteComment)
   const addWorkLog = useIssueStore((s) => s.addWorkLog)
   const updateWorkLog = useIssueStore((s) => s.updateWorkLog)
   const deleteWorkLog = useIssueStore((s) => s.deleteWorkLog)
@@ -135,6 +137,8 @@ export function IssueTrackerView() {
   const deleteIssueCategory = useIssueStore((s) => s.deleteIssueCategory)
   const [detailTab, setDetailTab] = useState<'input' | 'process'>('input')
   const [draftComment, setDraftComment] = useState('')
+  const [editingCommentId, setEditingCommentId] = useState<string | null>(null)
+  const [editingCommentBody, setEditingCommentBody] = useState('')
   const [draftWorkBody, setDraftWorkBody] = useState('')
   const [draftWorkHours, setDraftWorkHours] = useState('1')
   const [draftWorkDate, setDraftWorkDate] = useState(new Date().toISOString().slice(0, 10))
@@ -320,6 +324,28 @@ export function IssueTrackerView() {
     if (!selectedIssue || !richTextToPlainText(draftComment).trim()) return
     await addComment(selectedIssue.id, draftComment)
     setDraftComment('')
+  }
+
+  const handleStartEditComment = (commentId: string, body: string) => {
+    setEditingCommentId(commentId)
+    setEditingCommentBody(body)
+  }
+
+  const handleCancelEditComment = () => {
+    setEditingCommentId(null)
+    setEditingCommentBody('')
+  }
+
+  const handleSaveEditComment = async () => {
+    if (!editingCommentId || !richTextToPlainText(editingCommentBody).trim()) return
+    await updateComment(editingCommentId, editingCommentBody)
+    handleCancelEditComment()
+  }
+
+  const handleDeleteComment = async (commentId: string) => {
+    if (!window.confirm('처리 이력을 삭제 표시합니다. 내용은 취소선으로 남고 삭제자/삭제일이 기록됩니다.')) return
+    await deleteComment(commentId)
+    if (editingCommentId === commentId) handleCancelEditComment()
   }
 
   const handleAddWorkLog = async () => {
@@ -793,15 +819,85 @@ export function IssueTrackerView() {
                 <Button size="sm" variant="outline" onClick={handleAddComment} disabled={!richTextToPlainText(draftComment).trim()}>이력 추가</Button>
                 <div className="space-y-2">
                   {selectedComments.slice(0, 8).map((comment) => (
-                    <div key={comment.id} className="rounded-md bg-slate-50 px-3 py-2 text-sm">
-                      <div className="mb-1 flex justify-between gap-2 text-xs text-slate-500">
-                        <span>{comment.author_name || '작성자'}</span>
-                        <span>{formatDateTime(comment.commented_at)}</span>
+                    <div
+                      key={comment.id}
+                      className={cn(
+                        'rounded-md border px-3 py-2 text-sm',
+                        comment.is_deleted ? 'border-slate-200 bg-slate-50/70 text-slate-500' : 'border-slate-100 bg-slate-50',
+                      )}
+                    >
+                      <div className="mb-2 flex flex-wrap items-center justify-between gap-2 text-xs text-slate-500">
+                        <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+                          <span>
+                            등록 <strong className="font-semibold text-slate-700">{comment.author_name || '작성자'}</strong>
+                          </span>
+                          <span>{formatDateTime(comment.commented_at)}</span>
+                          {comment.updated_at && !comment.is_deleted && (
+                            <span>
+                              수정 <strong className="font-semibold text-slate-700">{comment.updated_by_name || formatUserLabel(comment.updated_by, '수정자')}</strong>
+                              <span className="ml-1">{formatDateTime(comment.updated_at)}</span>
+                            </span>
+                          )}
+                          {comment.is_deleted && (
+                            <span className="rounded-full border border-red-200 bg-red-50 px-2 py-0.5 font-semibold text-red-600">
+                              삭제 {comment.deleted_by_name || formatUserLabel(comment.deleted_by, '삭제자')} · {formatDateTime(comment.deleted_at)}
+                            </span>
+                          )}
+                        </div>
+                        {!comment.is_deleted && (
+                          <div className="flex items-center gap-1">
+                            <button
+                              type="button"
+                              onClick={() => handleStartEditComment(comment.id, comment.body)}
+                              className="inline-flex h-7 items-center gap-1 rounded-md border border-slate-200 bg-white px-2 text-xs font-semibold text-slate-600 hover:bg-slate-100"
+                            >
+                              <Pencil className="h-3.5 w-3.5" />
+                              수정
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => void handleDeleteComment(comment.id)}
+                              className="inline-flex h-7 items-center gap-1 rounded-md border border-red-200 bg-white px-2 text-xs font-semibold text-red-600 hover:bg-red-50"
+                            >
+                              <Trash2 className="h-3.5 w-3.5" />
+                              삭제
+                            </button>
+                          </div>
+                        )}
                       </div>
-                      <div
-                        className="prose prose-sm max-w-none text-slate-700"
-                        dangerouslySetInnerHTML={{ __html: stripRichTextState(comment.body) || richTextToPlainText(comment.body) }}
-                      />
+                      {editingCommentId === comment.id ? (
+                        <div className="space-y-2">
+                          <RichContentEditor
+                            value={editingCommentBody}
+                            onChange={setEditingCommentBody}
+                            placeholder="처리 이력을 수정합니다."
+                            minHeight={160}
+                            fontSize={14}
+                            toolbarVariant="formatting"
+                            enableImages
+                            onUploadImages={uploadIssueEditorImages}
+                            className="rounded-lg shadow-none"
+                          />
+                          <div className="flex justify-end gap-2">
+                            <Button type="button" size="sm" variant="outline" onClick={handleCancelEditComment}>
+                              <X className="h-3.5 w-3.5" />
+                              취소
+                            </Button>
+                            <Button type="button" size="sm" onClick={() => void handleSaveEditComment()} disabled={!richTextToPlainText(editingCommentBody).trim()}>
+                              <Save className="h-3.5 w-3.5" />
+                              수정 저장
+                            </Button>
+                          </div>
+                        </div>
+                      ) : (
+                        <div
+                          className={cn(
+                            'prose prose-sm max-w-none text-slate-700',
+                            comment.is_deleted && 'opacity-70 line-through decoration-slate-500 decoration-2',
+                          )}
+                          dangerouslySetInnerHTML={{ __html: stripRichTextState(comment.body) || richTextToPlainText(comment.body) }}
+                        />
+                      )}
                     </div>
                   ))}
                 </div>

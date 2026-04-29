@@ -28,6 +28,8 @@ interface IssueState {
   updateIssue: (issueId: string, changes: Partial<IssueItem>) => Promise<boolean>
   deleteIssue: (issueId: string) => Promise<void>
   addComment: (issueId: string, body: string) => Promise<void>
+  updateComment: (commentId: string, body: string) => Promise<void>
+  deleteComment: (commentId: string) => Promise<void>
   addWorkLog: (issueId: string, workLog: Partial<IssueWorkLog>) => Promise<void>
   updateWorkLog: (workLogId: string, changes: Partial<IssueWorkLog>) => Promise<void>
   deleteWorkLog: (workLogId: string) => Promise<void>
@@ -87,6 +89,13 @@ function dbRowToComment(row: Record<string, unknown>): IssueComment {
     author_name: optionalString(row.author_name),
     body: (row.body as string) || '',
     commented_at: row.commented_at as string,
+    updated_by: optionalString(row.updated_by),
+    updated_by_name: optionalString(row.updated_by_name),
+    updated_at: optionalString(row.updated_at),
+    deleted_by: optionalString(row.deleted_by),
+    deleted_by_name: optionalString(row.deleted_by_name),
+    deleted_at: optionalString(row.deleted_at),
+    is_deleted: Boolean(row.is_deleted),
     created_at: row.created_at as string,
   }
 }
@@ -594,6 +603,96 @@ export const useIssueStore = create<IssueState>((set, get) => ({
     }
 
     set((state) => ({ comments: [dbRowToComment(data as Record<string, unknown>), ...state.comments] }))
+  },
+
+  updateComment: async (commentId, body) => {
+    const previousComments = get().comments
+    const currentComment = previousComments.find((comment) => comment.id === commentId)
+    if (!currentComment || !body.trim() || currentComment.is_deleted) return
+
+    const { userId, userName } = getCurrentUserLabel()
+    const updatedAt = new Date().toISOString()
+    const optimistic = {
+      ...currentComment,
+      body: body.trim(),
+      updated_by: userId || undefined,
+      updated_by_name: userName || undefined,
+      updated_at: updatedAt,
+    }
+    set((state) => ({
+      comments: state.comments.map((comment) => comment.id === commentId ? optimistic : comment),
+    }))
+
+    const { data, error } = await supabase
+      .from('issue_comments')
+      .update({
+        body: body.trim(),
+        updated_by: userId || null,
+        updated_by_name: userName || null,
+        updated_at: updatedAt,
+      })
+      .eq('id', commentId)
+      .select('*')
+      .single()
+
+    if (error || !data) {
+      console.error('이슈 처리 이력 수정 실패:', error?.message)
+      set({ comments: previousComments })
+      if (typeof window !== 'undefined') window.alert(`이슈 처리 이력 수정 실패: ${error?.message || '저장 결과가 없습니다.'}`)
+      return
+    }
+
+    set((state) => ({
+      comments: state.comments.map((comment) => comment.id === commentId ? dbRowToComment(data as Record<string, unknown>) : comment),
+    }))
+  },
+
+  deleteComment: async (commentId) => {
+    const previousComments = get().comments
+    const currentComment = previousComments.find((comment) => comment.id === commentId)
+    if (!currentComment || currentComment.is_deleted) return
+
+    const { userId, userName } = getCurrentUserLabel()
+    const deletedAt = new Date().toISOString()
+    const optimistic = {
+      ...currentComment,
+      is_deleted: true,
+      deleted_by: userId || undefined,
+      deleted_by_name: userName || undefined,
+      deleted_at: deletedAt,
+      updated_by: userId || undefined,
+      updated_by_name: userName || undefined,
+      updated_at: deletedAt,
+    }
+    set((state) => ({
+      comments: state.comments.map((comment) => comment.id === commentId ? optimistic : comment),
+    }))
+
+    const { data, error } = await supabase
+      .from('issue_comments')
+      .update({
+        is_deleted: true,
+        deleted_by: userId || null,
+        deleted_by_name: userName || null,
+        deleted_at: deletedAt,
+        updated_by: userId || null,
+        updated_by_name: userName || null,
+        updated_at: deletedAt,
+      })
+      .eq('id', commentId)
+      .select('*')
+      .single()
+
+    if (error || !data) {
+      console.error('이슈 처리 이력 삭제 표시 실패:', error?.message)
+      set({ comments: previousComments })
+      if (typeof window !== 'undefined') window.alert(`이슈 처리 이력 삭제 실패: ${error?.message || '저장 결과가 없습니다.'}`)
+      return
+    }
+
+    set((state) => ({
+      comments: state.comments.map((comment) => comment.id === commentId ? dbRowToComment(data as Record<string, unknown>) : comment),
+    }))
   },
 
   addWorkLog: async (issueId, workLog) => {
