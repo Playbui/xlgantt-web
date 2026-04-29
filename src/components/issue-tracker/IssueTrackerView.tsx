@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { AlertCircle, CalendarDays, CheckCircle2, ClipboardList, Plus, Search } from 'lucide-react'
+import { AlertCircle, CalendarDays, CheckCircle2, ClipboardList, Plus, Search, Trash2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { useProjectStore } from '@/stores/project-store'
 import { useIssueStore } from '@/stores/issue-store'
@@ -55,6 +55,8 @@ export function IssueTrackerView() {
   const updateIssue = useIssueStore((s) => s.updateIssue)
   const addComment = useIssueStore((s) => s.addComment)
   const addWorkLog = useIssueStore((s) => s.addWorkLog)
+  const updateWorkLog = useIssueStore((s) => s.updateWorkLog)
+  const deleteWorkLog = useIssueStore((s) => s.deleteWorkLog)
   const [draftComment, setDraftComment] = useState('')
   const [draftWorkBody, setDraftWorkBody] = useState('')
   const [draftWorkHours, setDraftWorkHours] = useState('1')
@@ -354,11 +356,39 @@ export function IssueTrackerView() {
                 <div className="space-y-2">
                   {selectedWorkLogs.slice(0, 8).map((log) => (
                     <div key={log.id} className="rounded-md bg-slate-50 px-3 py-2 text-sm">
-                      <div className="mb-1 flex justify-between gap-2 text-xs text-slate-500">
-                        <span>{log.worker_name}</span>
-                        <span>{formatDate(log.work_date)} · {log.hours.toFixed(2)} D</span>
+                      <div className="mb-2 grid grid-cols-[1fr_92px_64px_28px] items-center gap-2">
+                        <input
+                          defaultValue={log.worker_name}
+                          onBlur={(event) => updateWorkLog(log.id, { worker_name: event.target.value })}
+                          className="h-7 rounded border border-slate-200 bg-white px-2 text-xs"
+                        />
+                        <input
+                          type="date"
+                          defaultValue={log.work_date}
+                          onBlur={(event) => updateWorkLog(log.id, { work_date: event.target.value })}
+                          className="h-7 rounded border border-slate-200 bg-white px-2 text-xs"
+                        />
+                        <input
+                          defaultValue={log.hours.toString()}
+                          onBlur={(event) => {
+                            const hours = Number(event.target.value)
+                            updateWorkLog(log.id, { hours: Number.isFinite(hours) ? hours : log.hours })
+                          }}
+                          className="h-7 rounded border border-slate-200 bg-white px-2 text-right text-xs"
+                        />
+                        <button
+                          onClick={() => deleteWorkLog(log.id)}
+                          className="flex h-7 w-7 items-center justify-center rounded text-slate-400 hover:bg-red-50 hover:text-red-600"
+                          title="공수 로그 삭제"
+                        >
+                          <Trash2 className="h-3.5 w-3.5" />
+                        </button>
                       </div>
-                      <p className="text-slate-700">{log.body}</p>
+                      <input
+                        defaultValue={log.body}
+                        onBlur={(event) => updateWorkLog(log.id, { body: event.target.value })}
+                        className="h-8 w-full rounded border border-slate-200 bg-white px-2 text-sm text-slate-700"
+                      />
                     </div>
                   ))}
                 </div>

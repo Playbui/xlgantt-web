@@ -1,5 +1,5 @@
 import { useEffect } from 'react'
-import { useParams } from 'react-router-dom'
+import { Navigate, useParams } from 'react-router-dom'
 import { AppShell } from '@/components/layout/AppShell'
 import { GanttView } from '@/components/gantt/GanttView'
 import { ProgressDashboard } from '@/components/progress/ProgressDashboard'
@@ -52,14 +52,12 @@ function MainContent() {
       return <MemberTasksView />
     case 'workspace':
       return <WorkspaceView />
-    case 'issues':
-      return <IssueTrackerView />
     default:
       return <GanttView />
   }
 }
 
-export function ProjectWorkspace() {
+export function ProjectWorkspace({ mode = 'wbs', redirectTo }: { mode?: 'wbs' | 'issues'; redirectTo?: 'wbs' | 'issues' }) {
   const { projectId } = useParams<{ projectId: string }>()
   const { switchProject, currentProject, setProject, loadProjectMembers } = useProjectStore()
   const { setTasks, setDependencies, loadTasks, loadDependencies } = useTaskStore()
@@ -89,7 +87,7 @@ export function ProjectWorkspace() {
           loadProjectMembers(projectId),
           loadCalendars(projectId),
           loadWorkspaceItems(projectId),
-          loadIssues(projectId),
+          mode === 'issues' ? loadIssues(projectId) : Promise.resolve(),
           fetchAllUsers(),
           // 활동로그도 DB에서 로드 (현재 사용자 기준, 첫 페이지)
           loadActivityLogs(projectId, { userId: currentUserId, offset: 0, limit: 50 }),
@@ -120,9 +118,13 @@ export function ProjectWorkspace() {
     }
     loadFromServer()
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [projectId])
+  }, [projectId, mode])
 
   const isMobile = useIsMobile()
+
+  if (projectId && redirectTo) {
+    return <Navigate to={`/projects/${projectId}/${redirectTo}`} replace />
+  }
 
   if (isMobile) {
     return (
@@ -134,7 +136,7 @@ export function ProjectWorkspace() {
 
   return (
     <AppShell>
-      <MainContent />
+      {mode === 'issues' ? <IssueTrackerView /> : <MainContent />}
     </AppShell>
   )
 }

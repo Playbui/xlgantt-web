@@ -18,6 +18,8 @@ interface IssueState {
   deleteIssue: (issueId: string) => Promise<void>
   addComment: (issueId: string, body: string) => Promise<void>
   addWorkLog: (issueId: string, workLog: Partial<IssueWorkLog>) => Promise<void>
+  updateWorkLog: (workLogId: string, changes: Partial<IssueWorkLog>) => Promise<void>
+  deleteWorkLog: (workLogId: string) => Promise<void>
 }
 
 function optionalString(value: unknown): string | undefined {
@@ -346,5 +348,90 @@ export const useIssueStore = create<IssueState>((set, get) => ({
       .update({ actual_effort: nextActualEffort, total_effort: nextTotalEffort, updated_by: userId || null })
       .eq('id', issueId)
     if (updateError) console.error('이슈 공수 합계 갱신 실패:', updateError.message)
+  },
+
+  updateWorkLog: async (workLogId, changes) => {
+    const previousLogs = get().workLogs
+    const previousIssues = get().issues
+    const currentLog = previousLogs.find((log) => log.id === workLogId)
+    if (!currentLog) return
+
+    const nextLog = { ...currentLog, ...changes }
+    const issue = get().issues.find((item) => item.id === currentLog.issue_id)
+    const effortDelta = nextLog.hours - currentLog.hours
+
+    set((state) => ({
+      workLogs: state.workLogs.map((log) => log.id === workLogId ? nextLog : log),
+      issues: issue
+        ? state.issues.map((item) =>
+            item.id === issue.id
+              ? { ...item, actual_effort: item.actual_effort + effortDelta, total_effort: item.total_effort + effortDelta }
+              : item
+          )
+        : state.issues,
+    }))
+
+    const payload: Record<string, unknown> = {}
+    if (Object.prototype.hasOwnProperty.call(changes, 'worker_name')) payload.worker_name = changes.worker_name || ''
+    if (Object.prototype.hasOwnProperty.call(changes, 'work_date')) payload.work_date = changes.work_date || null
+    if (Object.prototype.hasOwnProperty.call(changes, 'hours')) payload.hours = changes.hours ?? 0
+    if (Object.prototype.hasOwnProperty.call(changes, 'body')) payload.body = changes.body || ''
+    if (Object.prototype.hasOwnProperty.call(changes, 'note')) payload.note = changes.note || null
+    if (Object.prototype.hasOwnProperty.call(changes, 'settled')) payload.settled = changes.settled ?? false
+
+    const { error } = await supabase.from('issue_work_logs').update(payload).eq('id', workLogId)
+    if (error) {
+      console.error('이슈 공수 로그 수정 실패:', error.message)
+      set({ workLogs: previousLogs, issues: previousIssues })
+      return
+    }
+
+    if (issue && effortDelta !== 0) {
+      const nextActualEffort = issue.actual_effort + effortDelta
+      const nextTotalEffort = issue.total_effort + effortDelta
+      const { userId } = getCurrentUserLabel()
+      const { error: updateError } = await supabase
+        .from('issue_items')
+        .update({ actual_effort: nextActualEffort, total_effort: nextTotalEffort, updated_by: userId || null })
+        .eq('id', issue.id)
+      if (updateError) console.error('이슈 공수 합계 수정 반영 실패:', updateError.message)
+    }
+  },
+
+  deleteWorkLog: async (workLogId) => {
+    const previousLogs = get().workLogs
+    const previousIssues = get().issues
+    const currentLog = previousLogs.find((log) => log.id === workLogId)
+    if (!currentLog) return
+    const issue = get().issues.find((item) => item.id === currentLog.issue_id)
+
+    set((state) => ({
+      workLogs: state.workLogs.filter((log) => log.id !== workLogId),
+      issues: issue
+        ? state.issues.map((item) =>
+            item.id === issue.id
+              ? { ...item, actual_effort: item.actual_effort - currentLog.hours, total_effort: item.total_effort - currentLog.hours }
+              : item
+          )
+        : state.issues,
+    }))
+
+    const { error } = await supabase.from('issue_work_logs').delete().eq('id', workLogId)
+    if (error) {
+      console.error('이슈 공수 로그 삭제 실패:', error.message)
+      set({ workLogs: previousLogs, issues: previousIssues })
+      return
+    }
+
+    if (issue) {
+      const nextActualEffort = issue.actual_effort - currentLog.hours
+      const nextTotalEffort = issue.total_effort - currentLog.hours
+      const { userId } = getCurrentUserLabel()
+      const { error: updateError } = await supabase
+        .from('issue_items')
+        .update({ actual_effort: nextActualEffort, total_effort: nextTotalEffort, updated_by: userId || null })
+        .eq('id', issue.id)
+      if (updateError) console.error('이슈 공수 합계 삭제 반영 실패:', updateError.message)
+    }
   },
 }))

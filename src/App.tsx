@@ -53,7 +53,9 @@ function App() {
       <Route path="/signup" element={<SignupPage />} />
       <Route path="/force-password-change" element={<AuthGuard><ForcePasswordChangePage /></AuthGuard>} />
       <Route path="/projects" element={<AuthGuard><PasswordFreshGuard><ProjectDashboard /></PasswordFreshGuard></AuthGuard>} />
-      <Route path="/projects/:projectId" element={<AuthGuard><PasswordFreshGuard><ProjectWorkspace /></PasswordFreshGuard></AuthGuard>} />
+      <Route path="/projects/:projectId" element={<AuthGuard><PasswordFreshGuard><ProjectWorkspace redirectTo="wbs" /></PasswordFreshGuard></AuthGuard>} />
+      <Route path="/projects/:projectId/wbs" element={<AuthGuard><PasswordFreshGuard><ProjectWorkspace mode="wbs" /></PasswordFreshGuard></AuthGuard>} />
+      <Route path="/projects/:projectId/issues" element={<AuthGuard><PasswordFreshGuard><ProjectWorkspace mode="issues" /></PasswordFreshGuard></AuthGuard>} />
       <Route path="/admin" element={<AuthGuard><PasswordFreshGuard><AdminGuard><AdminPage /></AdminGuard></PasswordFreshGuard></AuthGuard>} />
       <Route path="/profile" element={<AuthGuard><PasswordFreshGuard><ProfilePage /></PasswordFreshGuard></AuthGuard>} />
       <Route path="/" element={<Navigate to="/projects" replace />} />

@@ -26,7 +26,6 @@ import {
   Info,
   Sparkles,
   History,
-  Bug,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import {
@@ -47,7 +46,7 @@ import { cn } from '@/lib/utils'
 import { DatePicker } from '@/components/ui/date-picker'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { ProjectSwitcher } from '@/components/layout/ProjectSwitcher'
-import { useNavigate } from 'react-router-dom'
+import { useLocation, useNavigate } from 'react-router-dom'
 import { APP_INFO, APP_UPDATES } from '@/lib/app-info'
 
 /* 그룹화된 탭 구조 - role 기반 표시 */
@@ -60,7 +59,6 @@ const TAB_GROUPS: TabGroup[] = [
     { key: 'mytasks', label: '내 업무', icon: <ClipboardList className="h-3.5 w-3.5" /> },
     { key: 'memberTasks', label: '담당자 업무', icon: <UserCheck className="h-3.5 w-3.5" /> },
     { key: 'workspace', label: '업무노트', icon: <NotebookText className="h-3.5 w-3.5" /> },
-    { key: 'issues', label: '이슈', icon: <Bug className="h-3.5 w-3.5" /> },
   ]},
   { tabs: [
     { key: 'progress', label: '진척현황', icon: <PieChart className="h-3.5 w-3.5" /> },
@@ -78,6 +76,7 @@ const ICON_TABS: { key: ViewMode; icon: React.ReactNode; title: string; adminOnl
 
 export function Header() {
   const navigate = useNavigate()
+  const location = useLocation()
   const { currentUser, logout } = useAuthStore()
   const { currentProject: project, updateProject } = useProjectStore()
   const { tasks, dependencies } = useTaskStore()
@@ -86,6 +85,7 @@ export function Header() {
     useUIStore()
 
   const isAdmin = currentUser?.role === 'admin'
+  const isIssuePage = location.pathname.endsWith('/issues')
   // 프로젝트 역할도 체크 (프로젝트 내 PM이면 관리 메뉴 접근)
   const projectRole = project ? useProjectStore.getState().getMyProjectRole(project.id, currentUser?.id || '') : null
   const isPmOrAdmin = isAdmin || currentUser?.role === 'pm' || projectRole === 'pm'
@@ -232,8 +232,27 @@ export function Header() {
 
       <div className="chrome-divider h-6" />
 
+      {project && (
+        <div className="flex items-center gap-1 rounded-lg border border-slate-200 bg-slate-100 p-0.5">
+          <button
+            onClick={() => navigate(`/projects/${project.id}/wbs`)}
+            className={cn('rounded-md px-2.5 py-1 text-xs font-medium transition-colors', !isIssuePage ? 'bg-white text-slate-950 shadow-sm' : 'text-slate-600 hover:text-slate-950')}
+          >
+            WBS
+          </button>
+          <button
+            onClick={() => navigate(`/projects/${project.id}/issues`)}
+            className={cn('rounded-md px-2.5 py-1 text-xs font-medium transition-colors', isIssuePage ? 'bg-white text-slate-950 shadow-sm' : 'text-slate-600 hover:text-slate-950')}
+          >
+            이슈
+          </button>
+        </div>
+      )}
+
+      <div className="chrome-divider h-6" />
+
       {/* View Tabs - Grouped (role-based) */}
-      <nav className="hidden md:flex items-center">
+      {!isIssuePage && <nav className="hidden md:flex items-center">
         {TAB_GROUPS.map((group, gi) => {
           const visibleTabs = group.tabs.filter((t) => (!t.adminOnly || isAdmin) && (!t.pmOrAdmin || isPmOrAdmin))
           if (visibleTabs.length === 0) return null
@@ -253,10 +272,10 @@ export function Header() {
             </div>
           )
         })}
-      </nav>
+      </nav>}
 
       {/* Mobile view selector */}
-      <div className="md:hidden">
+      {!isIssuePage && <div className="md:hidden">
         <DropdownMenu>
           <DropdownMenuTrigger className="inline-flex items-center justify-center rounded-md border px-3 py-1.5 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40">
             {allVisibleTabs.find((t) => t.key === activeView)?.label || '메뉴'}
@@ -270,12 +289,12 @@ export function Header() {
             ))}
           </DropdownMenuContent>
         </DropdownMenu>
-      </div>
+      </div>}
 
       <div className="flex-1" />
 
       {/* Icon Tabs (활동/설정) - role-based */}
-      <div className="hidden md:flex items-center gap-0.5 flex-shrink-0">
+      {!isIssuePage && <div className="hidden md:flex items-center gap-0.5 flex-shrink-0">
         {ICON_TABS.filter((t) => (!t.adminOnly || isAdmin) && (!t.pmOrAdmin || isPmOrAdmin)).map((tab) => (
           <Button
             key={tab.key}
@@ -288,7 +307,7 @@ export function Header() {
             {tab.icon}
           </Button>
         ))}
-      </div>
+      </div>}
 
       <div className="chrome-divider" />
 
