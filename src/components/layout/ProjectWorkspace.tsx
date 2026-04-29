@@ -69,8 +69,8 @@ export function ProjectWorkspace({ mode = 'wbs', redirectTo }: { mode?: 'wbs' | 
   const loadIssues = useIssueStore((s) => s.loadIssues)
   const loadIssueMembers = useIssueStore((s) => s.loadIssueMembers)
   const issueMembersLoadedProjectId = useIssueStore((s) => s.issueMembersLoadedProjectId)
-  const canAccessIssues = useIssueStore((s) => projectId ? s.canAccessIssues(projectId, currentUserId) : false)
   const currentUserId = useAuthStore((s) => s.currentUser?.id)
+  const canAccessIssues = useIssueStore((s) => projectId ? s.canAccessIssues(projectId, currentUserId) : false)
   const clearUndo = useUndoStore((s) => s.clear)
 
   useEffect(() => {
