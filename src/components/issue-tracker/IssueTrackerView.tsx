@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { ArrowLeft, MessageSquareText, Plus, Search, Trash2 } from 'lucide-react'
+import { ArrowLeft, MessageSquareText, Plus, Save, Search, Trash2 } from 'lucide-react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { Button } from '@/components/ui/button'
 import { RichContentEditor } from '@/components/task-workspace/RichContentEditor'
@@ -31,6 +31,31 @@ function formatDate(value?: string) {
   return value.replaceAll('-', '.')
 }
 
+function formatDateTime(value?: string) {
+  if (!value) return '-'
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime())) return value
+  return `${date.getFullYear()}.${String(date.getMonth() + 1).padStart(2, '0')}.${String(date.getDate()).padStart(2, '0')} ${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}`
+}
+
+function createIssueInputDraft(issue: IssueItem): Partial<IssueItem> {
+  return {
+    title: issue.title,
+    issue_type: issue.issue_type || issue.legacy_status || '',
+    legacy_status: issue.issue_type || issue.legacy_status || '',
+    status: issue.status,
+    priority: issue.priority,
+    received_at: issue.received_at || '',
+    due_date: issue.due_date || '',
+    internal_owner_name: issue.internal_owner_name || issue.requester_name || '',
+    requester_name: issue.internal_owner_name || issue.requester_name || '',
+    request_source: issue.request_source || '',
+    external_requester: issue.external_requester || issue.source_url || '',
+    source_url: issue.external_requester || issue.source_url || '',
+    description: issue.description || '',
+  }
+}
+
 function includesText(issue: IssueItem, query: string) {
   if (!query) return true
   const target = [
@@ -57,6 +82,7 @@ export function IssueTrackerView() {
   const loadProjects = useProjectStore((s) => s.loadProjects)
   const switchProject = useProjectStore((s) => s.switchProject)
   const currentUser = useAuthStore((s) => s.currentUser)
+  const users = useAuthStore((s) => s.users)
   const issues = useIssueStore((s) => s.issues)
   const comments = useIssueStore((s) => s.comments)
   const workLogs = useIssueStore((s) => s.workLogs)
@@ -86,6 +112,9 @@ export function IssueTrackerView() {
   const [draftWorkWorkerName, setDraftWorkWorkerName] = useState(currentUser?.name || currentUser?.email || '')
   const [newIssueKind, setNewIssueKind] = useState('')
   const [showIssueKindManager, setShowIssueKindManager] = useState(false)
+  const [inputDraft, setInputDraft] = useState<Partial<IssueItem>>({})
+  const [inputDirty, setInputDirty] = useState(false)
+  const [inputSaving, setInputSaving] = useState(false)
   const selectedProjectId = searchParams.get('project') || ''
   const isAdmin = currentUser?.role === 'admin'
 
@@ -164,6 +193,26 @@ export function IssueTrackerView() {
     return workLogs.filter((log) => log.issue_id === selectedIssue.id)
   }, [selectedIssue, workLogs])
 
+  const userLabels = useMemo(() => {
+    const labels = new Map<string, string>()
+    users.forEach((user) => labels.set(user.id, user.name || user.email || user.id))
+    if (currentUser) labels.set(currentUser.id, currentUser.name || currentUser.email || currentUser.id)
+    return labels
+  }, [currentUser, users])
+
+  const setInputDraftValue = (changes: Partial<IssueItem>) => {
+    setInputDraft((draft) => ({ ...draft, ...changes }))
+    setInputDirty(true)
+  }
+
+  const handleSaveInputDraft = async () => {
+    if (!selectedIssue || !inputDirty || inputSaving) return
+    setInputSaving(true)
+    await updateIssue(selectedIssue.id, inputDraft)
+    setInputSaving(false)
+    setInputDirty(false)
+  }
+
   useEffect(() => {
     setDraftComment('')
     setDraftWorkBody('')
@@ -171,6 +220,13 @@ export function IssueTrackerView() {
     setDraftWorkDate(new Date().toISOString().slice(0, 10))
     setDraftWorkWorkerName(currentUser?.name || currentUser?.email || '')
     setDetailTab('input')
+    if (selectedIssue) {
+      setInputDraft(createIssueInputDraft(selectedIssue))
+      setInputDirty(false)
+    } else {
+      setInputDraft({})
+      setInputDirty(false)
+    }
   }, [currentUser?.email, currentUser?.name, selectedIssueId])
 
   const handleCreateIssue = async () => {
@@ -398,10 +454,37 @@ export function IssueTrackerView() {
 
                 {detailTab === 'input' && (
                 <div className="space-y-5 p-4">
+                  <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2">
+                    <div className="flex flex-wrap gap-x-5 gap-y-1 text-xs text-slate-500">
+                      <span>
+                        등록자 <strong className="font-semibold text-slate-700">{selectedIssue.created_by ? (userLabels.get(selectedIssue.created_by) || selectedIssue.created_by) : '-'}</strong>
+                      </span>
+                      <span>
+                        등록일 <strong className="font-semibold text-slate-700">{formatDateTime(selectedIssue.created_at)}</strong>
+                      </span>
+                      <span>
+                        최종수정 <strong className="font-semibold text-slate-700">{selectedIssue.updated_by ? (userLabels.get(selectedIssue.updated_by) || selectedIssue.updated_by) : '-'}</strong>
+                      </span>
+                      <span>
+                        수정일 <strong className="font-semibold text-slate-700">{formatDateTime(selectedIssue.updated_at)}</strong>
+                      </span>
+                    </div>
+                    <Button
+                      type="button"
+                      size="sm"
+                      className="h-8 gap-1.5"
+                      onClick={() => void handleSaveInputDraft()}
+                      disabled={!inputDirty || inputSaving}
+                    >
+                      <Save className="h-3.5 w-3.5" />
+                      {inputSaving ? '저장 중' : '입력 저장'}
+                    </Button>
+                  </div>
+
                   <Field label="제목">
                     <input
-                      value={selectedIssue.title}
-                      onChange={(event) => updateIssue(selectedIssue.id, { title: event.target.value })}
+                      value={inputDraft.title || ''}
+                      onChange={(event) => setInputDraftValue({ title: event.target.value })}
                       className="h-11 w-full rounded-md border border-slate-300 px-3 text-base font-semibold text-slate-950 outline-none focus:border-sky-400 focus:ring-2 focus:ring-sky-100"
                     />
                   </Field>
@@ -413,8 +496,8 @@ export function IssueTrackerView() {
                         <Field label="구분">
                           <div className="flex gap-2">
                             <select
-                            value={selectedIssue.issue_type || selectedIssue.legacy_status || ''}
-                            onChange={(event) => updateIssue(selectedIssue.id, { issue_type: event.target.value, legacy_status: event.target.value })}
+                            value={inputDraft.issue_type || inputDraft.legacy_status || ''}
+                            onChange={(event) => setInputDraftValue({ issue_type: event.target.value, legacy_status: event.target.value })}
                               className="h-9 min-w-0 flex-1 rounded-md border border-slate-300 px-2 text-sm"
                             >
                               {issueKinds.length === 0 && <option value="">구분 없음</option>}
@@ -433,8 +516,8 @@ export function IssueTrackerView() {
                         </Field>
                         <Field label="상태">
                           <select
-                            value={selectedIssue.status}
-                            onChange={(event) => updateIssue(selectedIssue.id, { status: event.target.value as IssueItem['status'] })}
+                            value={inputDraft.status || selectedIssue.status}
+                            onChange={(event) => setInputDraftValue({ status: event.target.value as IssueItem['status'] })}
                             className="h-9 w-full rounded-md border border-slate-300 px-2 text-sm"
                           >
                             {ISSUE_STATUSES.map((status) => <option key={status} value={status}>{status}</option>)}
@@ -442,8 +525,8 @@ export function IssueTrackerView() {
                         </Field>
                         <Field label="우선순위">
                           <select
-                            value={selectedIssue.priority}
-                            onChange={(event) => updateIssue(selectedIssue.id, { priority: event.target.value as IssueItem['priority'] })}
+                            value={inputDraft.priority || selectedIssue.priority}
+                            onChange={(event) => setInputDraftValue({ priority: event.target.value as IssueItem['priority'] })}
                             className="h-9 w-full rounded-md border border-slate-300 px-2 text-sm"
                           >
                             {Object.entries(ISSUE_PRIORITY_LABELS).map(([value, label]) => <option key={value} value={value}>{label}</option>)}
@@ -491,16 +574,16 @@ export function IssueTrackerView() {
                         <Field label="등록일">
                           <input
                             type="date"
-                            value={selectedIssue.received_at || ''}
-                            onChange={(event) => updateIssue(selectedIssue.id, { received_at: event.target.value })}
+                            value={inputDraft.received_at || ''}
+                            onChange={(event) => setInputDraftValue({ received_at: event.target.value })}
                             className="h-9 w-full rounded-md border border-slate-300 px-2 text-sm"
                           />
                         </Field>
                         <Field label="마감요청일">
                           <input
                             type="date"
-                            value={selectedIssue.due_date || ''}
-                            onChange={(event) => updateIssue(selectedIssue.id, { due_date: event.target.value })}
+                            value={inputDraft.due_date || ''}
+                            onChange={(event) => setInputDraftValue({ due_date: event.target.value })}
                             className="h-9 w-full rounded-md border border-slate-300 px-2 text-sm"
                           />
                         </Field>
@@ -521,8 +604,8 @@ export function IssueTrackerView() {
                         </Field>
                         <Field label="등록자 / 내부 담당">
                           <input
-                            value={selectedIssue.internal_owner_name || selectedIssue.requester_name || ''}
-                            onChange={(event) => updateIssue(selectedIssue.id, { internal_owner_name: event.target.value, requester_name: event.target.value })}
+                            value={inputDraft.internal_owner_name || inputDraft.requester_name || ''}
+                            onChange={(event) => setInputDraftValue({ internal_owner_name: event.target.value, requester_name: event.target.value })}
                             className="h-9 w-full rounded-md border border-slate-300 px-2 text-sm"
                           />
                         </Field>
@@ -534,16 +617,16 @@ export function IssueTrackerView() {
                       <div className="grid gap-3 sm:grid-cols-2">
                         <Field label="요청처">
                           <input
-                            value={selectedIssue.request_source || ''}
-                            onChange={(event) => updateIssue(selectedIssue.id, { request_source: event.target.value })}
+                            value={inputDraft.request_source || ''}
+                            onChange={(event) => setInputDraftValue({ request_source: event.target.value })}
                             placeholder="예: 발주처 / 사업부"
                             className="h-9 w-full rounded-md border border-slate-300 px-2 text-sm"
                           />
                         </Field>
                         <Field label="외부 요청자">
                           <input
-                            value={selectedIssue.external_requester || selectedIssue.source_url || ''}
-                            onChange={(event) => updateIssue(selectedIssue.id, { external_requester: event.target.value, source_url: event.target.value })}
+                            value={inputDraft.external_requester || inputDraft.source_url || ''}
+                            onChange={(event) => setInputDraftValue({ external_requester: event.target.value, source_url: event.target.value })}
                             placeholder="예: 수협 홍길동"
                             className="h-9 w-full rounded-md border border-slate-300 px-2 text-sm"
                           />
@@ -555,8 +638,8 @@ export function IssueTrackerView() {
                   <Field label="상세 내용">
                     <RichContentEditor
                       key={selectedIssue.id}
-                      value={selectedIssue.description || ''}
-                      onChange={(value) => updateIssue(selectedIssue.id, { description: value })}
+                      value={inputDraft.description || ''}
+                      onChange={(value) => setInputDraftValue({ description: value })}
                       placeholder="발생 현상, 요청 내용, 재현 조건, 확인할 내용을 충분히 입력"
                       minHeight={360}
                       fontSize={14}

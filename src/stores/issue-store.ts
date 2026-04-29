@@ -476,7 +476,7 @@ export const useIssueStore = create<IssueState>((set, get) => ({
   updateIssue: async (issueId, changes) => {
     const previousIssue = get().issues.find((issue) => issue.id === issueId)
     const { userId } = getCurrentUserLabel()
-    const optimisticChanges = { ...changes, updated_by: userId }
+    const optimisticChanges = { ...changes, updated_by: userId, updated_at: new Date().toISOString() }
     set((state) => ({
       issues: state.issues.map((issue) =>
         issue.id === issueId ? { ...issue, ...optimisticChanges } : issue
