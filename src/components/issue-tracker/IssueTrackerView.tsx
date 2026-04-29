@@ -51,6 +51,10 @@ function getIssueKindClass(name?: string) {
 
 function formatDate(value?: string) {
   if (!value) return '-'
+  const date = new Date(value)
+  if (!Number.isNaN(date.getTime())) {
+    return `${date.getFullYear()}.${String(date.getMonth() + 1).padStart(2, '0')}.${String(date.getDate()).padStart(2, '0')}`
+  }
   return value.replaceAll('-', '.')
 }
 
@@ -59,6 +63,10 @@ function formatDateTime(value?: string) {
   const date = new Date(value)
   if (Number.isNaN(date.getTime())) return value
   return `${date.getFullYear()}.${String(date.getMonth() + 1).padStart(2, '0')}.${String(date.getDate()).padStart(2, '0')} ${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}`
+}
+
+function getLocalDateInputValue(date = new Date()) {
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`
 }
 
 function isUuidLike(value?: string) {
@@ -302,7 +310,7 @@ export function IssueTrackerView() {
     setDraftComment('')
     setDraftWorkBody('')
     setDraftWorkHours('1')
-    setDraftWorkDate(new Date().toISOString().slice(0, 10))
+    setDraftWorkDate(getLocalDateInputValue())
     setDraftWorkWorkerName(currentUser?.name || currentUser?.email || '')
     setDetailTab('input')
     if (selectedIssue) {
@@ -316,8 +324,9 @@ export function IssueTrackerView() {
 
   const handleCreateIssue = async () => {
     if (!project) return
+    const today = getLocalDateInputValue()
     await createIssue(project.id, {
-      issue_no: `ISS-${new Date().toISOString().slice(0, 10).replaceAll('-', '')}-${issues.length + 1}`,
+      issue_no: `ISS-${today.replaceAll('-', '')}-${issues.length + 1}`,
       title: '제목을 입력하세요',
       issue_type: '이슈',
       legacy_status: '이슈',
@@ -325,7 +334,7 @@ export function IssueTrackerView() {
       internal_owner_name: currentUser?.name || currentUser?.email || '',
       requester_name: currentUser?.name || currentUser?.email || '',
       system_name: project.name,
-      received_at: new Date().toISOString().slice(0, 10),
+      received_at: today,
     })
   }
 
@@ -369,7 +378,7 @@ export function IssueTrackerView() {
     })
     setDraftWorkBody('')
     setDraftWorkHours('1')
-    setDraftWorkDate(new Date().toISOString().slice(0, 10))
+    setDraftWorkDate(getLocalDateInputValue())
   }
 
   const handleAddIssueKind = async () => {
@@ -526,7 +535,7 @@ export function IssueTrackerView() {
                           <div className="flex items-center gap-2 text-xs font-semibold text-slate-500">
                             <span>{issue.issue_no}</span>
                             <span className="text-slate-300">|</span>
-                            <span>{formatDate(issue.received_at)}</span>
+                            <span>{formatDate(issue.created_at)}</span>
                           </div>
                           <div className="mt-1 line-clamp-2 text-[15px] font-semibold leading-5 text-slate-950">{issue.title}</div>
                         </div>
