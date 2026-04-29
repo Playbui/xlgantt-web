@@ -26,6 +26,28 @@ const priorityClasses: Record<IssueItem['priority'], string> = {
   urgent: 'text-red-600',
 }
 
+const priorityBadgeClasses: Record<IssueItem['priority'], string> = {
+  low: 'bg-slate-50 text-slate-600 border-slate-200',
+  normal: 'bg-slate-50 text-slate-700 border-slate-200',
+  high: 'bg-orange-50 text-orange-700 border-orange-200',
+  urgent: 'bg-red-50 text-red-700 border-red-200',
+}
+
+const issueKindBadgeClasses = [
+  'bg-cyan-50 text-cyan-700 border-cyan-200',
+  'bg-indigo-50 text-indigo-700 border-indigo-200',
+  'bg-rose-50 text-rose-700 border-rose-200',
+  'bg-lime-50 text-lime-700 border-lime-200',
+  'bg-amber-50 text-amber-700 border-amber-200',
+  'bg-teal-50 text-teal-700 border-teal-200',
+]
+
+function getIssueKindClass(name?: string) {
+  if (!name) return 'bg-slate-50 text-slate-600 border-slate-200'
+  const index = Array.from(name).reduce((sum, char) => sum + char.charCodeAt(0), 0) % issueKindBadgeClasses.length
+  return issueKindBadgeClasses[index]
+}
+
 function formatDate(value?: string) {
   if (!value) return '-'
   return value.replaceAll('-', '.')
@@ -288,8 +310,8 @@ export function IssueTrackerView() {
 
   return (
     <main className="flex h-screen min-h-0 flex-col bg-slate-50/60">
-      <div className="border-b bg-white px-5 py-2.5">
-        <div className="mb-2 flex items-center justify-between gap-3">
+      <div className="border-b bg-white px-4 py-2">
+        <div className="flex items-center justify-between gap-3">
           <button
             onClick={() => navigate('/projects')}
             className="flex items-center gap-2 rounded-md px-2 py-1.5 text-sm font-semibold text-slate-700 hover:bg-slate-100"
@@ -297,33 +319,30 @@ export function IssueTrackerView() {
             <ArrowLeft className="h-4 w-4" />
             프로젝트 목록
           </button>
-          {project && (
-            <Button variant="outline" size="sm" onClick={() => navigate(`/projects/${project.id}/wbs`)}>
-              WBS로 이동
-            </Button>
-          )}
-        </div>
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <div className="min-w-0">
-            <div className="flex flex-wrap items-baseline gap-x-4 gap-y-1">
-              <h1 className="text-lg font-semibold text-slate-950">이슈 트래커</h1>
-              <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-slate-600">
-                <span>전체 <strong className="text-slate-950">{summary.total}건</strong></span>
-                <span>진행 중 <strong className="text-slate-950">{summary.active}건</strong></span>
-                <span>완료 <strong className="text-slate-950">{summary.done}건</strong></span>
-                <span>누적 공수 <strong className="text-slate-950">{summary.effort.toFixed(2)} D</strong></span>
-              </div>
+          <div className="flex min-w-0 flex-1 flex-wrap items-center gap-x-4 gap-y-1">
+            <h1 className="text-lg font-semibold text-slate-950">이슈 트래커</h1>
+            <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-slate-600">
+              <span>전체 <strong className="text-slate-950">{summary.total}건</strong></span>
+              <span>진행 중 <strong className="text-slate-950">{summary.active}건</strong></span>
+              <span>완료 <strong className="text-slate-950">{summary.done}건</strong></span>
+              <span>누적 공수 <strong className="text-slate-950">{summary.effort.toFixed(2)} D</strong></span>
             </div>
-            <p className="mt-0.5 text-sm text-slate-500">프로젝트를 선택해 이슈 접수, 처리 이력, 공수 정산을 관리합니다.</p>
           </div>
-          <Button onClick={handleCreateIssue} disabled={!project}>
-            <Plus className="h-4 w-4" />
-            이슈 추가
-          </Button>
+          <div className="flex items-center gap-2">
+            {project && (
+              <Button variant="outline" size="sm" onClick={() => navigate(`/projects/${project.id}/wbs`)}>
+                WBS로 이동
+              </Button>
+            )}
+            <Button size="sm" onClick={handleCreateIssue} disabled={!project}>
+              <Plus className="h-4 w-4" />
+              이슈 추가
+            </Button>
+          </div>
         </div>
       </div>
 
-      <div className="border-b bg-white px-5 py-2.5">
+      <div className="border-b bg-white px-4 py-2">
         <div className="flex flex-wrap items-center gap-2">
           <select
             value={project?.id || ''}
@@ -364,7 +383,7 @@ export function IssueTrackerView() {
         </div>
       </div>
 
-      <div className="grid min-h-0 flex-1 grid-cols-1 gap-4 overflow-hidden px-5 py-4 xl:grid-cols-[360px_minmax(0,1fr)]">
+      <div className="grid min-h-0 flex-1 grid-cols-1 gap-3 overflow-hidden px-4 py-3 xl:grid-cols-[460px_minmax(0,1fr)]">
         <div className="min-h-0 overflow-hidden rounded-lg border border-slate-200 bg-white">
           <div className="flex h-full min-h-0 flex-col">
             <div className="border-b border-slate-200 bg-slate-100 px-3 py-2 text-sm font-semibold text-slate-800">
@@ -382,28 +401,30 @@ export function IssueTrackerView() {
                       key={issue.id}
                       onClick={() => selectIssue(issue.id)}
                       className={cn(
-                        'block w-full px-3 py-3 text-left transition-colors hover:bg-sky-50/60',
-                        selectedIssueId === issue.id && 'bg-sky-50'
+                        'block w-full border-l-4 border-transparent px-3 py-3 text-left transition-colors hover:bg-sky-50/60',
+                        selectedIssueId === issue.id && 'border-sky-400 bg-sky-50'
                       )}
                     >
-                      <div className="flex items-start justify-between gap-2">
-                        <div className="min-w-0">
-                          <div className="text-xs font-semibold text-slate-500">{issue.issue_no}</div>
-                          <div className="mt-1 line-clamp-2 font-semibold text-slate-950">{issue.title}</div>
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="min-w-0 flex-1">
+                          <div className="flex items-center gap-2 text-xs font-semibold text-slate-500">
+                            <span>{issue.issue_no}</span>
+                            <span className="text-slate-300">|</span>
+                            <span>{formatDate(issue.received_at)}</span>
+                          </div>
+                          <div className="mt-1 line-clamp-2 text-[15px] font-semibold leading-5 text-slate-950">{issue.title}</div>
                         </div>
-                        <span className={cn('shrink-0 rounded-full border px-2 py-0.5 text-xs font-medium', statusClasses[issue.status])}>{issue.status}</span>
+                        <span className="shrink-0 text-xs font-semibold tabular-nums text-slate-600">{issue.total_effort.toFixed(2)} D</span>
                       </div>
-                      <div className="mt-2 flex flex-wrap items-center gap-2 text-xs text-slate-500">
-                        <span>{issue.issue_type || issue.legacy_status || '이슈'}</span>
-                        <span>{ISSUE_PRIORITY_LABELS[issue.priority]}</span>
-                        <span>{formatDate(issue.received_at)}</span>
-                        <span className="ml-auto tabular-nums">{issue.total_effort.toFixed(2)} D</span>
+                      <div className="mt-2 flex flex-wrap items-center gap-1.5">
+                        <span className={cn('rounded-full border px-2 py-0.5 text-xs font-medium', getIssueKindClass(issue.issue_type || issue.legacy_status))}>
+                          {issue.issue_type || issue.legacy_status || '이슈'}
+                        </span>
+                        <span className={cn('rounded-full border px-2 py-0.5 text-xs font-medium', statusClasses[issue.status])}>{issue.status}</span>
+                        <span className={cn('rounded-full border px-2 py-0.5 text-xs font-medium', priorityBadgeClasses[issue.priority])}>
+                          {ISSUE_PRIORITY_LABELS[issue.priority]}
+                        </span>
                       </div>
-                      {(issue.description || issue.internal_owner_name || issue.external_requester) && (
-                        <div className="mt-2 line-clamp-2 text-sm leading-5 text-slate-600">
-                          {richTextToPreview(issue.description, 96) || issue.internal_owner_name || issue.external_requester}
-                        </div>
-                      )}
                     </button>
                   ))}
                 </div>
@@ -414,26 +435,19 @@ export function IssueTrackerView() {
 
         <aside className="min-h-0 overflow-auto rounded-lg border border-slate-200 bg-white">
           {selectedIssue ? (
-            <div className="space-y-5 p-5">
+            <div className="p-3">
               <section className="rounded-lg border border-slate-200 bg-white">
-                <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-200 bg-slate-100 px-4 py-3">
+                <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-200 bg-slate-100 px-3 py-2">
                   <div>
                     <div className="text-xs font-semibold text-slate-500">이슈 번호</div>
                     <div className="mt-0.5 font-semibold text-slate-950">{selectedIssue.issue_no}</div>
                   </div>
-                  <div className="flex items-center gap-2">
-                    <span className={cn('inline-flex rounded-full border px-2 py-0.5 text-xs font-medium', statusClasses[selectedIssue.status])}>{selectedIssue.status}</span>
-                    <span className={cn('text-sm font-semibold', priorityClasses[selectedIssue.priority])}>{ISSUE_PRIORITY_LABELS[selectedIssue.priority]}</span>
-                  </div>
-                </div>
-
-                <div className="border-b border-slate-200 px-4 py-2">
-                  <div className="inline-flex rounded-lg border border-slate-200 bg-slate-50 p-1">
+                  <div className="inline-flex rounded-lg border border-slate-200 bg-white/80 p-0.5">
                     <button
                       type="button"
                       onClick={() => setDetailTab('input')}
                       className={cn(
-                        'h-8 rounded-md px-4 text-sm font-semibold transition-colors',
+                        'h-7 rounded-md px-4 text-sm font-semibold transition-colors',
                         detailTab === 'input' ? 'bg-white text-slate-950 shadow-sm' : 'text-slate-500 hover:text-slate-800'
                       )}
                     >
@@ -443,18 +457,22 @@ export function IssueTrackerView() {
                       type="button"
                       onClick={() => setDetailTab('process')}
                       className={cn(
-                        'h-8 rounded-md px-4 text-sm font-semibold transition-colors',
+                        'h-7 rounded-md px-4 text-sm font-semibold transition-colors',
                         detailTab === 'process' ? 'bg-white text-slate-950 shadow-sm' : 'text-slate-500 hover:text-slate-800'
                       )}
                     >
                       처리
                     </button>
                   </div>
+                  <div className="flex items-center gap-2">
+                    <span className={cn('inline-flex rounded-full border px-2 py-0.5 text-xs font-medium', statusClasses[selectedIssue.status])}>{selectedIssue.status}</span>
+                    <span className={cn('text-sm font-semibold', priorityClasses[selectedIssue.priority])}>{ISSUE_PRIORITY_LABELS[selectedIssue.priority]}</span>
+                  </div>
                 </div>
 
                 {detailTab === 'input' && (
-                <div className="space-y-5 p-4">
-                  <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2">
+                <div className="space-y-3 p-3">
+                  <div className="flex flex-wrap items-center justify-between gap-3 rounded-md border border-slate-200 bg-slate-50 px-3 py-1.5">
                     <div className="flex flex-wrap gap-x-5 gap-y-1 text-xs text-slate-500">
                       <span>
                         등록자 <strong className="font-semibold text-slate-700">{selectedIssue.created_by ? (userLabels.get(selectedIssue.created_by) || selectedIssue.created_by) : '-'}</strong>
@@ -485,11 +503,11 @@ export function IssueTrackerView() {
                     <input
                       value={inputDraft.title || ''}
                       onChange={(event) => setInputDraftValue({ title: event.target.value })}
-                      className="h-11 w-full rounded-md border border-slate-300 px-3 text-base font-semibold text-slate-950 outline-none focus:border-sky-400 focus:ring-2 focus:ring-sky-100"
+                      className="h-10 w-full rounded-md border border-slate-300 px-3 text-base font-semibold text-slate-950 outline-none focus:border-sky-400 focus:ring-2 focus:ring-sky-100"
                     />
                   </Field>
 
-                  <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_minmax(320px,0.8fr)]">
+                  <div className="grid gap-3 xl:grid-cols-[minmax(0,1fr)_minmax(320px,0.8fr)]">
                     <div className="space-y-2">
                       <div className="text-sm font-semibold text-slate-900">분류 / 상태</div>
                       <div className="grid gap-3 sm:grid-cols-3">
@@ -591,7 +609,7 @@ export function IssueTrackerView() {
                     </div>
                   </div>
 
-                  <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
+                  <div className="grid gap-3 xl:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
                     <div className="space-y-2">
                       <div className="text-sm font-semibold text-slate-900">내부 정보</div>
                       <div className="grid gap-3 sm:grid-cols-2">
@@ -641,7 +659,7 @@ export function IssueTrackerView() {
                       value={inputDraft.description || ''}
                       onChange={(value) => setInputDraftValue({ description: value })}
                       placeholder="발생 현상, 요청 내용, 재현 조건, 확인할 내용을 충분히 입력"
-                      minHeight={360}
+                      minHeight={420}
                       fontSize={14}
                       toolbarVariant="formatting"
                       className="rounded-lg shadow-none"
@@ -653,7 +671,7 @@ export function IssueTrackerView() {
 
               {detailTab === 'process' && (
                 <>
-              <section className="space-y-3 rounded-lg border border-slate-200 bg-white p-4">
+              <section className="mt-3 space-y-3 rounded-lg border border-slate-200 bg-white p-3">
                 <div className="flex items-center justify-between border-b border-slate-100 pb-2">
                   <h2 className="flex items-center gap-2 text-sm font-semibold text-slate-900">
                     <MessageSquareText className="h-4 w-4" />
@@ -687,7 +705,7 @@ export function IssueTrackerView() {
                 </div>
               </section>
 
-              <section className="space-y-3 rounded-lg border border-slate-200 bg-white p-4">
+              <section className="mt-3 space-y-3 rounded-lg border border-slate-200 bg-white p-3">
                 <div className="flex items-center justify-between border-b border-slate-100 pb-2">
                   <h2 className="text-sm font-semibold text-slate-900">공수 로그</h2>
                   <span className="text-xs text-slate-500">{selectedIssue.total_effort.toFixed(2)} D</span>
