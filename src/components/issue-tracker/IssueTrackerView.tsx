@@ -194,6 +194,7 @@ export function IssueTrackerView() {
 
   const filteredIssues = useMemo(() => {
     return issues.filter((issue) => {
+      if (filters.hideDone && issue.status === '완료') return false
       if (filters.status && filters.status !== 'all' && issue.status !== filters.status) return false
       if (filters.priority && filters.priority !== 'all' && issue.priority !== filters.priority) return false
       if (filters.assigneeUserId && filters.assigneeUserId !== 'all' && issue.assignee_user_id !== filters.assigneeUserId) return false
@@ -426,6 +427,15 @@ export function IssueTrackerView() {
             <option value="all">구분 전체</option>
             {issueKinds.map((name) => <option key={name} value={name}>{name}</option>)}
           </select>
+          <label className="inline-flex h-9 items-center gap-2 rounded-md border border-slate-200 bg-white px-3 text-sm font-medium text-slate-700">
+            <input
+              type="checkbox"
+              checked={Boolean(filters.hideDone)}
+              onChange={(event) => setFilters({ hideDone: event.target.checked })}
+              className="h-4 w-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500"
+            />
+            완료 안보기
+          </label>
         </div>
       </div>
 

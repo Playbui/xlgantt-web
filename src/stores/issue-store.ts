@@ -182,6 +182,7 @@ export const useIssueStore = create<IssueState>((set, get) => ({
     priority: 'all',
     assigneeUserId: 'all',
     systemName: 'all',
+    hideDone: false,
     search: '',
   },
   isLoading: false,

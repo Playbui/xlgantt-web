@@ -92,6 +92,7 @@ export interface IssueFilters {
   priority?: IssuePriority | 'all'
   assigneeUserId?: string | 'all'
   systemName?: string | 'all'
+  hideDone?: boolean
   search?: string
 }
 
