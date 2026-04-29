@@ -474,11 +474,12 @@ export const useIssueStore = create<IssueState>((set, get) => ({
   },
 
   updateIssue: async (issueId, changes) => {
-    const previousIssues = get().issues
+    const previousIssue = get().issues.find((issue) => issue.id === issueId)
     const { userId } = getCurrentUserLabel()
+    const optimisticChanges = { ...changes, updated_by: userId }
     set((state) => ({
       issues: state.issues.map((issue) =>
-        issue.id === issueId ? { ...issue, ...changes, updated_by: userId } : issue
+        issue.id === issueId ? { ...issue, ...optimisticChanges } : issue
       ),
     }))
 
@@ -489,7 +490,16 @@ export const useIssueStore = create<IssueState>((set, get) => ({
     const { error } = await supabase.from('issue_items').update(payload).eq('id', issueId)
     if (error) {
       console.error('이슈 수정 실패:', error.message)
-      set({ issues: previousIssues })
+      if (!previousIssue) return
+      set((state) => ({
+        issues: state.issues.map((issue) => {
+          if (issue.id !== issueId) return issue
+          const hasNewerLocalChange = Object.entries(optimisticChanges).some(([key, value]) => {
+            return issue[key as keyof IssueItem] !== value
+          })
+          return hasNewerLocalChange ? issue : previousIssue
+        }),
+      }))
     }
   },
 
