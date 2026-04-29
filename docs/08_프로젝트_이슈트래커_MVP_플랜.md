@@ -226,11 +226,25 @@ project_module_permissions
 
 ## 8. 구현 단계
 
+### 개발 진행 원칙
+
+- 각 Phase는 작게 커밋하고 빌드 확인 후 다음 Phase로 넘어간다.
+- WBS 기존 동작을 깨지 않는 것을 최우선으로 한다.
+- DB 구조는 먼저 만들되, UI는 더미가 아니라 실제 Supabase store에 바로 연결한다.
+- CSV 가져오기는 화면 MVP가 안정된 뒤 붙인다.
+- 공수는 이슈 본문 필드가 아니라 `issue_work_logs` 기준으로만 집계한다.
+
 ### Phase 0: 설계 고정
 
 - 이 문서 검토
 - 상태명 확정
 - 구글시트 CSV 컬럼 매핑 확인
+
+완료 기준:
+
+- 실제 Google Sheet export 가능 여부 확인
+- 원본 컬럼과 DB 매핑 확정
+- MVP 상태값 확정
 
 ### Phase 1: DB 마이그레이션
 
@@ -239,6 +253,22 @@ project_module_permissions
 - RLS 정책 추가
 - 인덱스 추가
 
+세부 작업:
+
+1. `issue_items` 테이블 생성
+2. `issue_comments` 테이블 생성
+3. `issue_work_logs` 테이블 생성
+4. `updated_at` 트리거 적용
+5. 프로젝트/이슈/날짜/상태/담당자 기준 인덱스 추가
+6. RLS 활성화
+7. `is_project_member`, `is_project_editor` 기반 정책 추가
+
+완료 기준:
+
+- 마이그레이션 SQL이 기존 패턴과 일관됨
+- 테이블 간 FK/삭제 정책이 명확함
+- `npm run build` 통과
+
 ### Phase 2: 타입/스토어
 
 - `src/lib/issue-types.ts`
@@ -246,11 +276,41 @@ project_module_permissions
 - Supabase CRUD 함수
 - 프로젝트 전환 시 이슈/공수 로드
 
+세부 작업:
+
+1. 이슈/댓글/공수 타입 정의
+2. DB row 변환 함수 작성
+3. `loadIssues(projectId)` 구현
+4. `createIssue`, `updateIssue`, `deleteIssue` 구현
+5. `addComment`, `updateComment`, `deleteComment` 구현
+6. `addWorkLog`, `updateWorkLog`, `deleteWorkLog` 구현
+7. `getIssueSummary` 또는 selector로 누적공수/최근이력 계산
+
+완료 기준:
+
+- store 단독으로 CRUD 호출 가능
+- 낙관적 업데이트는 최소화하고 DB 결과 기준으로 동기화
+- 타입스크립트 빌드 통과
+
 ### Phase 3: 라우팅/전환
 
 - `/projects/:projectId/issues` 라우트 추가
 - 기존 프로젝트 화면에서 이슈 화면 링크 추가
 - 이슈 화면에서 WBS 화면 링크 추가
+
+세부 작업:
+
+1. 라우터에서 `/projects/:projectId/issues` 추가
+2. 기존 `/projects/:projectId`는 WBS 기본 진입으로 유지
+3. 프로젝트 헤더 또는 AppShell에 `WBS | 이슈` 모듈 스위처 추가
+4. 이슈 화면 진입 시 프로젝트/멤버/이슈 데이터 로드
+5. 모바일에서는 일단 WBS 기존 모바일 흐름 유지, 이슈는 데스크톱 우선
+
+완료 기준:
+
+- 어느 쪽 URL로 들어가도 같은 프로젝트 컨텍스트를 공유
+- WBS 화면과 이슈 화면 왕복 가능
+- 기존 프로젝트 대시보드/설정 진입 영향 없음
 
 ### Phase 4: 화면 MVP
 
@@ -261,17 +321,81 @@ project_module_permissions
 - `IssueWorkLogForm`
 - 기본 필터/검색
 
+세부 작업:
+
+1. 이슈 목록 레이아웃 구현
+2. 상태/담당자/검색어 필터 구현
+3. 이슈 생성/수정 다이얼로그 구현
+4. 행 선택 시 상세 패널 표시
+5. 상세 패널에서 처리이력 추가
+6. 상세 패널에서 공수 추가
+7. 상태 변경 액션 구현
+
+완료 기준:
+
+- 이슈 생성 후 목록/상세에 즉시 반영
+- 댓글과 공수가 실제 DB에 저장됨
+- 누적공수와 최근이력이 목록에 표시됨
+
 ### Phase 5: 요약/정산
 
 - 목록 상단에 월별 공수 요약
 - 업체별/담당자별 공수 합계
 - 정산상태 토글
 
+세부 작업:
+
+1. 선택 월 기준 공수 합계
+2. 담당자별 공수 합계
+3. 업체별 공수 합계
+4. 정산/미정산 필터
+5. 이슈별 정산상태 표시
+
+완료 기준:
+
+- 이번 달 지급 근거를 이슈/작업자/업체 단위로 확인 가능
+- 공수 합계가 `issue_work_logs` 기준으로 계산됨
+
 ### Phase 6: CSV 가져오기
 
 - 구글시트 이슈 CSV 매핑
 - 처리이력 본문을 `issue_comments`로 분해하는 보조 파서
 - 작업공수 CSV를 `issue_work_logs`로 가져오기
+
+세부 작업:
+
+1. `업무관리대장` CSV 업로드/붙여넣기 parser
+2. 상단 2행 skip, 3행 header 처리
+3. `Task ID` 기준 upsert
+4. 빈 헤더 메모 칼럼을 처리이력으로 import
+5. 상태값 legacy mapping
+6. 공수 시트 CSV parser 별도 작성
+7. import preview 화면 추가
+
+완료 기준:
+
+- 기존 원장 CSV 일부 샘플을 가져올 수 있음
+- 중복 Task ID는 업데이트 또는 skip 정책을 선택 가능
+- 처리이력 원문을 잃지 않음
+
+## 8.1 실제 개발 커밋 순서
+
+1. `db: add issue tracker tables`
+   - Phase 1 전체
+2. `feat(issues): add issue types and store`
+   - Phase 2 핵심 CRUD
+3. `feat(issues): add project issue route`
+   - Phase 3 라우팅/전환
+4. `feat(issues): add issue list and detail shell`
+   - Phase 4 목록/상세 UI 골격
+5. `feat(issues): enable issue comments and work logs`
+   - Phase 4 저장 액션
+6. `feat(issues): add effort summary`
+   - Phase 5 요약/정산
+7. `feat(issues): import source sheet csv`
+   - Phase 6 CSV 가져오기
+8. `test(issues): verify mvp flows`
+   - 빌드, 주요 CRUD, 기존 WBS 회귀 확인
 
 ## 9. CSV 매핑 초안
 
