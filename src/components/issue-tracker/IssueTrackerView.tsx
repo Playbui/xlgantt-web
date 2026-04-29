@@ -560,6 +560,7 @@ export function IssueTrackerView() {
                       placeholder="발생 현상, 요청 내용, 재현 조건, 확인할 내용을 충분히 입력"
                       minHeight={360}
                       fontSize={14}
+                      showToolbar={false}
                       className="rounded-lg shadow-none"
                     />
                   </Field>
@@ -583,6 +584,7 @@ export function IssueTrackerView() {
                   placeholder="날짜별 진행 상황, 확인 결과, 외부 전달 내용 등을 남깁니다."
                   minHeight={180}
                   fontSize={14}
+                  showToolbar={false}
                   className="rounded-lg shadow-none"
                 />
                 <Button size="sm" variant="outline" onClick={handleAddComment} disabled={!richTextToPlainText(draftComment).trim()}>이력 추가</Button>

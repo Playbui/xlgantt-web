@@ -12,6 +12,7 @@ import { Bold, Heading1, Heading2, Heading3, ImagePlus, Italic, List, ListOrdere
 import { Button } from '@/components/ui/button'
 import { Editor, EditorContainer } from '@/components/ui/editor'
 import { EditorKit } from '@/components/editor-kit'
+import { BaseEditorKit } from '@/components/editor-base-kit'
 import { BlockquoteElement } from '@/components/ui/blockquote-node'
 import { H1Element, H2Element, H3Element } from '@/components/ui/heading-node'
 import { HrElement } from '@/components/ui/hr-node'
@@ -26,6 +27,8 @@ interface RichContentEditorProps {
   className?: string
   minHeight?: number
   fontSize?: number
+  showToolbar?: boolean
+  enableImages?: boolean
   onUploadImages?: (files: File[]) => Promise<string[]>
 }
 
@@ -60,9 +63,10 @@ function ToolbarButton({ active = false, title, onClick, children, size = 'icon'
 }
 
 const EDITOR_PLUGINS = EditorKit as any
+const BASE_EDITOR_PLUGINS = BaseEditorKit as any
 
-function createEditorValue(html: string) {
-  const editor = createPlateEditor({ plugins: EDITOR_PLUGINS })
+function createEditorValue(html: string, plugins = BASE_EDITOR_PLUGINS) {
+  const editor = createPlateEditor({ plugins })
   const sourceHtml = html || '<p></p>'
   const savedState = deserializeRichTextState(sourceHtml)
   if (savedState) return savedState as Value
@@ -81,6 +85,8 @@ export function RichContentEditor({
   className,
   minHeight = 360,
   fontSize = 15,
+  showToolbar = true,
+  enableImages = false,
   onUploadImages,
 }: RichContentEditorProps) {
   const normalizedValue = normalizeRichTextHtml(value)
@@ -89,11 +95,11 @@ export function RichContentEditor({
   const serializeVersionRef = useRef(0)
   const fileInputRef = useRef<HTMLInputElement | null>(null)
 
-  const plugins = useMemo(() => EDITOR_PLUGINS, [])
+  const plugins = useMemo(() => (showToolbar ? EDITOR_PLUGINS : BASE_EDITOR_PLUGINS), [showToolbar])
 
   const editor = usePlateEditor({
     plugins,
-    value: createEditorValue(value || '<p></p>'),
+    value: createEditorValue(value || '<p></p>', plugins),
   })
   const plateEditor = editor as any
 
@@ -128,9 +134,9 @@ export function RichContentEditor({
     const nextValue = normalizeRichTextHtml(value)
     if (nextValue === lastSyncedValueRef.current) return
 
-    plateEditor.tf.setValue(createEditorValue(value || '<p></p>'))
+    plateEditor.tf.setValue(createEditorValue(value || '<p></p>', plugins))
     lastSyncedValueRef.current = nextValue
-  }, [editor, plateEditor, value])
+  }, [editor, plateEditor, plugins, value])
 
   useEffect(() => {
     if (!editor || typeof window === 'undefined') return
@@ -160,7 +166,7 @@ export function RichContentEditor({
   }, [editor, handleValueChange])
 
   const handleImageInsert = async (files: File[]) => {
-    if (!editor || files.length === 0) return
+    if (!enableImages || !editor || files.length === 0) return
 
     if (onUploadImages) {
       const urls = await onUploadImages(files)
@@ -203,18 +209,20 @@ export function RichContentEditor({
   return (
     <div className={cn('overflow-hidden rounded-[20px] border border-slate-300 bg-white shadow-[0_10px_30px_rgba(15,23,42,0.06)]', className)}>
       <Plate editor={editor} onValueChange={handleValueChange}>
-        <input
-          ref={fileInputRef}
-          type="file"
-          accept="image/*"
-          multiple
-          className="hidden"
-          onChange={async (e) => {
-            const files = Array.from(e.target.files || []).filter((file) => file.type.startsWith('image/'))
-            await handleImageInsert(files)
-            e.currentTarget.value = ''
-          }}
-        />
+        {enableImages && (
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept="image/*"
+            multiple
+            className="hidden"
+            onChange={async (e) => {
+              const files = Array.from(e.target.files || []).filter((file) => file.type.startsWith('image/'))
+              await handleImageInsert(files)
+              e.currentTarget.value = ''
+            }}
+          />
+        )}
         <EditorContainer className="relative bg-white">
           <Editor
             placeholder={placeholder}
@@ -231,12 +239,14 @@ export function RichContentEditor({
               window.setTimeout(() => handleValueChange({ editor }), 0)
             }}
             onPaste={(event) => {
+              if (!enableImages) return
               const files = Array.from(event.clipboardData?.files || []).filter((file) => file.type.startsWith('image/'))
               if (files.length === 0) return
               event.preventDefault()
               void handleImageInsert(files)
             }}
             onDrop={(event) => {
+              if (!enableImages) return
               const files = Array.from(event.dataTransfer?.files || []).filter((file) => file.type.startsWith('image/'))
               if (files.length === 0) return
               event.preventDefault()
