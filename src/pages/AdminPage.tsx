@@ -81,12 +81,6 @@ export function AdminPage() {
     removeIssueMember,
   } = useIssueStore()
 
-  // Admin guard
-  if (!currentUser || currentUser.role !== 'admin') {
-    navigate('/projects')
-    return null
-  }
-
   // Supabase 모드에서 사용자 목록 불러오기
   // eslint-disable-next-line react-hooks/rules-of-hooks
   useEffect(() => {
@@ -338,6 +332,10 @@ export function AdminPage() {
     } catch (error) {
       setIssueAccessError(error instanceof Error ? error.message : '이슈 역할 변경에 실패했습니다.')
     }
+  }
+
+  if (!currentUser || currentUser.role !== 'admin') {
+    return null
   }
 
   return (
