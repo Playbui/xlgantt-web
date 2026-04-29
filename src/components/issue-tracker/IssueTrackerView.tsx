@@ -60,6 +60,10 @@ function formatDateTime(value?: string) {
   return `${date.getFullYear()}.${String(date.getMonth() + 1).padStart(2, '0')}.${String(date.getDate()).padStart(2, '0')} ${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}`
 }
 
+function isUuidLike(value?: string) {
+  return !!value && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(value)
+}
+
 function createIssueInputDraft(issue: IssueItem): Partial<IssueItem> {
   return {
     title: issue.title,
@@ -105,6 +109,7 @@ export function IssueTrackerView() {
   const switchProject = useProjectStore((s) => s.switchProject)
   const currentUser = useAuthStore((s) => s.currentUser)
   const users = useAuthStore((s) => s.users)
+  const fetchAllUsers = useAuthStore((s) => s.fetchAllUsers)
   const issues = useIssueStore((s) => s.issues)
   const comments = useIssueStore((s) => s.comments)
   const workLogs = useIssueStore((s) => s.workLogs)
@@ -145,6 +150,10 @@ export function IssueTrackerView() {
       void loadProjects()
     }
   }, [loadProjects, projects.length])
+
+  useEffect(() => {
+    void fetchAllUsers()
+  }, [fetchAllUsers])
 
   useEffect(() => {
     if (projects.length === 0) return
@@ -221,6 +230,13 @@ export function IssueTrackerView() {
     if (currentUser) labels.set(currentUser.id, currentUser.name || currentUser.email || currentUser.id)
     return labels
   }, [currentUser, users])
+
+  const formatUserLabel = (userId?: string, fallback?: string) => {
+    if (userId && userLabels.has(userId)) return userLabels.get(userId) || '-'
+    if (fallback) return fallback
+    if (!userId || isUuidLike(userId)) return '-'
+    return userId
+  }
 
   const setInputDraftValue = (changes: Partial<IssueItem>) => {
     setInputDraft((draft) => ({ ...draft, ...changes }))
@@ -386,7 +402,7 @@ export function IssueTrackerView() {
       <div className="grid min-h-0 flex-1 grid-cols-1 gap-3 overflow-hidden px-4 py-3 xl:grid-cols-[460px_minmax(0,1fr)]">
         <div className="min-h-0 overflow-hidden rounded-lg border border-slate-200 bg-white">
           <div className="flex h-full min-h-0 flex-col">
-            <div className="border-b border-sky-100 bg-sky-50 px-3 py-2 text-sm font-semibold text-slate-900">
+            <div className="border-b border-slate-200 bg-slate-50 px-3 py-2 text-sm font-semibold text-slate-900">
               이슈 목록
             </div>
             <div className="min-h-0 flex-1 overflow-auto">
@@ -402,7 +418,7 @@ export function IssueTrackerView() {
                       onClick={() => selectIssue(issue.id)}
                       className={cn(
                         'block w-full border-l-4 border-transparent px-3 py-3 text-left transition-colors hover:bg-sky-50/60',
-                        selectedIssueId === issue.id && 'border-sky-400 bg-sky-50'
+                        selectedIssueId === issue.id && 'border-blue-500 bg-slate-50'
                       )}
                     >
                       <div className="flex items-start justify-between gap-3">
@@ -437,10 +453,10 @@ export function IssueTrackerView() {
           {selectedIssue ? (
             <div className="p-3">
               <section className="rounded-lg border border-slate-200 bg-white">
-                <div className="flex flex-wrap items-center justify-between gap-3 border-b border-sky-100 bg-sky-50 px-3 py-2">
+                <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-200 bg-white px-3 py-2.5">
                   <div>
                     <div className="text-xs font-semibold text-slate-500">이슈 번호</div>
-                    <div className="mt-0.5 font-semibold text-slate-950">{selectedIssue.issue_no}</div>
+                    <div className="mt-0.5 text-base font-semibold text-slate-950">{selectedIssue.issue_no}</div>
                   </div>
                   <div className="inline-flex rounded-lg border border-slate-200 bg-white/80 p-0.5">
                     <button
@@ -471,20 +487,20 @@ export function IssueTrackerView() {
                 </div>
 
                 {detailTab === 'input' && (
-                <div className="space-y-3 p-3">
-                  <div className="flex flex-wrap items-center justify-between gap-3 rounded-md border border-sky-100 bg-sky-50 px-3 py-1.5">
-                    <div className="flex flex-wrap gap-x-5 gap-y-1 text-xs text-slate-500">
-                      <span>
-                        등록자 <strong className="font-semibold text-slate-700">{selectedIssue.created_by ? (userLabels.get(selectedIssue.created_by) || selectedIssue.created_by) : '-'}</strong>
+                <div className="space-y-4 p-3">
+                  <div className="flex flex-wrap items-center justify-between gap-3 rounded-md border border-slate-200 bg-slate-50/70 px-3 py-2">
+                    <div className="flex flex-wrap gap-x-6 gap-y-1 text-xs text-slate-500">
+                      <span className="whitespace-nowrap">
+                        등록자 <strong className="ml-1 font-semibold text-slate-800">{formatUserLabel(selectedIssue.created_by, selectedIssue.internal_owner_name || selectedIssue.requester_name)}</strong>
                       </span>
-                      <span>
-                        등록일 <strong className="font-semibold text-slate-700">{formatDateTime(selectedIssue.created_at)}</strong>
+                      <span className="whitespace-nowrap">
+                        등록일 <strong className="ml-1 font-semibold text-slate-800">{formatDateTime(selectedIssue.created_at)}</strong>
                       </span>
-                      <span>
-                        최종수정 <strong className="font-semibold text-slate-700">{selectedIssue.updated_by ? (userLabels.get(selectedIssue.updated_by) || selectedIssue.updated_by) : '-'}</strong>
+                      <span className="whitespace-nowrap">
+                        최종수정 <strong className="ml-1 font-semibold text-slate-800">{formatUserLabel(selectedIssue.updated_by, selectedIssue.internal_owner_name || selectedIssue.requester_name)}</strong>
                       </span>
-                      <span>
-                        수정일 <strong className="font-semibold text-slate-700">{formatDateTime(selectedIssue.updated_at)}</strong>
+                      <span className="whitespace-nowrap">
+                        수정일 <strong className="ml-1 font-semibold text-slate-800">{formatDateTime(selectedIssue.updated_at)}</strong>
                       </span>
                     </div>
                     <Button
@@ -499,17 +515,19 @@ export function IssueTrackerView() {
                     </Button>
                   </div>
 
-                  <Field label="제목">
-                    <input
-                      value={inputDraft.title || ''}
-                      onChange={(event) => setInputDraftValue({ title: event.target.value })}
-                      className="h-10 w-full rounded-md border border-slate-300 px-3 text-base font-semibold text-slate-950 outline-none focus:border-sky-400 focus:ring-2 focus:ring-sky-100"
-                    />
-                  </Field>
+                  <div className="rounded-md border border-slate-200 bg-white p-3">
+                    <Field label="제목">
+                      <input
+                        value={inputDraft.title || ''}
+                        onChange={(event) => setInputDraftValue({ title: event.target.value })}
+                        className="h-10 w-full rounded-md border border-slate-300 px-3 text-base font-semibold text-slate-950 outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-100"
+                      />
+                    </Field>
+                  </div>
 
                   <div className="grid gap-3 xl:grid-cols-[minmax(0,1fr)_minmax(320px,0.8fr)]">
                     <div className="overflow-hidden rounded-md border border-slate-200 bg-white">
-                      <div className="border-b border-slate-200 bg-slate-100 px-3 py-1.5 text-sm font-semibold text-slate-900">분류 / 상태</div>
+                      <div className="border-b border-slate-200 bg-slate-50 px-3 py-1.5 text-sm font-semibold text-slate-900">분류 / 상태</div>
                       <div className="grid gap-3 p-3 sm:grid-cols-3">
                         <Field label="구분">
                           <div className="flex gap-2">
@@ -587,7 +605,7 @@ export function IssueTrackerView() {
                     </div>
 
                     <div className="overflow-hidden rounded-md border border-slate-200 bg-white">
-                      <div className="border-b border-slate-200 bg-slate-100 px-3 py-1.5 text-sm font-semibold text-slate-900">일정</div>
+                      <div className="border-b border-slate-200 bg-slate-50 px-3 py-1.5 text-sm font-semibold text-slate-900">일정</div>
                       <div className="grid gap-3 p-3 sm:grid-cols-2">
                         <Field label="등록일">
                           <input
@@ -611,7 +629,7 @@ export function IssueTrackerView() {
 
                   <div className="grid gap-3 xl:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
                     <div className="overflow-hidden rounded-md border border-slate-200 bg-white">
-                      <div className="border-b border-slate-200 bg-slate-100 px-3 py-1.5 text-sm font-semibold text-slate-900">내부 정보</div>
+                      <div className="border-b border-slate-200 bg-slate-50 px-3 py-1.5 text-sm font-semibold text-slate-900">내부 정보</div>
                       <div className="grid gap-3 p-3 sm:grid-cols-2">
                         <Field label="프로젝트">
                           <input
@@ -631,7 +649,7 @@ export function IssueTrackerView() {
                     </div>
 
                     <div className="overflow-hidden rounded-md border border-slate-200 bg-white">
-                      <div className="border-b border-slate-200 bg-slate-100 px-3 py-1.5 text-sm font-semibold text-slate-900">요청 정보</div>
+                      <div className="border-b border-slate-200 bg-slate-50 px-3 py-1.5 text-sm font-semibold text-slate-900">요청 정보</div>
                       <div className="grid gap-3 p-3 sm:grid-cols-2">
                         <Field label="요청처">
                           <input
@@ -654,7 +672,7 @@ export function IssueTrackerView() {
                   </div>
 
                   <div className="overflow-hidden rounded-md border border-slate-200 bg-white">
-                    <div className="border-b border-slate-200 bg-slate-100 px-3 py-1.5 text-sm font-semibold text-slate-900">상세 내용</div>
+                    <div className="border-b border-slate-200 bg-slate-50 px-3 py-1.5 text-sm font-semibold text-slate-900">상세 내용</div>
                     <div className="p-3">
                     <RichContentEditor
                       key={selectedIssue.id}
@@ -675,7 +693,7 @@ export function IssueTrackerView() {
               {detailTab === 'process' && (
                 <>
               <section className="mt-3 overflow-hidden rounded-lg border border-slate-200 bg-white">
-                <div className="flex items-center justify-between border-b border-slate-200 bg-slate-100 px-3 py-2">
+                <div className="flex items-center justify-between border-b border-slate-200 bg-slate-50 px-3 py-2">
                   <h2 className="flex items-center gap-2 text-sm font-semibold text-slate-900">
                     <MessageSquareText className="h-4 w-4" />
                     처리 이력
@@ -711,7 +729,7 @@ export function IssueTrackerView() {
               </section>
 
               <section className="mt-3 overflow-hidden rounded-lg border border-slate-200 bg-white">
-                <div className="flex items-center justify-between border-b border-slate-200 bg-slate-100 px-3 py-2">
+                <div className="flex items-center justify-between border-b border-slate-200 bg-slate-50 px-3 py-2">
                   <h2 className="text-sm font-semibold text-slate-900">공수 로그</h2>
                   <span className="text-xs text-slate-500">{selectedIssue.total_effort.toFixed(2)} D</span>
                 </div>
