@@ -65,6 +65,15 @@ function isUuidLike(value?: string) {
   return !!value && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(value)
 }
 
+function getImageFileExtension(file: File) {
+  const extension = file.name.split('.').pop()?.toLowerCase().replace(/[^a-z0-9]/g, '')
+  if (extension) return extension
+  if (file.type === 'image/jpeg') return 'jpg'
+  if (file.type === 'image/webp') return 'webp'
+  if (file.type === 'image/gif') return 'gif'
+  return 'png'
+}
+
 function createIssueInputDraft(issue: IssueItem): Partial<IssueItem> {
   return {
     title: issue.title,
@@ -270,7 +279,7 @@ export function IssueTrackerView() {
 
     const urls: string[] = []
     for (const file of files) {
-      const safeName = file.name.replace(/[^\w.\-가-힣 ]/g, '_') || 'image.png'
+      const safeName = `pasted-image.${getImageFileExtension(file)}`
       const storagePath = `${project.id}/issues/${selectedIssue.id}/${crypto.randomUUID()}-${safeName}`
       const { error } = await supabase.storage
         .from('workspace-attachments')
