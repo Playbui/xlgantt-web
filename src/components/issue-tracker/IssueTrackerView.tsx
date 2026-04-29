@@ -676,7 +676,7 @@ export function IssueTrackerView() {
                     <div key={comment.id} className="rounded-md bg-slate-50 px-3 py-2 text-sm">
                       <div className="mb-1 flex justify-between gap-2 text-xs text-slate-500">
                         <span>{comment.author_name || '작성자'}</span>
-                        <span>{formatDate(comment.commented_at.slice(0, 10))}</span>
+                        <span>{formatDateTime(comment.commented_at)}</span>
                       </div>
                       <div
                         className="prose prose-sm max-w-none text-slate-700"
