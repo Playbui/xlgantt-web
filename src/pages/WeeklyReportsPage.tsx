@@ -1554,9 +1554,19 @@ function FinalWorkReportTable(props: {
                 />
               </div>
             </div>
+            <div className="grid gap-4 border-b border-[#e4e7ec] bg-[#f9fbff] p-4 xl:grid-cols-2">
+              <AggregatePreviewPanel
+                title="팀원 입력 합본 - 내용"
+                value={aggregateMemberText(row.memberUpdates, 'content')}
+              />
+              <AggregatePreviewPanel
+                title="팀원 입력 합본 - 비고"
+                value={aggregateMemberText(row.memberUpdates, 'note')}
+              />
+            </div>
             <div className="grid gap-4 p-4 lg:grid-cols-2">
               <div className="space-y-2">
-                <div className="text-xs font-semibold text-[#344054]">내용</div>
+                <div className="text-xs font-semibold text-[#344054]">최종 내용</div>
                 <TextareaCell
                   editable
                   value={row.detail}
@@ -1566,7 +1576,7 @@ function FinalWorkReportTable(props: {
                 />
               </div>
               <div className="space-y-2">
-                <div className="text-xs font-semibold text-[#344054]">비고</div>
+                <div className="text-xs font-semibold text-[#344054]">최종 비고</div>
                 <TextareaCell
                   editable
                   value={row.note}
@@ -1609,9 +1619,19 @@ function FinalPlannedWorkTable(props: {
                 />
               </div>
             </div>
+            <div className="grid gap-4 border-b border-[#e4e7ec] bg-[#f9fbff] p-4 xl:grid-cols-2">
+              <AggregatePreviewPanel
+                title="팀원 입력 합본 - 내용"
+                value={aggregateMemberText(row.memberUpdates, 'content')}
+              />
+              <AggregatePreviewPanel
+                title="팀원 입력 합본 - 비고"
+                value={aggregateMemberText(row.memberUpdates, 'note')}
+              />
+            </div>
             <div className="grid gap-4 p-4 lg:grid-cols-2">
               <div className="space-y-2">
-                <div className="text-xs font-semibold text-[#344054]">내용</div>
+                <div className="text-xs font-semibold text-[#344054]">최종 내용</div>
                 <TextareaCell
                   editable
                   value={row.detail}
@@ -1621,7 +1641,7 @@ function FinalPlannedWorkTable(props: {
                 />
               </div>
               <div className="space-y-2">
-                <div className="text-xs font-semibold text-[#344054]">비고</div>
+                <div className="text-xs font-semibold text-[#344054]">최종 비고</div>
                 <TextareaCell
                   editable
                   value={row.note}
@@ -1693,41 +1713,46 @@ function FinalMajorWorkItems(props: {
 }) {
   return (
     <SectionCard title="■ 기타 주요 업무">
-      <div className="overflow-x-auto bg-white">
-        <table className="w-full min-w-[1040px] border-collapse text-sm">
-          <thead className="bg-white text-[#344054]">
-            <tr>
-              <th className="w-[220px] border-b border-r border-[#d7dde4] px-3 py-2 text-left font-semibold">항목</th>
-              <th className="border-b border-r border-[#d7dde4] px-3 py-2 text-left font-semibold">금주 진행 업무</th>
-              <th className="border-b border-[#d7dde4] px-3 py-2 text-left font-semibold">차주 예정 업무</th>
-            </tr>
-          </thead>
-          <tbody>
-            {props.rows.map((row, rowIndex) => (
-              <tr key={`collect-major-${rowIndex}`} className="align-top odd:bg-white even:bg-[#fcfcfd]">
-                <EditableCell><ReadValue value={row.label} empty="항목명 입력" /></EditableCell>
-                <EditableCell>
-                  <TextareaCell
-                    editable
-                    value={row.thisWeek}
-                    onChange={(value) => props.onChange(rowIndex, 'thisWeek', value)}
-                    placeholder="금주 진행 업무 입력"
-                    minHeightClass="min-h-[140px]"
-                  />
-                </EditableCell>
-                <EditableCell>
-                  <TextareaCell
-                    editable
-                    value={row.nextWeek}
-                    onChange={(value) => props.onChange(rowIndex, 'nextWeek', value)}
-                    placeholder="차주 예정 업무 입력"
-                    minHeightClass="min-h-[140px]"
-                  />
-                </EditableCell>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+      <div className="space-y-4 bg-white p-4">
+        {props.rows.map((row, rowIndex) => (
+          <div key={`collect-major-${rowIndex}`} className="overflow-hidden rounded-2xl border border-[#d7dde4] bg-[#fcfcfd]">
+            <div className="border-b border-[#dbe3ec] bg-[linear-gradient(180deg,#f8fbff_0%,#f2f6fb_100%)] px-4 py-3">
+              <div className="text-sm font-semibold text-[#101828]">{row.label || '항목명 입력'}</div>
+            </div>
+            <div className="grid gap-4 border-b border-[#e4e7ec] bg-[#f9fbff] p-4 xl:grid-cols-2">
+              <AggregatePreviewPanel
+                title="팀원 입력 합본 - 금주 진행 업무"
+                value={aggregateMajorText(row.memberUpdates, 'thisWeek')}
+              />
+              <AggregatePreviewPanel
+                title="팀원 입력 합본 - 차주 예정 업무"
+                value={aggregateMajorText(row.memberUpdates, 'nextWeek')}
+              />
+            </div>
+            <div className="grid gap-4 p-4 lg:grid-cols-2">
+              <div className="space-y-2">
+                <div className="text-xs font-semibold text-[#344054]">최종 금주 진행 업무</div>
+                <TextareaCell
+                  editable
+                  value={row.thisWeek}
+                  onChange={(value) => props.onChange(rowIndex, 'thisWeek', value)}
+                  placeholder="금주 진행 업무 입력"
+                  minHeightClass="min-h-[140px]"
+                />
+              </div>
+              <div className="space-y-2">
+                <div className="text-xs font-semibold text-[#344054]">최종 차주 예정 업무</div>
+                <TextareaCell
+                  editable
+                  value={row.nextWeek}
+                  onChange={(value) => props.onChange(rowIndex, 'nextWeek', value)}
+                  placeholder="차주 예정 업무 입력"
+                  minHeightClass="min-h-[140px]"
+                />
+              </div>
+            </div>
+          </div>
+        ))}
       </div>
     </SectionCard>
   )
@@ -1819,6 +1844,7 @@ function ContributionWorkReportTable(props: {
               { label: '달성율', value: row.actualRate || '-', alignEnd: true },
             ]}
             updates={normalizeMemberWorkUpdates(row.memberUpdates)}
+            statusOnly
           />
         ))}
       </div>
@@ -1845,6 +1871,7 @@ function ContributionPlannedWorkTable(props: {
               { label: '수주확률', value: row.probability || '-', alignEnd: true },
             ]}
             updates={normalizeMemberWorkUpdates(row.memberUpdates)}
+            statusOnly
           />
         ))}
       </div>
@@ -1879,13 +1906,14 @@ function MemberMajorInputTable(props: {
 
 function ContributionMajorWorkItems(props: { rows: MajorWorkItem[] }) {
   return (
-    <SectionCard title="■ 기타 주요 업무 원본 입력">
+    <SectionCard title="■ 기타 주요 업무 입력 현황">
       <div className="space-y-4 bg-white p-4">
         {props.rows.map((row, rowIndex) => (
           <MajorContributionBlock
             key={`major-contrib-${rowIndex}`}
             label={row.label}
             updates={normalizeMemberMajorUpdates(row.memberUpdates)}
+            statusOnly
           />
         ))}
       </div>
@@ -1940,6 +1968,7 @@ function ProjectInputBlock(props: {
 function ContributionProjectBlock(props: {
   summary: Array<{ label: string; value: string; grow?: boolean; alignEnd?: boolean }>
   updates: MemberWorkUpdate[]
+  statusOnly?: boolean
 }) {
   return (
     <div className="overflow-hidden rounded-2xl border border-[#d7dde4] bg-[#fcfcfd]">
@@ -1967,10 +1996,16 @@ function ContributionProjectBlock(props: {
                 {entry.updatedByName ? <div>{entry.updatedByName}</div> : null}
               </div>
             </div>
-            <div className="grid gap-3 lg:grid-cols-2">
-              <ContributionPreview label="내용" value={entry.content} />
-              <ContributionPreview label="비고" value={entry.note} />
-            </div>
+            {props.statusOnly ? (
+              <div className="rounded-2xl border border-[#e4e7ec] bg-[#f8fafc] px-3 py-2 text-sm text-[#475467]">
+                {entry.updatedAt ? '입력 완료' : '아직 작성 전'}
+              </div>
+            ) : (
+              <div className="grid gap-3 lg:grid-cols-2">
+                <ContributionPreview label="내용" value={entry.content} />
+                <ContributionPreview label="비고" value={entry.note} />
+              </div>
+            )}
           </div>
         ))}
       </div>
@@ -2007,6 +2042,7 @@ function MajorWorkBlock(props: {
 function MajorContributionBlock(props: {
   label: string
   updates: NonNullable<MajorWorkItem['memberUpdates']>
+  statusOnly?: boolean
 }) {
   return (
     <div className="overflow-hidden rounded-2xl border border-[#d7dde4] bg-[#fcfcfd]">
@@ -2026,12 +2062,29 @@ function MajorContributionBlock(props: {
                 {entry.updatedByName ? <div>{entry.updatedByName}</div> : null}
               </div>
             </div>
-            <div className="grid gap-3 lg:grid-cols-2">
-              <ContributionPreview label="금주 진행 업무" value={entry.thisWeek} />
-              <ContributionPreview label="차주 예정 업무" value={entry.nextWeek} />
-            </div>
+            {props.statusOnly ? (
+              <div className="rounded-2xl border border-[#e4e7ec] bg-[#f8fafc] px-3 py-2 text-sm text-[#475467]">
+                {entry.updatedAt ? '입력 완료' : '아직 작성 전'}
+              </div>
+            ) : (
+              <div className="grid gap-3 lg:grid-cols-2">
+                <ContributionPreview label="금주 진행 업무" value={entry.thisWeek} />
+                <ContributionPreview label="차주 예정 업무" value={entry.nextWeek} />
+              </div>
+            )}
           </div>
         ))}
+      </div>
+    </div>
+  )
+}
+
+function AggregatePreviewPanel({ title, value }: { title: string; value: string }) {
+  return (
+    <div className="space-y-2">
+      <div className="text-xs font-semibold text-[#344054]">{title}</div>
+      <div className="min-h-[156px] whitespace-pre-wrap rounded-2xl border border-[#d7dde4] bg-white px-4 py-3 text-sm leading-6 text-[#344054]">
+        {value || '아직 팀원 입력이 없습니다.'}
       </div>
     </div>
   )
@@ -2067,6 +2120,26 @@ function getCurrentMemberMajorUpdate(updates: MajorWorkItem['memberUpdates']) {
   const currentUser = useAuthStore.getState().currentUser
   const email = normalizeEmail(currentUser?.email)
   return normalizeMemberMajorUpdates(updates).find((entry) => normalizeEmail(entry.email) === email) ?? null
+}
+
+function aggregateMemberText(
+  updates: MemberWorkUpdate[] | undefined,
+  key: 'content' | 'note',
+) {
+  return normalizeMemberWorkUpdates(updates)
+    .filter((entry) => (entry[key] || '').trim().length > 0)
+    .map((entry) => `[${entry.name}] ${entry[key].trim()}`)
+    .join('\n\n')
+}
+
+function aggregateMajorText(
+  updates: MajorWorkItem['memberUpdates'],
+  key: 'thisWeek' | 'nextWeek',
+) {
+  return normalizeMemberMajorUpdates(updates)
+    .filter((entry) => (entry[key] || '').trim().length > 0)
+    .map((entry) => `[${entry.name}] ${entry[key].trim()}`)
+    .join('\n\n')
 }
 
 function ReadOnlyStrategySection({ rows }: { rows: StrategyMeetingRow[] }) {
