@@ -1,7 +1,8 @@
 import { useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { ArrowLeft, CalendarDays, CheckCircle2, Download, FileLock2, FileSpreadsheet, Save, ShieldCheck, Users } from 'lucide-react'
+import { ArrowLeft, CalendarDays, CheckCircle2, CircleAlert, Clock3, Download, FileLock2, FileSpreadsheet, Save, ShieldCheck, Users } from 'lucide-react'
 import { Button } from '@/components/ui/button'
+import { Badge } from '@/components/ui/badge'
 import { useAuthStore } from '@/stores/auth-store'
 import { canManageWeeklyReports, getWeeklyReportAllowedEmails } from '@/lib/weekly-report-access'
 
@@ -197,6 +198,7 @@ export function WeeklyReportsPage() {
   const completedMembers = teamMembers.filter((member) => member.done)
   const pendingMembers = teamMembers.filter((member) => !member.done)
   const weeklyStatus: WeeklyStatus = pendingMembers.length === 0 ? '취합중' : '입력중'
+  const completionRate = Math.round((completedMembers.length / teamMembers.length) * 100)
 
   return (
     <div className="std-page">
@@ -220,72 +222,114 @@ export function WeeklyReportsPage() {
       </header>
 
       <main className="std-page-main space-y-6">
-        <section className="rounded-2xl border border-[#d7dde4] bg-white p-5 shadow-[0_14px_38px_rgba(15,23,42,0.05)]">
-          <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
-            <div className="space-y-2">
-              <div className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.18em] text-[#667085]">
-                <Users className="h-3.5 w-3.5" />
-                Team Weekly Workspace
+        <section className="overflow-hidden rounded-[22px] border border-[#d7dde4] bg-white shadow-[0_18px_48px_rgba(15,23,42,0.05)]">
+          <div className="border-b border-[#e4e7ec] bg-[linear-gradient(180deg,#ffffff_0%,#f8fafc_100%)] px-5 py-5">
+            <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+              <div className="space-y-3">
+                <div className="flex flex-wrap items-center gap-2">
+                  <Badge variant="outline" className="h-6 rounded-full border-[#d7dde4] bg-white px-2.5 text-[11px] text-[#344054]">
+                    <Users className="h-3 w-3" />
+                    항해통신1팀
+                  </Badge>
+                  <Badge variant="outline" className="h-6 rounded-full border-[#d7dde4] bg-[#f8fafc] px-2.5 text-[11px] text-[#344054]">
+                    <FileLock2 className="h-3 w-3" />
+                    비공개 작업공간
+                  </Badge>
+                  <StatusBadge status={weeklyStatus} />
+                </div>
+                <div>
+                  <h1 className="text-[30px] font-semibold tracking-[-0.03em] text-[#101828]">주간업무보고</h1>
+                  <p className="mt-1 text-sm leading-6 text-[#475467]">팀원은 자기 담당 내용을 입력하고, 팀장은 전체 흐름을 정리해 최종본을 만드는 주차형 보고 화면입니다.</p>
+                </div>
+                <div className="flex flex-wrap items-center gap-4 text-sm text-[#667085]">
+                  <div className="flex items-center gap-2">
+                    <Clock3 className="h-4 w-4" />
+                    <span>{selectedWeek}</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <CheckCircle2 className="h-4 w-4 text-[#157347]" />
+                    <span>완료 {completedMembers.length}명</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <CircleAlert className="h-4 w-4 text-[#b54708]" />
+                    <span>미완료 {pendingMembers.length}명</span>
+                  </div>
+                </div>
               </div>
-              <div>
-                <h1 className="text-[30px] font-semibold tracking-[-0.03em] text-[#101828]">주간업무보고</h1>
-                <p className="mt-1 text-sm text-[#475467]">항해통신1팀이 주차별 보고 내용을 입력하고, 팀장이 취합해 최종본을 만드는 비밀 페이지입니다.</p>
-              </div>
-            </div>
 
-            <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
-              <MetricCard label="상태" value={weeklyStatus} accent={weeklyStatus === '입력중' ? 'amber' : 'blue'} />
-              <MetricCard label="입력 완료" value={`${completedMembers.length}명`} accent="green" />
-              <MetricCard label="미완료" value={`${pendingMembers.length}명`} accent="red" />
-              <MetricCard label="권한 대상" value={`${getWeeklyReportAllowedEmails().length}명`} accent="slate" />
+              <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+                <MetricCard label="상태" value={weeklyStatus} accent={weeklyStatus === '입력중' ? 'amber' : 'blue'} />
+                <MetricCard label="입력 완료" value={`${completedMembers.length}명`} accent="green" />
+                <MetricCard label="미완료" value={`${pendingMembers.length}명`} accent="red" />
+                <MetricCard label="권한 대상" value={`${getWeeklyReportAllowedEmails().length}명`} accent="slate" />
+              </div>
             </div>
           </div>
 
-          <div className="mt-5 flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
-            <div className="flex flex-col gap-3 md:flex-row md:items-center">
-              <label className="flex items-center gap-2 text-sm font-medium text-[#344054]">
-                <CalendarDays className="h-4 w-4 text-[#667085]" />
-                주차 선택
-              </label>
-              <select
-                value={selectedWeek}
-                onChange={(event) => setSelectedWeek(event.target.value)}
-                className="h-10 min-w-[240px] rounded-xl border border-[#d0d5dd] bg-white px-3 text-sm text-[#101828] outline-none focus:border-[#98a2b3] focus:ring-2 focus:ring-[#dce7f5]"
-              >
-                {WEEK_OPTIONS.map((option) => (
-                  <option key={option.value} value={option.value}>
-                    {option.label}
-                  </option>
-                ))}
-              </select>
+          <div className="grid gap-4 border-t border-[#eef2f6] bg-[#fcfcfd] px-5 py-4 xl:grid-cols-[1.2fr_1fr]">
+            <div className="rounded-2xl border border-[#d7dde4] bg-white px-4 py-3">
+              <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+                <div className="flex flex-col gap-3 md:flex-row md:items-center">
+                  <label className="flex items-center gap-2 text-sm font-medium text-[#344054]">
+                    <CalendarDays className="h-4 w-4 text-[#667085]" />
+                    주차 선택
+                  </label>
+                  <select
+                    value={selectedWeek}
+                    onChange={(event) => setSelectedWeek(event.target.value)}
+                    className="h-10 min-w-[240px] rounded-xl border border-[#d0d5dd] bg-white px-3 text-sm text-[#101828] outline-none focus:border-[#98a2b3] focus:ring-2 focus:ring-[#dce7f5]"
+                  >
+                    {WEEK_OPTIONS.map((option) => (
+                      <option key={option.value} value={option.value}>
+                        {option.label}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div className="text-xs text-[#667085]">지난 주차 조회와 이번 주차 입력 준비</div>
+              </div>
+              <div className="mt-3 space-y-2">
+                <div className="flex items-center justify-between text-xs text-[#667085]">
+                  <span>입력 진행률</span>
+                  <span className="tabular-nums">{completionRate}%</span>
+                </div>
+                <div className="h-2 overflow-hidden rounded-full bg-[#e4e7ec]">
+                  <div className="h-full rounded-full bg-[#1d4f91]" style={{ width: `${completionRate}%` }} />
+                </div>
+              </div>
             </div>
 
-            <div className="flex flex-wrap items-center gap-2">
-              <Button variant="outline" size="sm" className="h-9 text-xs">
-                <Save className="mr-1.5 h-3.5 w-3.5" />
-                저장
-              </Button>
-              <Button variant="outline" size="sm" className="h-9 text-xs">
-                <CheckCircle2 className="mr-1.5 h-3.5 w-3.5" />
-                내 입력 완료
-              </Button>
-              <Button size="sm" className="h-9 text-xs" disabled={!canManage}>
-                <ShieldCheck className="mr-1.5 h-3.5 w-3.5" />
-                최종 저장
-              </Button>
-              <Button variant="outline" size="sm" className="h-9 text-xs" disabled>
-                <FileSpreadsheet className="mr-1.5 h-3.5 w-3.5" />
-                엑셀 출력
-              </Button>
+            <div className="rounded-2xl border border-[#d7dde4] bg-white px-4 py-3">
+              <div className="flex flex-wrap items-center gap-2">
+                <Button variant="outline" size="sm" className="h-9 text-xs">
+                  <Save className="mr-1.5 h-3.5 w-3.5" />
+                  저장
+                </Button>
+                <Button variant="outline" size="sm" className="h-9 text-xs">
+                  <CheckCircle2 className="mr-1.5 h-3.5 w-3.5" />
+                  내 입력 완료
+                </Button>
+                <Button size="sm" className="h-9 text-xs" disabled={!canManage}>
+                  <ShieldCheck className="mr-1.5 h-3.5 w-3.5" />
+                  최종 저장
+                </Button>
+                <Button variant="outline" size="sm" className="h-9 text-xs" disabled>
+                  <FileSpreadsheet className="mr-1.5 h-3.5 w-3.5" />
+                  엑셀 출력
+                </Button>
+              </div>
+              <div className="mt-3 text-xs leading-6 text-[#667085]">
+                팀원은 자기 항목 입력과 완료 체크만, 팀장은 전체 문안 정리와 최종 저장을 담당합니다.
+              </div>
             </div>
           </div>
         </section>
 
-        <section className="grid gap-4 xl:grid-cols-[1.8fr_1fr]">
-          <div className="rounded-2xl border border-[#d7dde4] bg-white shadow-[0_12px_30px_rgba(15,23,42,0.05)]">
+        <section className="grid gap-4 xl:grid-cols-[minmax(0,1.95fr)_380px]">
+          <div className="rounded-[22px] border border-[#d7dde4] bg-white shadow-[0_14px_36px_rgba(15,23,42,0.05)]">
             <SectionHeader
               title={`${selectedWeek} 주간보고`}
-              description="기본 틀은 팀장이 유지하고, 팀원은 자기 담당 입력칸만 채우는 구조로 확장할 예정입니다."
+              description="기본 틀은 팀장이 관리하고, 팀원은 자기 담당 내용만 넣는 구조로 이어집니다."
             />
             <div className="space-y-6 p-5">
               <WeeklyTableSection
@@ -320,7 +364,7 @@ export function WeeklyReportsPage() {
             </div>
           </div>
 
-          <div className="space-y-4">
+          <div className="space-y-4 xl:sticky xl:top-20 xl:self-start">
             <SidebarCard
               title="입력 현황"
               description="승인은 없고, 누가 썼는지와 아직 안 쓴 사람만 빠르게 확인합니다."
@@ -393,16 +437,30 @@ function MetricCard({ label, value, accent }: { label: string; value: string; ac
   }
 
   return (
-    <div className={`rounded-2xl border px-4 py-3 ${accentMap[accent]}`}>
+    <div className={`rounded-2xl border px-4 py-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.35)] ${accentMap[accent]}`}>
       <p className="text-[11px] font-semibold uppercase tracking-[0.16em]">{label}</p>
       <p className="mt-1 text-2xl font-semibold tracking-[-0.02em]">{value}</p>
     </div>
   )
 }
 
+function StatusBadge({ status }: { status: WeeklyStatus }) {
+  const tone = status === '입력중'
+    ? 'border-[#ead4a3] bg-[#fff9ec] text-[#9a6700]'
+    : status === '취합중'
+      ? 'border-[#cfe0f5] bg-[#f5f9ff] text-[#1d4f91]'
+      : 'border-[#cce7d5] bg-[#f3fbf6] text-[#14532d]'
+
+  return (
+    <Badge variant="outline" className={`h-6 rounded-full px-2.5 text-[11px] ${tone}`}>
+      {status}
+    </Badge>
+  )
+}
+
 function SectionHeader({ title, description }: { title: string; description: string }) {
   return (
-    <div className="border-b border-[#e4e7ec] bg-[#f8fafc] px-5 py-4">
+    <div className="border-b border-[#e4e7ec] bg-[linear-gradient(180deg,#f8fafc_0%,#f2f6fb_100%)] px-5 py-4">
       <h2 className="text-lg font-semibold tracking-[-0.02em] text-[#101828]">{title}</h2>
       <p className="mt-1 text-sm text-[#667085]">{description}</p>
     </div>
@@ -422,7 +480,7 @@ function WeeklyTableSection({ index, title, columns, rows }: { index: string; ti
   return (
     <div className="space-y-3">
       <SectionLabel index={index} title={title} />
-      <div className="overflow-hidden rounded-2xl border border-[#d7dde4]">
+      <div className="overflow-hidden rounded-2xl border border-[#d7dde4] bg-white">
         <table className="w-full border-collapse text-sm">
           <thead className="bg-[#edf2f7] text-[#344054]">
             <tr>
@@ -435,7 +493,7 @@ function WeeklyTableSection({ index, title, columns, rows }: { index: string; ti
           </thead>
           <tbody>
             {rows.map((row, rowIndex) => (
-              <tr key={`${title}-${rowIndex}`} className="bg-white">
+              <tr key={`${title}-${rowIndex}`} className="bg-white odd:bg-white even:bg-[#fcfcfd]">
                 {row.map((cell, cellIndex) => (
                   <td key={`${title}-${rowIndex}-${cellIndex}`} className="min-w-[120px] whitespace-pre-wrap border-r border-t border-[#e4e7ec] px-3 py-3 align-top text-[#475467] last:border-r-0">
                     {cell || <span className="text-[#98a2b3]">입력 예정</span>}
@@ -453,7 +511,7 @@ function WeeklyTableSection({ index, title, columns, rows }: { index: string; ti
 function WorkReportTable({ title, rows }: { title: string; rows: WorkReportRow[] }) {
   return (
     <div className="overflow-hidden rounded-2xl border border-[#d7dde4]">
-      <div className="border-b border-[#d7dde4] bg-[#edf2f7] px-4 py-2 text-sm font-semibold text-[#101828]">■ {title}</div>
+      <div className="border-b border-[#d7dde4] bg-[linear-gradient(180deg,#edf2f7_0%,#e6edf5_100%)] px-4 py-2 text-sm font-semibold text-[#101828]">■ {title}</div>
       <table className="w-full border-collapse text-sm">
         <thead className="bg-white text-[#344054]">
           <tr>
@@ -466,7 +524,7 @@ function WorkReportTable({ title, rows }: { title: string; rows: WorkReportRow[]
         </thead>
         <tbody>
           {rows.map((row, rowIndex) => (
-            <tr key={`${title}-${rowIndex}`} className="bg-white">
+            <tr key={`${title}-${rowIndex}`} className="bg-white odd:bg-white even:bg-[#fcfcfd]">
               <td className="border-r border-t border-[#e4e7ec] px-3 py-3 align-top text-[#101828]">{row.projectName}</td>
               <td className="border-r border-t border-[#e4e7ec] px-3 py-3 align-top text-[#475467]">{row.category}</td>
               <td className="border-r border-t border-[#e4e7ec] px-3 py-3 align-top text-[#475467]">{row.period}</td>
@@ -487,7 +545,7 @@ function WorkReportTable({ title, rows }: { title: string; rows: WorkReportRow[]
 function PlannedWorkTable({ title, rows }: { title: string; rows: PlannedWorkRow[] }) {
   return (
     <div className="overflow-hidden rounded-2xl border border-[#d7dde4]">
-      <div className="border-b border-[#d7dde4] bg-[#edf2f7] px-4 py-2 text-sm font-semibold text-[#101828]">■ {title}</div>
+      <div className="border-b border-[#d7dde4] bg-[linear-gradient(180deg,#edf2f7_0%,#e6edf5_100%)] px-4 py-2 text-sm font-semibold text-[#101828]">■ {title}</div>
       <table className="w-full border-collapse text-sm">
         <thead className="bg-white text-[#344054]">
           <tr>
@@ -500,7 +558,7 @@ function PlannedWorkTable({ title, rows }: { title: string; rows: PlannedWorkRow
         </thead>
         <tbody>
           {rows.map((row, rowIndex) => (
-            <tr key={`${title}-${rowIndex}`} className="bg-white">
+            <tr key={`${title}-${rowIndex}`} className="bg-white odd:bg-white even:bg-[#fcfcfd]">
               <td className="border-r border-t border-[#e4e7ec] px-3 py-3 align-top text-[#101828]">{row.projectName}</td>
               <td className="border-r border-t border-[#e4e7ec] px-3 py-3 align-top text-[#475467]">{row.category}</td>
               <td className="border-r border-t border-[#e4e7ec] px-3 py-3 align-top text-[#475467]">{row.bidType}</td>
@@ -520,7 +578,7 @@ function PlannedWorkTable({ title, rows }: { title: string; rows: PlannedWorkRow
 function NarrativePanel({ title, items }: { title: string; items: string[] }) {
   return (
     <div className="overflow-hidden rounded-2xl border border-[#d7dde4] bg-white">
-      <div className="border-b border-[#d7dde4] bg-[#edf2f7] px-4 py-2 text-sm font-semibold text-[#101828]">{title}</div>
+      <div className="border-b border-[#d7dde4] bg-[linear-gradient(180deg,#edf2f7_0%,#e6edf5_100%)] px-4 py-2 text-sm font-semibold text-[#101828]">{title}</div>
       <div className="space-y-0">
         {items.map((item, index) => (
           <div key={`${title}-${index}`} className="whitespace-pre-wrap border-t border-[#e4e7ec] px-4 py-4 text-sm leading-7 text-[#475467] first:border-t-0">
@@ -534,7 +592,7 @@ function NarrativePanel({ title, items }: { title: string; items: string[] }) {
 
 function SidebarCard({ title, description, children }: { title: string; description: string; children: React.ReactNode }) {
   return (
-    <div className="rounded-2xl border border-[#d7dde4] bg-white p-5 shadow-[0_12px_30px_rgba(15,23,42,0.05)]">
+    <div className="rounded-[22px] border border-[#d7dde4] bg-white p-5 shadow-[0_12px_30px_rgba(15,23,42,0.05)]">
       <h3 className="text-base font-semibold tracking-[-0.02em] text-[#101828]">{title}</h3>
       <p className="mt-1 text-sm text-[#667085]">{description}</p>
       <div className="mt-4">{children}</div>
