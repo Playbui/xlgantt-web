@@ -146,6 +146,10 @@ function formatBytes(size: number) {
   return `${(size / 1024 / 1024).toFixed(1)} MB`
 }
 
+function hasEmbeddedImages(value: string) {
+  return /<img[^>]+src=["']data:image\//i.test(value)
+}
+
 export function WorkspaceView() {
   const {
     items,
@@ -157,6 +161,7 @@ export function WorkspaceView() {
     updateItem,
     deleteItem,
     uploadAttachment,
+    uploadEmbeddedImages,
     isLoading,
   } = useWorkspaceStore()
   const tasks = useTaskStore((s) => s.tasks)
@@ -356,7 +361,44 @@ export function WorkspaceView() {
   const saveDraft = async (changeType: Parameters<typeof updateItem>[2] = 'body') => {
     if (!selectedItem || !draft || !dirty) return
     setSaving(true)
-    await updateItem(selectedItem.id, draft, changeType)
+    let nextDraft = draft
+
+    if (changeType === 'body' && draft.body && hasEmbeddedImages(draft.body)) {
+      try {
+        const parser = new DOMParser()
+        const doc = parser.parseFromString(draft.body, 'text/html')
+        const imageElements = Array.from(doc.querySelectorAll('img')).filter((img) => {
+          const src = img.getAttribute('src') || ''
+          return src.startsWith('data:image/')
+        })
+
+        if (imageElements.length > 0) {
+          const files = await Promise.all(
+            imageElements.map(async (img, index) => {
+              const src = img.getAttribute('src') || ''
+              const response = await fetch(src)
+              const blob = await response.blob()
+              const extension = blob.type.split('/')[1] || 'png'
+              return new File([blob], `workspace-inline-${index + 1}.${extension}`, { type: blob.type || 'image/png' })
+            })
+          )
+
+          const uploadedUrls = await uploadEmbeddedImages(selectedItem.id, files)
+          uploadedUrls.forEach((url, index) => {
+            if (!url) return
+            imageElements[index]?.setAttribute('src', url)
+          })
+
+          const normalizedBody = doc.body.innerHTML
+          nextDraft = { ...draft, body: normalizedBody }
+          setDraft(nextDraft)
+        }
+      } catch (error) {
+        console.error('업무노트 본문 이미지 정리 실패:', error)
+      }
+    }
+
+    await updateItem(selectedItem.id, nextDraft, changeType)
     setSaving(false)
     setDirty(false)
   }
@@ -800,6 +842,8 @@ export function WorkspaceView() {
                 minHeight={560}
                 fontSize={draft.editor_font_size}
                 placeholder={'조사 배경, 검토안, 회의 메모, 결정사항, 미결 이슈를 자유롭게 작성하세요.'}
+                enableImages={Boolean(selectedItem && selectedItem.item_type !== 'folder')}
+                onUploadImages={selectedItem ? (files) => uploadEmbeddedImages(selectedItem.id, files) : undefined}
               />
             </div>
           </div>

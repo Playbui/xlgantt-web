@@ -15,6 +15,7 @@ interface WorkspaceState {
   updateItem: (id: string, changes: Partial<WorkspaceItem>, changeType?: WorkspaceRevision['change_type']) => Promise<void>
   deleteItem: (id: string) => Promise<void>
   uploadAttachment: (itemId: string, file: File) => Promise<void>
+  uploadEmbeddedImages: (itemId: string, files: File[]) => Promise<string[]>
 }
 
 function parseLinks(value: unknown): WorkspaceLink[] {
@@ -118,6 +119,41 @@ function isMissingColumnError(message?: string) {
 
 function isMissingSpecificColumn(message: string | undefined, column: string) {
   return Boolean(message && (message.includes(column) || message.includes('schema cache')))
+}
+
+async function uploadWorkspaceFile(item: WorkspaceItem, file: File, currentUserId?: string | null) {
+  const safeName = file.name.replace(/[^\w.\-가-힣 ]/g, '_')
+  const storagePath = `${item.project_id}/${item.id}/${crypto.randomUUID()}-${safeName}`
+
+  const { error: uploadError } = await supabase.storage
+    .from('workspace-attachments')
+    .upload(storagePath, file, { upsert: false })
+  if (uploadError) throw uploadError
+
+  const { data: publicUrlData } = supabase.storage.from('workspace-attachments').getPublicUrl(storagePath)
+  const publicUrl = publicUrlData.publicUrl
+
+  const { data, error } = await supabase
+    .from('workspace_item_attachments')
+    .insert({
+      workspace_item_id: item.id,
+      project_id: item.project_id,
+      filename: file.name,
+      size: file.size,
+      mime_type: file.type || null,
+      storage_path: storagePath,
+      public_url: publicUrl,
+      uploaded_by: currentUserId || null,
+    })
+    .select('*, profiles:uploaded_by(name,email)')
+    .single()
+
+  if (error || !data) throw error ?? new Error('첨부 저장 실패')
+
+  return {
+    attachment: dbRowToAttachment(data as Record<string, unknown>),
+    publicUrl,
+  }
 }
 
 function logSupabaseError(label: string, error: { message?: string; code?: string; details?: string; hint?: string } | null) {
@@ -453,41 +489,42 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => ({
     const item = get().items.find((candidate) => candidate.id === itemId)
     if (!item) return
     const currentUserId = useAuthStore.getState().currentUser?.id
-    const safeName = file.name.replace(/[^\w.\-가-힣 ]/g, '_')
-    const storagePath = `${item.project_id}/${item.id}/${crypto.randomUUID()}-${safeName}`
-
-    const { error: uploadError } = await supabase.storage
-      .from('workspace-attachments')
-      .upload(storagePath, file, { upsert: false })
-    if (uploadError) {
-      console.error('첨부 업로드 실패:', uploadError.message)
+    try {
+      const { attachment } = await uploadWorkspaceFile(item, file, currentUserId)
+      await writeRevision(item, 'attachment')
+      set((state) => ({
+        attachments: [attachment, ...state.attachments],
+      }))
+    } catch (error) {
+      console.error('첨부 업로드 실패:', error)
       return
     }
+  },
 
-    const { data: publicUrlData } = supabase.storage.from('workspace-attachments').getPublicUrl(storagePath)
-    const { data, error } = await supabase
-      .from('workspace_item_attachments')
-      .insert({
-        workspace_item_id: item.id,
-        project_id: item.project_id,
-        filename: file.name,
-        size: file.size,
-        mime_type: file.type || null,
-        storage_path: storagePath,
-        public_url: publicUrlData.publicUrl,
-        uploaded_by: currentUserId || null,
-      })
-      .select('*, profiles:uploaded_by(name,email)')
-      .single()
+  uploadEmbeddedImages: async (itemId, files) => {
+    const item = get().items.find((candidate) => candidate.id === itemId)
+    if (!item || files.length === 0) return []
+    const currentUserId = useAuthStore.getState().currentUser?.id
+    const uploadedUrls: string[] = []
+    const uploadedAttachments: WorkspaceAttachment[] = []
 
-    if (error || !data) {
-      console.error('첨부 저장 실패:', error?.message)
-      return
+    for (const file of files) {
+      try {
+        const { attachment, publicUrl } = await uploadWorkspaceFile(item, file, currentUserId)
+        uploadedUrls.push(publicUrl)
+        uploadedAttachments.push(attachment)
+      } catch (error) {
+        console.error('업무노트 이미지 업로드 실패:', error)
+      }
     }
 
-    await writeRevision(item, 'attachment')
-    set((state) => ({
-      attachments: [dbRowToAttachment(data as Record<string, unknown>), ...state.attachments],
-    }))
+    if (uploadedAttachments.length > 0) {
+      await writeRevision(item, 'attachment')
+      set((state) => ({
+        attachments: [...uploadedAttachments, ...state.attachments],
+      }))
+    }
+
+    return uploadedUrls
   },
 }))
