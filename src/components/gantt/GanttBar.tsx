@@ -28,7 +28,7 @@ interface DragPreview {
 
 export function GanttBar({ task, rowIndex, scale, theme, onDoubleClick, onContextMenu }: GanttBarProps) {
   const { selectTask, selectedTaskIds, updateTask, addDependency, dependencies } = useTaskStore()
-  const { linkMode, linkSourceTaskId, setLinkSource, ganttOptions } = useUIStore()
+  const { linkMode, linkSourceTaskId, setLinkSource, ganttOptions, rowHeight } = useUIStore()
   const taskDetails = useResourceStore((s) => s.taskDetails)
   const myDetails = taskDetails.filter((d) => d.task_id === task.id)
   const detailDone = myDetails.filter((d) => d.status === 'done').length
@@ -48,7 +48,7 @@ export function GanttBar({ task, rowIndex, scale, theme, onDoubleClick, onContex
   } | null>(null)
   const rafRef = useRef<number | null>(null)
 
-  const rect = taskToBarRect(task, scale, rowIndex)
+  const rect = taskToBarRect(task, scale, rowIndex, rowHeight)
   const safeSelectedTaskIds = selectedTaskIds ?? new Set<string>()
 
   const isSelected = safeSelectedTaskIds.has(task.id)
