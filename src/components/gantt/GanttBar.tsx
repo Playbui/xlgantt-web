@@ -1,6 +1,6 @@
 import { useCallback, useState, useRef } from 'react'
 import type { Task, GanttScale, ColorTheme, Dependency } from '@/lib/types'
-import { taskToBarRect, dateToX } from '@/lib/gantt-math'
+import { taskToBarRect, taskToActualBarRect, dateToX } from '@/lib/gantt-math'
 import { useTaskStore } from '@/stores/task-store'
 import { useUIStore } from '@/stores/ui-store'
 import { useProjectStore } from '@/stores/project-store'
@@ -49,6 +49,7 @@ export function GanttBar({ task, rowIndex, scale, theme, onDoubleClick, onContex
   const rafRef = useRef<number | null>(null)
 
   const rect = taskToBarRect(task, scale, rowIndex, rowHeight)
+  const actualRect = taskToActualBarRect(task, scale, rowIndex, rowHeight)
   const safeSelectedTaskIds = selectedTaskIds ?? new Set<string>()
 
   const isSelected = safeSelectedTaskIds.has(task.id)
@@ -307,8 +308,6 @@ export function GanttBar({ task, rowIndex, scale, theme, onDoubleClick, onContex
 
   if (!rect) return null
 
-  const progressWidth = rect.width * task.actual_progress
-
   // Milestone diamond
   if (task.is_milestone) {
     // Use drag preview position if dragging, otherwise use original rect
@@ -397,6 +396,11 @@ export function GanttBar({ task, rowIndex, scale, theme, onDoubleClick, onContex
     const y = rect.y + rect.height - 6
     const h = 6
     const tickSize = 4
+    const groupActualY = y + Math.max(1, Math.floor((h - 2) / 2))
+    const groupActualHeight = 2
+    const groupActualX = actualRect?.x ?? rect.x
+    const groupActualWidth =
+      actualRect?.width ?? (task.actual_progress > 0 ? rect.width * task.actual_progress : 0)
 
     return (
       <g
@@ -426,15 +430,16 @@ export function GanttBar({ task, rowIndex, scale, theme, onDoubleClick, onContex
           height={h + tickSize}
           fill={barColor}
         />
-        {/* Progress overlay */}
-        {task.actual_progress > 0 && (
+        {/* Actual schedule overlay */}
+        {(actualRect || task.actual_progress > 0) && groupActualWidth > 0 && (
           <rect
-            x={rect.x}
-            y={y}
-            width={progressWidth}
-            height={h}
+            x={groupActualX}
+            y={groupActualY}
+            width={groupActualWidth}
+            height={groupActualHeight}
             fill={getActualColor()}
-            rx={1}
+            rx={1.5}
+            opacity={0.95}
           />
         )}
         {/* Progress label */}
@@ -486,7 +491,12 @@ export function GanttBar({ task, rowIndex, scale, theme, onDoubleClick, onContex
   const isDragging = dragging !== null
   const barX = dragPreview ? dragPreview.x : rect.x
   const barW = dragPreview ? dragPreview.width : rect.width
-  const currentProgressWidth = barW * task.actual_progress
+  const hasActualSchedule = !!actualRect
+  const actualBarX = actualRect?.x ?? barX
+  const actualBarW = actualRect?.width ?? (task.actual_progress > 0 ? barW * task.actual_progress : 0)
+  const actualBarH = Math.max(4, Math.min(8, Math.round(barH * 0.38)))
+  const actualBarY = barY + Math.round((barH - actualBarH) / 2)
+  const showActualOverlay = hasActualSchedule || task.actual_progress > 0
 
   return (
     <g
@@ -517,16 +527,40 @@ export function GanttBar({ task, rowIndex, scale, theme, onDoubleClick, onContex
         rx={5}
         opacity={isDragging ? 0.7 : hovering ? 1 : 0.9}
       />
-      {/* Actual progress overlay */}
-      {task.actual_progress > 0 && (
+      <rect
+        x={barX}
+        y={barY}
+        width={barW}
+        height={barH}
+        fill="none"
+        stroke="rgba(15,23,42,0.14)"
+        strokeWidth={1}
+        rx={5}
+        pointerEvents="none"
+      />
+      {/* Actual schedule inner bar */}
+      {showActualOverlay && actualBarW > 0 && (
         <rect
-          x={barX}
-          y={barY}
-          width={currentProgressWidth}
-          height={barH}
+          x={actualBarX}
+          y={actualBarY}
+          width={actualBarW}
+          height={actualBarH}
           fill={getActualColor()}
-          rx={5}
-          opacity={0.85}
+          rx={actualBarH / 2}
+          opacity={0.98}
+        />
+      )}
+      {showActualOverlay && actualBarW > 0 && (
+        <rect
+          x={actualBarX}
+          y={actualBarY}
+          width={actualBarW}
+          height={actualBarH}
+          fill="none"
+          stroke="rgba(255,255,255,0.35)"
+          strokeWidth={0.8}
+          rx={actualBarH / 2}
+          pointerEvents="none"
         />
       )}
       {/* Progress text (inside bar) */}
