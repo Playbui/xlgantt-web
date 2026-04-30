@@ -876,38 +876,6 @@ export function WeeklyReportsPage() {
                     />
                   </SidebarCard>
                 </div>
-
-                <div className="space-y-4">
-                  <SectionLabel index="2." title="이슈보고 입력 현황" />
-                  <ContributionIssueTable rows={payload.issues} />
-                </div>
-
-                <div className="space-y-4">
-                  <SectionLabel index="3." title="프로젝트별 원본 입력" />
-                  <ContributionWorkReportTable
-                    title="이월 사업"
-                    rows={payload.carryOver}
-                  />
-                  <ContributionWorkReportTable
-                    title="진행 사업"
-                    rows={payload.inProgress}
-                  />
-                  <ContributionPlannedWorkTable
-                    title="예정 사업"
-                    rows={payload.planned}
-                  />
-                  <ContributionPlannedWorkTable
-                    title="미정 사업"
-                    rows={payload.tbd}
-                  />
-                </div>
-
-                <div className="space-y-4">
-                  <SectionLabel index="4." title="기타 주요 업무" />
-                  <ContributionMajorWorkItems
-                    rows={payload.majorWorkItems}
-                  />
-                </div>
               </TabsContent>
 
               <TabsContent value="summary" className="space-y-6">
