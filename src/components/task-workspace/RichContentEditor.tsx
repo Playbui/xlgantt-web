@@ -149,33 +149,6 @@ export function RichContentEditor({
     lastSyncedValueRef.current = nextValue
   }, [editor, plateEditor, plugins, value])
 
-  useEffect(() => {
-    if (!editor || typeof window === 'undefined') return
-
-    let timeoutId: number | undefined
-    const scheduleValueCheck = () => {
-      window.clearTimeout(timeoutId)
-      timeoutId = window.setTimeout(() => handleValueChange({ editor }), 0)
-    }
-
-    window.addEventListener('input', scheduleValueCheck, true)
-    window.addEventListener('keyup', scheduleValueCheck, true)
-    window.addEventListener('pointerup', scheduleValueCheck, true)
-    window.addEventListener('paste', scheduleValueCheck, true)
-    window.addEventListener('drop', scheduleValueCheck, true)
-    const intervalId = window.setInterval(scheduleValueCheck, 500)
-
-    return () => {
-      window.clearTimeout(timeoutId)
-      window.clearInterval(intervalId)
-      window.removeEventListener('input', scheduleValueCheck, true)
-      window.removeEventListener('keyup', scheduleValueCheck, true)
-      window.removeEventListener('pointerup', scheduleValueCheck, true)
-      window.removeEventListener('paste', scheduleValueCheck, true)
-      window.removeEventListener('drop', scheduleValueCheck, true)
-    }
-  }, [editor, handleValueChange])
-
   const handleImageInsert = async (files: File[]) => {
     if (!enableImages || !editor || files.length === 0) return
 
