@@ -4,7 +4,6 @@ import {
   ArrowLeft,
   CalendarDays,
   CheckCircle2,
-  CircleAlert,
   Clock3,
   FileLock2,
   FileSpreadsheet,
@@ -13,7 +12,6 @@ import {
   RefreshCw,
   Save,
   ShieldCheck,
-  Sparkles,
   Trash2,
   Users,
 } from 'lucide-react'
@@ -27,7 +25,6 @@ import { Textarea } from '@/components/ui/textarea'
 import { supabase } from '@/lib/supabase'
 import {
   canManageWeeklyReports,
-  getWeeklyReportAllowedEmails,
   getWeeklyReportMembers,
   WEEKLY_REPORT_TEAM_KEY,
   WEEKLY_REPORT_TEAM_NAME,
@@ -87,6 +84,12 @@ interface MemberEntry {
   updatedByName?: string
 }
 
+interface MajorWorkItem {
+  label: string
+  thisWeek: string
+  nextWeek: string
+}
+
 interface WeeklyReportPayload {
   strategyMeetings: StrategyMeetingRow[]
   issues: IssueRow[]
@@ -94,6 +97,7 @@ interface WeeklyReportPayload {
   inProgress: WorkReportRow[]
   planned: PlannedWorkRow[]
   tbd: PlannedWorkRow[]
+  majorWorkItems: MajorWorkItem[]
   memberEntries: MemberEntry[]
   leaderMemo: string
 }
@@ -218,6 +222,29 @@ const INITIAL_TBD_ROWS: PlannedWorkRow[] = [
   },
 ]
 
+const INITIAL_MAJOR_WORK_ITEMS: MajorWorkItem[] = [
+  {
+    label: '[항해통신사업부]',
+    thisWeek: '',
+    nextWeek: '',
+  },
+  {
+    label: '[해양경찰청]',
+    thisWeek: '',
+    nextWeek: '',
+  },
+  {
+    label: '[수협중앙회]',
+    thisWeek: '',
+    nextWeek: '',
+  },
+  {
+    label: '[해양수산부]',
+    thisWeek: '',
+    nextWeek: '',
+  },
+]
+
 export function WeeklyReportsPage() {
   const navigate = useNavigate()
   const currentUser = useAuthStore((s) => s.currentUser)
@@ -337,6 +364,22 @@ export function WeeklyReportsPage() {
     setNotice(null)
   }, [])
 
+  const touchCurrentMember = useCallback((prev: WeeklyReportPayload) => {
+    if (canManage || !currentUser) return prev
+    return {
+      ...prev,
+      memberEntries: prev.memberEntries.map((entry) =>
+        normalizeEmail(entry.email) === normalizeEmail(currentUser.email)
+          ? {
+              ...entry,
+              updatedAt: new Date().toISOString(),
+              updatedByName: currentUser.name || currentUser.email,
+            }
+          : entry
+      ),
+    }
+  }, [canManage, currentUser])
+
   const saveReport = useCallback(async (options?: { finalize?: boolean; completeMyInput?: boolean }) => {
     if (!currentUser) return
     if (!report && !canManage) {
@@ -429,6 +472,14 @@ export function WeeklyReportsPage() {
     ],
   }))
 
+  const addMajorWorkItem = () => updatePayload((prev) => ({
+    ...prev,
+    majorWorkItems: [
+      ...prev.majorWorkItems,
+      { label: '', thisWeek: '', nextWeek: '' },
+    ],
+  }))
+
   return (
     <div className="std-page">
       <header className="std-page-header">
@@ -456,38 +507,19 @@ export function WeeklyReportsPage() {
             <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
               <div className="space-y-3">
                 <div className="flex flex-wrap items-center gap-2">
-                  <Badge variant="outline" className="h-6 rounded-full border-[#eadfda] bg-[#fff7f4] px-2.5 text-[11px] text-[#8f3b2e]">
-                    <Sparkles className="h-3 w-3" />
-                    Team Weekly
-                  </Badge>
                   <Badge variant="outline" className="h-6 rounded-full border-[#d7dde4] bg-white px-2.5 text-[11px] text-[#344054]">
                     <Users className="h-3 w-3" />
                     {WEEKLY_REPORT_TEAM_NAME}
-                  </Badge>
-                  <Badge variant="outline" className="h-6 rounded-full border-[#d7dde4] bg-[#f8fafc] px-2.5 text-[11px] text-[#344054]">
-                    <FileLock2 className="h-3 w-3" />
-                    비공개 작업공간
                   </Badge>
                   <StatusBadge status={weeklyStatus} />
                 </div>
                 <div>
                   <h1 className="text-[30px] font-semibold tracking-[-0.03em] text-[#101828]">주간업무보고</h1>
-                  <p className="mt-1 text-sm leading-6 text-[#475467]">
-                    팀원은 자기 담당 내용을 적고 완료만 체크하면 되고, 팀장은 전체 흐름을 보고 최종본을 정리합니다.
-                  </p>
                 </div>
                 <div className="flex flex-wrap items-center gap-4 text-sm text-[#667085]">
                   <div className="flex items-center gap-2">
                     <Clock3 className="h-4 w-4" />
                     <span>{getWeekTitle(selectedWeek)}</span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <CheckCircle2 className="h-4 w-4 text-[#157347]" />
-                    <span>완료 {completedMembers.length}명</span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <CircleAlert className="h-4 w-4 text-[#b54708]" />
-                    <span>미완료 {pendingMembers.length}명</span>
                   </div>
                   {report?.updated_at && (
                     <div className="flex items-center gap-2">
@@ -498,12 +530,13 @@ export function WeeklyReportsPage() {
                 </div>
               </div>
 
-              <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
-                <MetricCard label="상태" value={weeklyStatus} accent={weeklyStatus === '입력중' ? 'amber' : weeklyStatus === '취합중' ? 'blue' : 'green'} />
-                <MetricCard label="입력 완료" value={`${completedMembers.length}명`} accent="green" />
-                <MetricCard label="미완료" value={`${pendingMembers.length}명`} accent="red" />
-                <MetricCard label="권한 대상" value={`${getWeeklyReportAllowedEmails().length}명`} accent="slate" />
-              </div>
+              {canManage && (
+                <div className="grid gap-3 md:grid-cols-3">
+                  <MetricCard label="입력 완료" value={`${completedMembers.length}명`} accent="green" />
+                  <MetricCard label="미완료" value={`${pendingMembers.length}명`} accent="red" />
+                  <MetricCard label="최근 저장" value={report?.updated_at ? formatDateTime(report.updated_at) : '-'} accent="blue" />
+                </div>
+              )}
             </div>
           </div>
 
@@ -530,7 +563,7 @@ export function WeeklyReportsPage() {
                     </SelectContent>
                   </Select>
                 </div>
-                <div className="text-xs text-[#667085]">지난 주차 조회와 이번 주차 취합본 관리</div>
+                {canManage && <div className="text-xs text-[#667085]">주차별 사업 틀과 취합본을 관리합니다.</div>}
               </div>
 
               <div className="mt-3 space-y-2">
@@ -594,19 +627,10 @@ export function WeeklyReportsPage() {
           </div>
         )}
 
-        {canManage && (
-          <section className="grid gap-3 md:grid-cols-4">
-            <CompactSummaryCard title="입력 완료" value={`${completedMembers.length}명`} tone="green" />
-            <CompactSummaryCard title="미완료" value={`${pendingMembers.length}명`} tone="amber" />
-            <CompactSummaryCard title="권한 대상" value={`${payload.memberEntries.length}명`} tone="slate" />
-            <CompactSummaryCard title="최근 저장" value={report?.updated_at ? formatDateTime(report.updated_at) : '-'} tone="blue" />
-          </section>
-        )}
-
         <section className="rounded-[22px] border border-[#d7dde4] bg-white shadow-[0_14px_36px_rgba(15,23,42,0.05)]">
           <SectionHeader
             title={report?.title ?? `${getWeekTitle(selectedWeek)} 주간보고`}
-            description={canManage ? '팀장은 사업 틀을 정리하고, 취합상황 탭에서 팀원 입력을 한 번에 확인합니다.' : '팀원은 아래 입력 화면만 사용하면 됩니다. 잠긴 칸은 팀장이 관리하는 영역입니다.'}
+            description={canManage ? '' : '회색으로 보이는 칸은 팀장이 관리하는 영역입니다.'}
           />
 
           {isLoading ? (
@@ -661,7 +685,7 @@ export function WeeklyReportsPage() {
 
                 <div className="space-y-4">
                   <SectionLabel index="3." title="업무보고" />
-                  <EditableWorkReportTable
+                  <SetupWorkReportTable
                     title="이월 사업"
                     rows={payload.carryOver}
                     editable
@@ -675,7 +699,7 @@ export function WeeklyReportsPage() {
                       carryOver: prev.carryOver.filter((_, index) => index !== rowIndex),
                     }))}
                   />
-                  <EditableWorkReportTable
+                  <SetupWorkReportTable
                     title="진행 사업"
                     rows={payload.inProgress}
                     editable
@@ -689,7 +713,7 @@ export function WeeklyReportsPage() {
                       inProgress: prev.inProgress.filter((_, index) => index !== rowIndex),
                     }))}
                   />
-                  <EditablePlannedWorkTable
+                  <SetupPlannedWorkTable
                     title="예정 사업"
                     rows={payload.planned}
                     editable
@@ -703,7 +727,7 @@ export function WeeklyReportsPage() {
                       planned: prev.planned.filter((_, index) => index !== rowIndex),
                     }))}
                   />
-                  <EditablePlannedWorkTable
+                  <SetupPlannedWorkTable
                     title="미정 사업"
                     rows={payload.tbd}
                     editable
@@ -718,57 +742,95 @@ export function WeeklyReportsPage() {
                     }))}
                   />
                 </div>
+
+                <div className="space-y-4">
+                  <SectionLabel index="4." title="기타 주요 업무 항목 등록" />
+                  <EditableMajorWorkItems
+                    rows={payload.majorWorkItems}
+                    editable
+                    onAdd={addMajorWorkItem}
+                    onChange={(rowIndex, key, value) => updatePayload((prev) => ({
+                      ...prev,
+                      majorWorkItems: prev.majorWorkItems.map((row, index) =>
+                        index === rowIndex ? { ...row, [key]: value } : row
+                      ),
+                    }))}
+                    onRemove={(rowIndex) => updatePayload((prev) => ({
+                      ...prev,
+                      majorWorkItems: prev.majorWorkItems.filter((_, index) => index !== rowIndex),
+                    }))}
+                  />
+                </div>
               </TabsContent>
 
               <TabsContent value="collect" className="space-y-6">
-                <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_320px]">
-                  <div className="space-y-4">
-                    <SectionLabel index="4." title="팀원 주간 입력" />
-                    {payload.memberEntries.map((entry, index) => (
-                      <MemberNarrativeCard
-                        key={entry.email}
-                        entry={entry}
-                        canEdit
-                        onChange={(key, value) => updatePayload((prev) => ({
-                          ...prev,
-                          memberEntries: prev.memberEntries.map((row, rowIndex) =>
-                            rowIndex === index
-                              ? {
-                                  ...row,
-                                  [key]: value,
-                                  updatedAt: new Date().toISOString(),
-                                  updatedByName: currentUser?.name || currentUser?.email || row.updatedByName,
-                                }
-                              : row
-                          ),
-                        }))}
-                      />
-                    ))}
-                  </div>
+                <div className="space-y-4">
+                  <ManagerCompletionOverview
+                    completedMembers={completedMembers}
+                    pendingMembers={pendingMembers}
+                  />
+                  <SidebarCard title="팀장 메모" description="최종 취합 전에 남길 메모만 간단히 정리합니다.">
+                    <Textarea
+                      value={payload.leaderMemo}
+                      onChange={(event) => updatePayload((prev) => ({ ...prev, leaderMemo: event.target.value }))}
+                      placeholder="예: 미완료 2명 오전까지 확인 / 표현 통일 필요"
+                      className="min-h-[120px] rounded-2xl border-[#d0d5dd] bg-white"
+                    />
+                  </SidebarCard>
+                </div>
 
-                  <div className="space-y-4">
-                    <SidebarCard
-                      title="입력 현황"
-                      description="누가 썼고 누가 아직 안 썼는지만 간단하게 보면 됩니다."
-                    >
-                      <div className="space-y-3">
-                        <MemberList title="입력 완료자" members={completedMembers} tone="green" />
-                        <MemberList title="미완료자" members={pendingMembers} tone="amber" />
-                      </div>
-                    </SidebarCard>
+                <div className="space-y-4">
+                  <SectionLabel index="3." title="업무보고 입력" />
+                  <CollectWorkReportTable
+                    title="이월 사업"
+                    rows={payload.carryOver}
+                    editable
+                    onChange={(rowIndex, key, value) => updatePayload((prev) => ({
+                      ...prev,
+                      carryOver: prev.carryOver.map((row, index) => index === rowIndex ? { ...row, [key]: value } : row),
+                    }))}
+                  />
+                  <CollectWorkReportTable
+                    title="진행 사업"
+                    rows={payload.inProgress}
+                    editable
+                    onChange={(rowIndex, key, value) => updatePayload((prev) => ({
+                      ...prev,
+                      inProgress: prev.inProgress.map((row, index) => index === rowIndex ? { ...row, [key]: value } : row),
+                    }))}
+                  />
+                  <CollectPlannedWorkTable
+                    title="예정 사업"
+                    rows={payload.planned}
+                    editable
+                    onChange={(rowIndex, key, value) => updatePayload((prev) => ({
+                      ...prev,
+                      planned: prev.planned.map((row, index) => index === rowIndex ? { ...row, [key]: value } : row),
+                    }))}
+                  />
+                  <CollectPlannedWorkTable
+                    title="미정 사업"
+                    rows={payload.tbd}
+                    editable
+                    onChange={(rowIndex, key, value) => updatePayload((prev) => ({
+                      ...prev,
+                      tbd: prev.tbd.map((row, index) => index === rowIndex ? { ...row, [key]: value } : row),
+                    }))}
+                  />
+                </div>
 
-                    <SidebarCard
-                      title="팀장 메모"
-                      description="이번 주 보고서 마지막 정리 포인트를 짧게 남겨둘 수 있습니다."
-                    >
-                      <Textarea
-                        value={payload.leaderMemo}
-                        onChange={(event) => updatePayload((prev) => ({ ...prev, leaderMemo: event.target.value }))}
-                        placeholder="예: 미완료자 확인 후 금요일 오전까지 취합 / Deep Blue Eye 문구 정리 필요"
-                        className="min-h-[180px] rounded-2xl border-[#d0d5dd] bg-white"
-                      />
-                    </SidebarCard>
-                  </div>
+                <div className="space-y-4">
+                  <SectionLabel index="4." title="기타 주요 업무" />
+                  <CollectMajorWorkItems
+                    rows={payload.majorWorkItems}
+                    editable
+                    onChange={(rowIndex, key, value) => updatePayload((prev) => ({
+                      ...prev,
+                      majorWorkItems: prev.majorWorkItems.map((row, index) =>
+                        index === rowIndex ? { ...row, [key]: value } : row
+                      ),
+                    }))}
+                  />
                 </div>
               </TabsContent>
             </Tabs>
@@ -777,48 +839,57 @@ export function WeeklyReportsPage() {
               <WeeklyReadOnlySummary currentMemberEntry={currentMemberEntry} />
 
               <div className="space-y-4">
-                <SectionLabel index="1." title="전략회의" />
-                <ReadOnlyStrategySection rows={payload.strategyMeetings} />
+                <SectionLabel index="3." title="업무보고 입력" />
+                <CollectWorkReportTable
+                  title="이월 사업"
+                  rows={payload.carryOver}
+                  editable
+                  onChange={(rowIndex, key, value) => updatePayload((prev) => touchCurrentMember({
+                    ...prev,
+                    carryOver: prev.carryOver.map((row, index) => index === rowIndex ? { ...row, [key]: value } : row),
+                  }))}
+                />
+                <CollectWorkReportTable
+                  title="진행 사업"
+                  rows={payload.inProgress}
+                  editable
+                  onChange={(rowIndex, key, value) => updatePayload((prev) => touchCurrentMember({
+                    ...prev,
+                    inProgress: prev.inProgress.map((row, index) => index === rowIndex ? { ...row, [key]: value } : row),
+                  }))}
+                />
+                <CollectPlannedWorkTable
+                  title="예정 사업"
+                  rows={payload.planned}
+                  editable
+                  onChange={(rowIndex, key, value) => updatePayload((prev) => touchCurrentMember({
+                    ...prev,
+                    planned: prev.planned.map((row, index) => index === rowIndex ? { ...row, [key]: value } : row),
+                  }))}
+                />
+                <CollectPlannedWorkTable
+                  title="미정 사업"
+                  rows={payload.tbd}
+                  editable
+                  onChange={(rowIndex, key, value) => updatePayload((prev) => touchCurrentMember({
+                    ...prev,
+                    tbd: prev.tbd.map((row, index) => index === rowIndex ? { ...row, [key]: value } : row),
+                  }))}
+                />
               </div>
 
               <div className="space-y-4">
-                <SectionLabel index="2." title="이슈보고" />
-                <ReadOnlyIssueSection rows={payload.issues} />
-              </div>
-
-              <div className="space-y-4">
-                <SectionLabel index="3." title="업무보고" />
-                <ReadOnlyWorkReportTable title="이월 사업" rows={payload.carryOver} />
-                <ReadOnlyWorkReportTable title="진행 사업" rows={payload.inProgress} />
-                <ReadOnlyPlannedWorkTable title="예정 사업" rows={payload.planned} />
-                <ReadOnlyPlannedWorkTable title="미정 사업" rows={payload.tbd} />
-              </div>
-
-              <div className="space-y-4">
-                <SectionLabel index="4." title="내 주간 입력" />
-                {currentMemberEntry ? (
-                  <MemberNarrativeCard
-                    entry={currentMemberEntry}
-                    canEdit
-                    onChange={(key, value) => updatePayload((prev) => ({
-                      ...prev,
-                      memberEntries: prev.memberEntries.map((row) =>
-                        normalizeEmail(row.email) === normalizeEmail(currentMemberEntry.email)
-                          ? {
-                              ...row,
-                              [key]: value,
-                              updatedAt: new Date().toISOString(),
-                              updatedByName: currentUser?.name || currentUser?.email || row.updatedByName,
-                            }
-                          : row
-                      ),
-                    }))}
-                  />
-                ) : (
-                  <div className="rounded-2xl border border-dashed border-[#d0d5dd] px-4 py-5 text-sm text-[#667085]">
-                    이 계정에는 연결된 주간 입력칸이 없습니다.
-                  </div>
-                )}
+                <SectionLabel index="4." title="기타 주요 업무" />
+                <CollectMajorWorkItems
+                  rows={payload.majorWorkItems}
+                  editable
+                  onChange={(rowIndex, key, value) => updatePayload((prev) => touchCurrentMember({
+                    ...prev,
+                    majorWorkItems: prev.majorWorkItems.map((row, index) =>
+                      index === rowIndex ? { ...row, [key]: value } : row
+                    ),
+                  }))}
+                />
               </div>
             </div>
           )}
@@ -876,6 +947,7 @@ function buildDefaultPayload(): WeeklyReportPayload {
     inProgress: deepCopy(INITIAL_IN_PROGRESS_ROWS),
     planned: deepCopy(INITIAL_PLANNED_ROWS),
     tbd: deepCopy(INITIAL_TBD_ROWS),
+    majorWorkItems: deepCopy(INITIAL_MAJOR_WORK_ITEMS),
     memberEntries: TEAM_MEMBERS.map((member) => ({
       email: member.email,
       name: member.name,
@@ -900,6 +972,7 @@ function normalizePayload(raw: unknown): WeeklyReportPayload {
     inProgress: normalizeRows(source.inProgress, base.inProgress),
     planned: normalizeRows(source.planned, base.planned),
     tbd: normalizeRows(source.tbd, base.tbd),
+    majorWorkItems: normalizeRows(source.majorWorkItems, base.majorWorkItems),
     memberEntries: base.memberEntries.map((defaultEntry) => {
       const incoming = rawEntries.find((entry) => normalizeEmail(entry?.email) === normalizeEmail(defaultEntry.email))
       return {
@@ -1029,7 +1102,7 @@ function SectionHeader({ title, description }: { title: string; description: str
   return (
     <div className="border-b border-[#e4e7ec] bg-[linear-gradient(180deg,#fbfcfe_0%,#f4f7fb_100%)] px-5 py-4">
       <h2 className="text-lg font-semibold tracking-[-0.02em] text-[#101828]">{title}</h2>
-      <p className="mt-1 text-sm text-[#667085]">{description}</p>
+      {description ? <p className="mt-1 text-sm text-[#667085]">{description}</p> : null}
     </div>
   )
 }
@@ -1185,7 +1258,7 @@ function EditableIssueSection(props: {
   )
 }
 
-function EditableWorkReportTable(props: {
+function SetupWorkReportTable(props: {
   title: string
   rows: WorkReportRow[]
   editable: boolean
@@ -1204,10 +1277,10 @@ function EditableWorkReportTable(props: {
       ) : undefined}
     >
       <div className="overflow-x-auto bg-white">
-        <table className="w-full min-w-[1260px] border-collapse text-sm">
+        <table className="w-full min-w-[980px] border-collapse text-sm">
           <thead className="bg-white text-[#344054]">
             <tr>
-              {['프로젝트명', '구분', '사업 기간', '사업PM', '개발PL', '목표율', '달성율', '내용', '비고'].map((column) => (
+              {['프로젝트명', '구분', '사업 기간', '사업PM', '개발PL'].map((column) => (
                 <th key={column} className="border-b border-r border-[#d7dde4] px-3 py-2 text-left font-semibold last:border-r-0">
                   {column}
                 </th>
@@ -1223,10 +1296,6 @@ function EditableWorkReportTable(props: {
                 <EditableCell><InputCell editable={props.editable} value={row.period} onChange={(value) => props.onChange(rowIndex, 'period', value)} placeholder="사업 기간" /></EditableCell>
                 <EditableCell><InputCell editable={props.editable} value={row.pm} onChange={(value) => props.onChange(rowIndex, 'pm', value)} placeholder="사업PM" /></EditableCell>
                 <EditableCell><InputCell editable={props.editable} value={row.pl} onChange={(value) => props.onChange(rowIndex, 'pl', value)} placeholder="개발PL" /></EditableCell>
-                <EditableCell><InputCell editable={props.editable} value={row.targetRate} onChange={(value) => props.onChange(rowIndex, 'targetRate', value)} placeholder="목표율" /></EditableCell>
-                <EditableCell><InputCell editable={props.editable} value={row.actualRate} onChange={(value) => props.onChange(rowIndex, 'actualRate', value)} placeholder="달성율" /></EditableCell>
-                <EditableCell><TextareaCell editable={props.editable} value={row.detail} onChange={(value) => props.onChange(rowIndex, 'detail', value)} placeholder="내용" /></EditableCell>
-                <EditableCell><TextareaCell editable={props.editable} value={row.note} onChange={(value) => props.onChange(rowIndex, 'note', value)} placeholder="비고" /></EditableCell>
                 {props.editable && (
                   <td className="border-t border-[#e4e7ec] px-3 py-3">
                     <Button variant="ghost" size="sm" className="h-8 px-2 text-[#b42318]" onClick={() => props.onRemove(rowIndex)}>
@@ -1243,7 +1312,7 @@ function EditableWorkReportTable(props: {
   )
 }
 
-function EditablePlannedWorkTable(props: {
+function SetupPlannedWorkTable(props: {
   title: string
   rows: PlannedWorkRow[]
   editable: boolean
@@ -1262,10 +1331,10 @@ function EditablePlannedWorkTable(props: {
       ) : undefined}
     >
       <div className="overflow-x-auto bg-white">
-        <table className="w-full min-w-[1220px] border-collapse text-sm">
+        <table className="w-full min-w-[980px] border-collapse text-sm">
           <thead className="bg-white text-[#344054]">
             <tr>
-              {['프로젝트명', '사업유형', '입찰 구분', '사업예산', '사업PM', '수주확률', '사업관리 및 영업 진행 현황', '비고'].map((column) => (
+              {['프로젝트명', '사업유형', '입찰 구분', '사업예산', '사업PM'].map((column) => (
                 <th key={column} className="border-b border-r border-[#d7dde4] px-3 py-2 text-left font-semibold last:border-r-0">
                   {column}
                 </th>
@@ -1281,9 +1350,6 @@ function EditablePlannedWorkTable(props: {
                 <EditableCell><InputCell editable={props.editable} value={row.bidType} onChange={(value) => props.onChange(rowIndex, 'bidType', value)} placeholder="입찰 구분" /></EditableCell>
                 <EditableCell><InputCell editable={props.editable} value={row.budget} onChange={(value) => props.onChange(rowIndex, 'budget', value)} placeholder="사업예산" /></EditableCell>
                 <EditableCell><InputCell editable={props.editable} value={row.pm} onChange={(value) => props.onChange(rowIndex, 'pm', value)} placeholder="사업PM" /></EditableCell>
-                <EditableCell><InputCell editable={props.editable} value={row.probability} onChange={(value) => props.onChange(rowIndex, 'probability', value)} placeholder="수주확률" /></EditableCell>
-                <EditableCell><TextareaCell editable={props.editable} value={row.detail} onChange={(value) => props.onChange(rowIndex, 'detail', value)} placeholder="사업관리 및 영업 진행 현황" /></EditableCell>
-                <EditableCell><TextareaCell editable={props.editable} value={row.note} onChange={(value) => props.onChange(rowIndex, 'note', value)} placeholder="비고" /></EditableCell>
                 {props.editable && (
                   <td className="border-t border-[#e4e7ec] px-3 py-3">
                     <Button variant="ghost" size="sm" className="h-8 px-2 text-[#b42318]" onClick={() => props.onRemove(rowIndex)}>
@@ -1300,49 +1366,220 @@ function EditablePlannedWorkTable(props: {
   )
 }
 
-function MemberNarrativeCard(props: {
-  entry: MemberEntry
-  canEdit: boolean
-  onChange: (key: 'thisWeek' | 'nextWeek', value: string) => void
+function CollectWorkReportTable(props: {
+  title: string
+  rows: WorkReportRow[]
+  editable: boolean
+  onChange: (rowIndex: number, key: keyof WorkReportRow, value: string) => void
 }) {
   return (
-    <div className="overflow-hidden rounded-2xl border border-[#d7dde4] bg-white">
-      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-[#d7dde4] bg-[linear-gradient(180deg,#f9fbfd_0%,#eef3f8_100%)] px-4 py-3">
-        <div>
-          <div className="text-sm font-semibold text-[#101828]">{props.entry.name}</div>
-          <div className="text-xs text-[#667085]">{props.entry.email}</div>
-        </div>
-        <div className="flex items-center gap-2">
-          <Badge variant="outline" className={`rounded-full px-2.5 text-[11px] ${props.entry.done ? 'border-[#dbeadf] bg-[#f7fbf8] text-[#14532d]' : 'border-[#f0e2bb] bg-[#fffbf0] text-[#9a6700]'}`}>
-            {props.entry.done ? '입력 완료' : '작성중'}
-          </Badge>
-          {props.entry.updatedAt && (
-            <span className="text-xs text-[#667085]">{formatDateTime(props.entry.updatedAt)}</span>
-          )}
-        </div>
+    <SectionCard title={`■ ${props.title}`}>
+      <div className="space-y-4 bg-white p-4">
+        {props.rows.map((row, rowIndex) => (
+          <div key={`${props.title}-collect-${rowIndex}`} className="overflow-hidden rounded-2xl border border-[#d7dde4] bg-[#fcfcfd]">
+            <div className="grid gap-3 border-b border-[#e4e7ec] bg-white px-4 py-3 md:grid-cols-[minmax(0,2.4fr)_120px_180px_150px_130px_100px_100px]">
+              <SummaryField label="프로젝트명" value={row.projectName} />
+              <SummaryField label="구분" value={row.category} />
+              <SummaryField label="사업 기간" value={row.period} />
+              <SummaryField label="사업PM" value={row.pm} />
+              <SummaryField label="개발PL" value={row.pl} />
+              <SummaryField label="목표율" value={row.targetRate || '-'} />
+              <div className="space-y-1">
+                <div className="text-[11px] font-semibold text-[#667085]">달성율</div>
+                <InputCell
+                  editable={props.editable}
+                  value={row.actualRate}
+                  onChange={(value) => props.onChange(rowIndex, 'actualRate', value)}
+                  placeholder="달성율"
+                />
+              </div>
+            </div>
+            <div className="grid gap-4 p-4 lg:grid-cols-2">
+              <div className="space-y-2">
+                <div className="text-xs font-semibold text-[#344054]">내용</div>
+                <TextareaCell
+                  editable={props.editable}
+                  value={row.detail}
+                  onChange={(value) => props.onChange(rowIndex, 'detail', value)}
+                  placeholder="진행 내용 입력"
+                  minHeightClass="min-h-[156px]"
+                />
+              </div>
+              <div className="space-y-2">
+                <div className="text-xs font-semibold text-[#344054]">비고</div>
+                <TextareaCell
+                  editable={props.editable}
+                  value={row.note}
+                  onChange={(value) => props.onChange(rowIndex, 'note', value)}
+                  placeholder="비고 입력"
+                  minHeightClass="min-h-[156px]"
+                />
+              </div>
+            </div>
+          </div>
+        ))}
       </div>
-      <div className="grid gap-4 p-4 lg:grid-cols-2">
-        <div className="space-y-2">
-          <div className="text-xs font-semibold uppercase tracking-[0.16em] text-[#667085]">금주 진행 업무</div>
-          <TextareaCell
-            editable={props.canEdit}
-            value={props.entry.thisWeek}
-            onChange={(value) => props.onChange('thisWeek', value)}
-            placeholder="이번 주 진행한 업무를 줄 단위로 적어주세요."
-            minHeightClass="min-h-[144px]"
-          />
-        </div>
-        <div className="space-y-2">
-          <div className="text-xs font-semibold uppercase tracking-[0.16em] text-[#667085]">차주 예정 업무</div>
-          <TextareaCell
-            editable={props.canEdit}
-            value={props.entry.nextWeek}
-            onChange={(value) => props.onChange('nextWeek', value)}
-            placeholder="다음 주 예정 업무를 줄 단위로 적어주세요."
-            minHeightClass="min-h-[144px]"
-          />
-        </div>
+    </SectionCard>
+  )
+}
+
+function CollectPlannedWorkTable(props: {
+  title: string
+  rows: PlannedWorkRow[]
+  editable: boolean
+  onChange: (rowIndex: number, key: keyof PlannedWorkRow, value: string) => void
+}) {
+  return (
+    <SectionCard title={`■ ${props.title}`}>
+      <div className="space-y-4 bg-white p-4">
+        {props.rows.map((row, rowIndex) => (
+          <div key={`${props.title}-collect-planned-${rowIndex}`} className="overflow-hidden rounded-2xl border border-[#d7dde4] bg-[#fcfcfd]">
+            <div className="grid gap-3 border-b border-[#e4e7ec] bg-white px-4 py-3 md:grid-cols-[minmax(0,2.4fr)_140px_140px_120px_150px_120px]">
+              <SummaryField label="프로젝트명" value={row.projectName} />
+              <SummaryField label="사업유형" value={row.category} />
+              <SummaryField label="입찰 구분" value={row.bidType} />
+              <SummaryField label="사업예산" value={row.budget} />
+              <SummaryField label="사업PM" value={row.pm} />
+              <div className="space-y-1">
+                <div className="text-[11px] font-semibold text-[#667085]">수주확률</div>
+                <InputCell
+                  editable={props.editable}
+                  value={row.probability}
+                  onChange={(value) => props.onChange(rowIndex, 'probability', value)}
+                  placeholder="수주확률"
+                />
+              </div>
+            </div>
+            <div className="grid gap-4 p-4 lg:grid-cols-2">
+              <div className="space-y-2">
+                <div className="text-xs font-semibold text-[#344054]">내용</div>
+                <TextareaCell
+                  editable={props.editable}
+                  value={row.detail}
+                  onChange={(value) => props.onChange(rowIndex, 'detail', value)}
+                  placeholder="사업관리 및 영업 진행 현황 입력"
+                  minHeightClass="min-h-[156px]"
+                />
+              </div>
+              <div className="space-y-2">
+                <div className="text-xs font-semibold text-[#344054]">비고</div>
+                <TextareaCell
+                  editable={props.editable}
+                  value={row.note}
+                  onChange={(value) => props.onChange(rowIndex, 'note', value)}
+                  placeholder="비고 입력"
+                  minHeightClass="min-h-[156px]"
+                />
+              </div>
+            </div>
+          </div>
+        ))}
       </div>
+    </SectionCard>
+  )
+}
+
+function EditableMajorWorkItems(props: {
+  rows: MajorWorkItem[]
+  editable: boolean
+  onAdd: () => void
+  onChange: (rowIndex: number, key: keyof MajorWorkItem, value: string) => void
+  onRemove: (rowIndex: number) => void
+}) {
+  return (
+    <SectionCard
+      title="■ 기타 주요 업무 항목"
+      action={props.editable ? (
+        <Button variant="ghost" size="sm" className="h-7 px-2 text-xs" onClick={props.onAdd}>
+          <Plus className="mr-1 h-3.5 w-3.5" />
+          항목 추가
+        </Button>
+      ) : undefined}
+    >
+      <div className="overflow-x-auto bg-white">
+        <table className="w-full min-w-[680px] border-collapse text-sm">
+          <thead className="bg-white text-[#344054]">
+            <tr>
+              {['항목명'].map((column) => (
+                <th key={column} className="border-b border-r border-[#d7dde4] px-3 py-2 text-left font-semibold last:border-r-0">
+                  {column}
+                </th>
+              ))}
+              {props.editable && <th className="w-[72px] border-b border-[#d7dde4] px-3 py-2 text-left font-semibold">작업</th>}
+            </tr>
+          </thead>
+          <tbody>
+            {props.rows.map((row, rowIndex) => (
+              <tr key={`major-work-${rowIndex}`} className="align-top odd:bg-white even:bg-[#fcfcfd]">
+                <EditableCell><InputCell editable={props.editable} value={row.label} onChange={(value) => props.onChange(rowIndex, 'label', value)} placeholder="예: [항해통신사업부]" /></EditableCell>
+                {props.editable && (
+                  <td className="border-t border-[#e4e7ec] px-3 py-3">
+                    <Button variant="ghost" size="sm" className="h-8 px-2 text-[#b42318]" onClick={() => props.onRemove(rowIndex)}>
+                      <Trash2 className="h-3.5 w-3.5" />
+                    </Button>
+                  </td>
+                )}
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </SectionCard>
+  )
+}
+
+function CollectMajorWorkItems(props: {
+  rows: MajorWorkItem[]
+  editable: boolean
+  onChange: (rowIndex: number, key: keyof MajorWorkItem, value: string) => void
+}) {
+  return (
+    <SectionCard title="■ 기타 주요 업무">
+      <div className="overflow-x-auto bg-white">
+        <table className="w-full min-w-[1040px] border-collapse text-sm">
+          <thead className="bg-white text-[#344054]">
+            <tr>
+              <th className="w-[220px] border-b border-r border-[#d7dde4] px-3 py-2 text-left font-semibold">항목</th>
+              <th className="border-b border-r border-[#d7dde4] px-3 py-2 text-left font-semibold">금주 진행 업무</th>
+              <th className="border-b border-[#d7dde4] px-3 py-2 text-left font-semibold">차주 예정 업무</th>
+            </tr>
+          </thead>
+          <tbody>
+            {props.rows.map((row, rowIndex) => (
+              <tr key={`collect-major-${rowIndex}`} className="align-top odd:bg-white even:bg-[#fcfcfd]">
+                <EditableCell><ReadValue value={row.label} empty="항목명 입력" /></EditableCell>
+                <EditableCell>
+                  <TextareaCell
+                    editable={props.editable}
+                    value={row.thisWeek}
+                    onChange={(value) => props.onChange(rowIndex, 'thisWeek', value)}
+                    placeholder="금주 진행 업무 입력"
+                    minHeightClass="min-h-[140px]"
+                  />
+                </EditableCell>
+                <EditableCell>
+                  <TextareaCell
+                    editable={props.editable}
+                    value={row.nextWeek}
+                    onChange={(value) => props.onChange(rowIndex, 'nextWeek', value)}
+                    placeholder="차주 예정 업무 입력"
+                    minHeightClass="min-h-[140px]"
+                  />
+                </EditableCell>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </SectionCard>
+  )
+}
+
+function SummaryField({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="space-y-1">
+      <div className="text-[11px] font-semibold text-[#667085]">{label}</div>
+      <div className="truncate text-sm text-[#101828]">{value || '-'}</div>
     </div>
   )
 }
@@ -1542,7 +1779,7 @@ function SidebarCard({ title, description, children }: { title: string; descript
   return (
     <div className="rounded-[22px] border border-[#e4e7ec] bg-[linear-gradient(180deg,#ffffff_0%,#fdfdfd_100%)] p-5 shadow-[0_12px_30px_rgba(15,23,42,0.05)]">
       <h3 className="text-base font-semibold tracking-[-0.02em] text-[#101828]">{title}</h3>
-      <p className="mt-1 text-sm text-[#667085]">{description}</p>
+      {description ? <p className="mt-1 text-sm text-[#667085]">{description}</p> : null}
       <div className="mt-4">{children}</div>
     </div>
   )
@@ -1577,8 +1814,8 @@ function WeeklyReadOnlySummary({ currentMemberEntry }: { currentMemberEntry: Mem
     <div className="rounded-2xl border border-[#d7dde4] bg-[linear-gradient(180deg,#fbfcfe_0%,#f7f9fc_100%)] px-5 py-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <div className="text-sm font-semibold text-[#101828]">팀원 입력 화면</div>
-          <div className="mt-1 text-sm text-[#667085]">사업 정보는 읽기 전용이고, 아래 내 주간 입력만 수정하면 됩니다.</div>
+          <div className="text-sm font-semibold text-[#101828]">주간보고 입력</div>
+          <div className="mt-1 text-sm text-[#667085]">윗줄 사업 정보는 참고용이고, 아래 `내용`과 `비고`를 중심으로 입력하면 됩니다.</div>
         </div>
         {currentMemberEntry && (
           <Badge variant="outline" className={`rounded-full px-2.5 text-[11px] ${currentMemberEntry.done ? 'border-[#dbeadf] bg-[#f7fbf8] text-[#14532d]' : 'border-[#f0e2bb] bg-[#fffbf0] text-[#9a6700]'}`}>
@@ -1587,6 +1824,23 @@ function WeeklyReadOnlySummary({ currentMemberEntry }: { currentMemberEntry: Mem
         )}
       </div>
     </div>
+  )
+}
+
+function ManagerCompletionOverview({
+  completedMembers,
+  pendingMembers,
+}: {
+  completedMembers: MemberEntry[]
+  pendingMembers: MemberEntry[]
+}) {
+  return (
+    <SidebarCard title="입력 현황" description="">
+      <div className="grid gap-4 lg:grid-cols-2">
+        <MemberList title="입력 완료자" members={completedMembers} tone="green" />
+        <MemberList title="미완료자" members={pendingMembers} tone="amber" />
+      </div>
+    </SidebarCard>
   )
 }
 
@@ -1611,15 +1865,16 @@ function MemberList({
           <div className="rounded-xl border border-dashed border-[#d0d5dd] px-3 py-3 text-sm text-[#667085]">해당 멤버가 없습니다.</div>
         ) : members.map((member) => (
           <div key={member.email} className={`rounded-xl border px-3 py-2 text-sm ${toneClass}`}>
-            <div className="flex items-center justify-between gap-3">
-              <span className="font-medium">{member.name}</span>
-              <span className="text-xs opacity-80">{member.email}</span>
-            </div>
-            {member.updatedAt && (
-              <div className="mt-1 text-[11px] opacity-80">
-                {formatDateTime(member.updatedAt)}
+            <div className="flex items-start justify-between gap-3">
+              <div>
+                <div className="font-medium">{member.name}</div>
+                <div className="text-xs opacity-80">{member.email}</div>
               </div>
-            )}
+              <div className="text-right text-[11px] opacity-80">
+                {member.updatedAt ? formatDateTime(member.updatedAt) : '미기록'}
+                {member.updatedByName ? <div>{member.updatedByName}</div> : null}
+              </div>
+            </div>
           </div>
         ))}
       </div>
