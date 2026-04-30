@@ -1528,7 +1528,7 @@ const createTableCellChunks = (editor: PlateEditor) => {
         match: (n) =>
           (n as { type?: string }).type === KEYS.td ||
           (n as { type?: string }).type === KEYS.th,
-      })
+      }) ?? []
     );
     cellIds = cells
       .map(([node]) => (node as { id?: string }).id)
