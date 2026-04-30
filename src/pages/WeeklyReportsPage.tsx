@@ -902,6 +902,17 @@ export function WeeklyReportsPage() {
 
               <TabsContent value="summary" className="space-y-6">
                 <div className="space-y-4">
+                  <SectionLabel index="1." title="전략회의 최종본" />
+                  <FinalStrategySection
+                    rows={payload.strategyMeetings}
+                    onChange={(rowIndex, key, value) => updatePayload((prev) => ({
+                      ...prev,
+                      strategyMeetings: prev.strategyMeetings.map((row, index) => index === rowIndex ? { ...row, [key]: value } : row),
+                    }))}
+                  />
+                </div>
+
+                <div className="space-y-4">
                   <SectionLabel index="2." title="이슈보고 최종 취합본" />
                   <FinalIssueTable
                     rows={payload.issues}
@@ -1425,65 +1436,48 @@ function EditableStrategySection(props: {
 }) {
   return (
     <div className="space-y-3">
-      <SectionLabel index="1." title="전략회의" />
-      <div className="overflow-x-auto rounded-2xl border border-[#d7dde4] bg-white">
-        <table className="w-full min-w-[1180px] border-collapse text-sm">
-          <thead className="bg-[#edf2f7] text-[#344054]">
-            <tr>
-              {['조직명', '구분', '내용', '시작일자', '계획일자', '종료일자', '조치계획 및 결과', '상태'].map((column) => (
-                <th key={column} className="border-b border-r border-[#d7dde4] px-3 py-2 text-left font-semibold last:border-r-0">
-                  {column}
-                </th>
-              ))}
-              {props.editable && (
-                <th className="w-[84px] border-b border-[#d7dde4] px-3 py-2 text-left font-semibold">
-                  <Button variant="ghost" size="sm" className="h-7 px-2 text-xs" onClick={props.onAdd}>
-                    <Plus className="mr-1 h-3.5 w-3.5" />
-                    행 추가
-                  </Button>
-                </th>
-              )}
-            </tr>
-          </thead>
-          <tbody>
-            {props.rows.map((row, rowIndex) => (
-              <tr key={`strategy-${rowIndex}`} className="align-top odd:bg-white even:bg-[#fcfcfd]">
-                <EditableCell><InputCell editable={props.editable} value={row.org} onChange={(value) => props.onChange(rowIndex, 'org', value)} placeholder="조직명" /></EditableCell>
-                <EditableCell><InputCell editable={props.editable} value={row.category} onChange={(value) => props.onChange(rowIndex, 'category', value)} placeholder="구분" /></EditableCell>
-                <EditableCell><TextareaCell editable={props.editable} value={row.content} onChange={(value) => props.onChange(rowIndex, 'content', value)} placeholder="내용" /></EditableCell>
-                <EditableCell><InputCell editable={props.editable} value={row.startDate} onChange={(value) => props.onChange(rowIndex, 'startDate', value)} placeholder="YYYY.MM.DD" /></EditableCell>
-                <EditableCell><InputCell editable={props.editable} value={row.targetDate} onChange={(value) => props.onChange(rowIndex, 'targetDate', value)} placeholder="YYYY.MM.DD" /></EditableCell>
-                <EditableCell><InputCell editable={props.editable} value={row.endDate} onChange={(value) => props.onChange(rowIndex, 'endDate', value)} placeholder="YYYY.MM.DD" /></EditableCell>
-                <EditableCell><TextareaCell editable={props.editable} value={row.action} onChange={(value) => props.onChange(rowIndex, 'action', value)} placeholder="조치계획 및 결과" /></EditableCell>
-                <EditableCell>
-                  {props.editable ? (
-                    <Select value={row.status || STRATEGY_STATUS_OPTIONS[0]} onValueChange={(value) => props.onChange(rowIndex, 'status', value)}>
-                      <SelectTrigger className="h-9 rounded-xl border-[#d0d5dd] bg-white text-sm shadow-none">
-                        <SelectValue placeholder="상태" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {STRATEGY_STATUS_OPTIONS.map((option) => (
-                          <SelectItem key={option} value={option}>{option}</SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  ) : (
-                    <ReadValue value={row.status} empty="입력 예정" />
-                  )}
-                </EditableCell>
-                {props.editable && (
-                  <td className="border-t border-[#e4e7ec] px-3 py-3">
-                    <Button variant="ghost" size="sm" className="h-8 px-2 text-[#b42318]" onClick={() => props.onRemove(rowIndex)}>
-                      <Trash2 className="h-3.5 w-3.5" />
-                    </Button>
-                  </td>
-                )}
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
+      <SectionCard
+        title="■ 전략회의"
+        action={props.editable ? (
+          <Button variant="ghost" size="sm" className="h-7 px-2 text-xs" onClick={props.onAdd}>
+            <Plus className="mr-1 h-3.5 w-3.5" />
+            행 추가
+          </Button>
+        ) : undefined}
+      >
+        <div className="space-y-4 bg-white p-4">
+          {props.rows.map((row, rowIndex) => (
+            <StrategyMeetingEditorCard
+              key={`strategy-${rowIndex}`}
+              row={row}
+              editable={props.editable}
+              onChange={(key, value) => props.onChange(rowIndex, key, value)}
+              onRemove={props.editable ? () => props.onRemove(rowIndex) : undefined}
+            />
+          ))}
+        </div>
+      </SectionCard>
     </div>
+  )
+}
+
+function FinalStrategySection(props: {
+  rows: StrategyMeetingRow[]
+  onChange: (rowIndex: number, key: keyof StrategyMeetingRow, value: string) => void
+}) {
+  return (
+    <SectionCard title="■ 전략회의">
+      <div className="space-y-4 bg-white p-4">
+        {props.rows.map((row, rowIndex) => (
+          <StrategyMeetingEditorCard
+            key={`final-strategy-${rowIndex}`}
+            row={row}
+            editable
+            onChange={(key, value) => props.onChange(rowIndex, key, value)}
+          />
+        ))}
+      </div>
+    </SectionCard>
   )
 }
 
@@ -1534,6 +1528,108 @@ function EditableIssueSection(props: {
           </tbody>
         </table>
       </div>
+    </div>
+  )
+}
+
+function StrategyMeetingEditorCard(props: {
+  row: StrategyMeetingRow
+  editable: boolean
+  onChange: (key: keyof StrategyMeetingRow, value: string) => void
+  onRemove?: () => void
+}) {
+  const row = props.row
+
+  return (
+    <div className="overflow-hidden rounded-2xl border border-[#cfd8e3] bg-[#fcfcfd] shadow-[0_8px_24px_rgba(15,23,42,0.04)]">
+      <div className="grid gap-0 border-b border-[#d6deea] bg-[linear-gradient(180deg,#eef4fb_0%,#e8f0f8_100%)] md:grid-cols-[minmax(220px,1.3fr)_minmax(260px,1.6fr)_110px_110px_110px_120px]">
+        <SummaryFieldEditor
+          label="조직명"
+          editable={props.editable}
+          value={row.org}
+          onChange={(value) => props.onChange('org', value)}
+          placeholder="조직명"
+        />
+        <SummaryFieldEditor
+          label="구분"
+          editable={props.editable}
+          value={row.category}
+          onChange={(value) => props.onChange('category', value)}
+          placeholder="구분"
+        />
+        <SummaryFieldEditor
+          label="시작일자"
+          editable={props.editable}
+          value={row.startDate}
+          onChange={(value) => props.onChange('startDate', value)}
+          placeholder="YYYY.MM.DD"
+        />
+        <SummaryFieldEditor
+          label="계획일자"
+          editable={props.editable}
+          value={row.targetDate}
+          onChange={(value) => props.onChange('targetDate', value)}
+          placeholder="YYYY.MM.DD"
+        />
+        <SummaryFieldEditor
+          label="종료일자"
+          editable={props.editable}
+          value={row.endDate}
+          onChange={(value) => props.onChange('endDate', value)}
+          placeholder="YYYY.MM.DD"
+        />
+        <div className="space-y-1 border-l border-[#d6deea] bg-[#fff8ea] px-4 py-3">
+          <div className="text-[11px] font-semibold text-[#8a5a12]">상태</div>
+          {props.editable ? (
+            <Select value={row.status || STRATEGY_STATUS_OPTIONS[0]} onValueChange={(value) => props.onChange('status', value)}>
+              <SelectTrigger className="h-9 rounded-xl border-[#d0d5dd] bg-white text-sm shadow-none">
+                <SelectValue placeholder="상태" />
+              </SelectTrigger>
+              <SelectContent>
+                {STRATEGY_STATUS_OPTIONS.map((option) => (
+                  <SelectItem key={option} value={option}>{option}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          ) : (
+            <div className="rounded-xl border border-[#e1d0aa] bg-white px-3 py-2 text-sm font-medium text-[#7a4b16]">
+              {row.status || '입력 예정'}
+            </div>
+          )}
+        </div>
+      </div>
+
+      <div className="grid gap-4 border-b border-[#d9e2ec] bg-[#f5f9ff] p-4 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.4fr)]">
+        <div className="space-y-2">
+          <div className="text-xs font-semibold text-[#34506b]">내용</div>
+          <TextareaCell
+            editable={props.editable}
+            value={row.content}
+            onChange={(value) => props.onChange('content', value)}
+            placeholder="세부 사업 수행 방안, 보고 내용 등을 입력"
+            minHeightClass="min-h-[180px]"
+          />
+        </div>
+        <div className="space-y-2">
+          <div className="text-xs font-semibold text-[#34506b]">조치계획 및 결과</div>
+          <TextareaCell
+            editable={props.editable}
+            value={row.action}
+            onChange={(value) => props.onChange('action', value)}
+            placeholder="조치계획 / 결과 / 예정 일정 등을 입력"
+            minHeightClass="min-h-[180px]"
+          />
+        </div>
+      </div>
+
+      {props.onRemove ? (
+        <div className="flex justify-end bg-[#fffdfa] px-4 py-3">
+          <Button variant="ghost" size="sm" className="h-8 px-2 text-[#b42318]" onClick={props.onRemove}>
+            <Trash2 className="mr-1 h-3.5 w-3.5" />
+            삭제
+          </Button>
+        </div>
+      ) : null}
     </div>
   )
 }
@@ -2358,6 +2454,32 @@ function SummaryField({ label, value }: { label: string; value: string }) {
     <div className="space-y-1 border-r border-[#d6deea] px-4 py-3 last:border-r-0">
       <div className="text-[11px] font-semibold text-[#5e7188]">{label}</div>
       <div className="whitespace-pre-wrap break-words text-sm font-medium leading-6 text-[#101828]">{value || '-'}</div>
+    </div>
+  )
+}
+
+function SummaryFieldEditor(props: {
+  label: string
+  value: string
+  editable: boolean
+  onChange: (value: string) => void
+  placeholder: string
+}) {
+  return (
+    <div className="space-y-1 border-r border-[#d6deea] px-4 py-3 last:border-r-0">
+      <div className="text-[11px] font-semibold text-[#5e7188]">{props.label}</div>
+      {props.editable ? (
+        <InputCell
+          editable
+          value={props.value}
+          onChange={props.onChange}
+          placeholder={props.placeholder}
+        />
+      ) : (
+        <div className="whitespace-pre-wrap break-words text-sm font-medium leading-6 text-[#101828]">
+          {props.value || '-'}
+        </div>
+      )}
     </div>
   )
 }
