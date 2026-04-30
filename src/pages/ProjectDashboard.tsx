@@ -318,14 +318,14 @@ export function ProjectDashboard() {
     const status = computeStatus(planned, actual)
     const statusLabel = status === 'green' ? '정상' : status === 'yellow' ? '주의' : '지연'
     const statusClasses = {
-      green: 'bg-emerald-50 text-emerald-700 border-emerald-200',
-      yellow: 'bg-amber-50 text-amber-700 border-amber-200',
-      red: 'bg-rose-50 text-rose-700 border-rose-200',
+      green: 'bg-[#eaf4ec] text-[#0a2e0e] border-[#bfd8c3]',
+      yellow: 'bg-[#f5e9d4] text-[#8a5b13] border-[#e4c88d]',
+      red: 'bg-[#f7e3da] text-[#aa2d00] border-[#e6b8a7]',
     }[status]
     const dotClass = {
-      green: 'bg-emerald-500',
-      yellow: 'bg-amber-500',
-      red: 'bg-rose-500',
+      green: 'bg-[#0a2e0e]',
+      yellow: 'bg-[#d9a441]',
+      red: 'bg-[#aa2d00]',
     }[status]
     const remaining = daysBetween(p.end_date)
     const dLabel = remaining >= 0 ? `D-${remaining}` : `D+${-remaining} 초과`
@@ -336,11 +336,14 @@ export function ProjectDashboard() {
         className="project-card group"
         onClick={() => navigate(`/projects/${p.id}`)}
       >
-        <div className="h-1.5 -mx-4 -mt-4 mb-3 rounded-t-xl bg-gradient-to-r from-blue-500 via-sky-500 to-cyan-500" />
+        <div className={cn(
+          'h-1.5 -mx-4 md:-mx-5 -mt-4 md:-mt-5 mb-4 rounded-t-xl',
+          status === 'green' ? 'bg-[#0a2e0e]' : status === 'yellow' ? 'bg-[#d9a441]' : 'bg-[#aa2d00]'
+        )} />
 
         {/* 헤더 */}
         <div className="project-card-head">
-          <h3 className="text-base font-bold truncate flex-1 text-slate-800">{p.name}</h3>
+          <h3 className="text-lg font-medium truncate flex-1 tracking-[-0.02em] text-[#181d26]">{p.name}</h3>
           <div className="flex items-center gap-1 flex-shrink-0">
             <span className={cn('project-chip', statusClasses)}>
               <span className={cn('w-1.5 h-1.5 rounded-full', dotClass)} />
@@ -367,7 +370,7 @@ export function ProjectDashboard() {
           {isAdmin ? (
             <DropdownMenu>
               <DropdownMenuTrigger>
-                <button className="project-chip text-slate-600 hover:text-primary border-dashed border-slate-300 hover:border-primary/40 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40">
+                <button className="project-chip text-[#41454d] border-dashed border-[#dddddd] hover:border-[#9297a0] transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/30">
                   <Tag className="h-2.5 w-2.5" />
                   {p.category || '카테고리 없음'}
                   <ChevronDown className="h-2.5 w-2.5" />
@@ -400,25 +403,25 @@ export function ProjectDashboard() {
             </DropdownMenu>
           ) : (
             p.category ? (
-              <span className="project-chip text-slate-600 bg-slate-100 border-slate-200">
+              <span className="project-chip text-[#41454d] bg-[#f8fafc] border-[#dddddd]">
                 <Tag className="h-2.5 w-2.5" />
                 {p.category}
               </span>
             ) : (
-              <span className="project-chip text-slate-400 border-slate-200">
+              <span className="project-chip text-[#727780] border-[#dddddd] bg-white">
                 <Tag className="h-2.5 w-2.5" />
                 카테고리 없음
               </span>
             )
           )}
-          <span className={cn('project-chip', remaining < 0 ? 'text-rose-600 border-rose-200 bg-rose-50' : 'text-slate-600 border-slate-200 bg-slate-100')}>
+          <span className={cn('project-chip', remaining < 0 ? 'text-[#aa2d00] border-[#e6b8a7] bg-[#f7e3da]' : 'text-[#41454d] border-[#dddddd] bg-[#f8fafc]')}>
             <Timer className="h-3 w-3" />
             {dLabel}
           </span>
         </div>
 
         {/* 날짜 + 잔여일수 */}
-        <div className="flex items-center gap-3 text-[11px] text-slate-500">
+        <div className="flex items-center gap-3 text-[11px] text-[#41454d]">
           <span className="flex items-center gap-1">
             <Calendar className="h-3 w-3" />
             {p.start_date} ~ {p.end_date}
@@ -427,31 +430,31 @@ export function ProjectDashboard() {
 
         {/* 설명 */}
         {p.description && (
-          <p className="text-[11px] text-slate-500 line-clamp-2">{p.description}</p>
+          <p className="text-[11px] leading-6 text-[#41454d] line-clamp-2">{p.description}</p>
         )}
 
         {/* 진행률 비교 */}
-        <div className="space-y-2 rounded-lg border border-slate-200 bg-slate-50 p-2">
+        <div className="space-y-2 rounded-lg border border-[#e6e7ea] bg-[#f8fafc] p-3">
           <div className="flex items-center gap-2">
-            <span className="text-[10px] font-medium text-muted-foreground/70 w-7">계획</span>
-            <div className="flex-1 h-1.5 bg-muted rounded-full overflow-hidden">
-              <div className="h-full bg-sky-400 rounded-full transition-all" style={{ width: `${Math.round(planned * 100)}%` }} />
+            <span className="text-[10px] font-medium text-[#727780] w-7">계획</span>
+            <div className="flex-1 h-1.5 bg-[#e6e7ea] rounded-full overflow-hidden">
+              <div className="h-full bg-[#d9a441] rounded-full transition-all" style={{ width: `${Math.round(planned * 100)}%` }} />
             </div>
-            <span className="text-[10px] font-semibold tabular-nums w-8 text-right text-muted-foreground">{Math.round(planned * 100)}%</span>
+            <span className="text-[10px] font-medium tabular-nums w-8 text-right text-[#727780]">{Math.round(planned * 100)}%</span>
           </div>
           <div className="flex items-center gap-2">
-            <span className="text-[10px] font-medium text-muted-foreground/70 w-7">실제</span>
-            <div className="flex-1 h-1.5 bg-muted rounded-full overflow-hidden">
-              <div className="h-full bg-primary rounded-full transition-all" style={{ width: `${Math.round(actual * 100)}%` }} />
+            <span className="text-[10px] font-medium text-[#727780] w-7">실제</span>
+            <div className="flex-1 h-1.5 bg-[#e6e7ea] rounded-full overflow-hidden">
+              <div className="h-full bg-[#181d26] rounded-full transition-all" style={{ width: `${Math.round(actual * 100)}%` }} />
             </div>
-            <span className="text-[10px] font-semibold tabular-nums w-8 text-right">{Math.round(actual * 100)}%</span>
+            <span className="text-[10px] font-medium tabular-nums w-8 text-right text-[#181d26]">{Math.round(actual * 100)}%</span>
           </div>
         </div>
 
         {/* 작업 요약 */}
-        <div className="flex items-center gap-3 text-[10px] text-slate-600 pt-1 border-t border-slate-200">
+        <div className="flex items-center gap-3 text-[10px] text-[#41454d] pt-2 border-t border-[#e6e7ea]">
           <span className="flex items-center gap-1">
-            <CheckCircle2 className="h-3 w-3 text-emerald-500" />
+            <CheckCircle2 className="h-3 w-3 text-[#0a2e0e]" />
             <span className="font-semibold text-foreground/80 tabular-nums">{stats?.doneCount ?? 0}</span>
             <span className="text-muted-foreground/50">/</span>
             <span className="tabular-nums">{stats?.totalCount ?? 0}</span>
@@ -517,28 +520,29 @@ export function ProjectDashboard() {
         <section className="project-hero">
           <div className="project-hero-head">
             <div>
+              <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[#41454d]">Portfolio Overview</p>
               <h1 className="project-hero-title">프로젝트 상황판</h1>
-              <p className="project-hero-sub">전체 프로젝트의 계획 대비 실적, 리스크, 일정 압박을 한 번에 확인합니다.</p>
+              <p className="project-hero-sub">전체 프로젝트의 계획 대비 실적, 일정 압박, 협업 흐름을 조용한 밀도로 확인하는 화면입니다.</p>
             </div>
           </div>
           <div className="project-hero-grid">
             <div className="project-hero-item">
-              <FolderKanban className="h-3.5 w-3.5 text-blue-600 mb-1" />
+              <FolderKanban className="h-3.5 w-3.5 text-[#aa2d00] mb-1" />
               <strong>{projects.length}</strong>
               <span>전체 프로젝트</span>
             </div>
             <div className="project-hero-item">
-              <Gauge className="h-3.5 w-3.5 text-blue-600 mb-1" />
+              <Gauge className="h-3.5 w-3.5 text-[#181d26] mb-1" />
               <strong>{Math.round(dashboardSummary.avgPlanned * 100)}%</strong>
               <span>평균 계획 진척</span>
             </div>
             <div className="project-hero-item">
-              <CheckCircle2 className="h-3.5 w-3.5 text-blue-600 mb-1" />
+              <CheckCircle2 className="h-3.5 w-3.5 text-[#0a2e0e] mb-1" />
               <strong>{Math.round(dashboardSummary.avgActual * 100)}%</strong>
               <span>평균 실제 진척</span>
             </div>
             <div className="project-hero-item">
-              <AlertTriangle className="h-3.5 w-3.5 text-blue-600 mb-1" />
+              <AlertTriangle className="h-3.5 w-3.5 text-[#d9a441] mb-1" />
               <strong>{dashboardSummary.delayedCount}</strong>
               <span>지연 프로젝트</span>
             </div>
@@ -547,8 +551,8 @@ export function ProjectDashboard() {
 
         <div className="project-toolbar">
           <div>
-            <h2 className="text-lg font-bold tracking-tight text-slate-800">프로젝트 목록</h2>
-            <p className="text-xs text-slate-500 mt-0.5">마일스톤 총 {dashboardSummary.totalMilestones}개</p>
+            <h2 className="text-xl font-medium tracking-[-0.02em] text-[#181d26]">프로젝트 목록</h2>
+            <p className="text-xs text-[#41454d] mt-1">마일스톤 총 {dashboardSummary.totalMilestones}개</p>
           </div>
           <div className="project-toolbar-actions">
             {/* 정렬 */}
@@ -618,21 +622,22 @@ export function ProjectDashboard() {
           <div className="space-y-6">
             {grouped.map(([category, list]) => (
               <div key={category}>
-                <div className="flex items-center gap-2 mb-3">
+                <div className="project-list-group">
                   <Folder className="h-3.5 w-3.5 text-muted-foreground/60" />
-                  <h2 className="text-xs font-bold uppercase tracking-wider text-muted-foreground/80">{category}</h2>
-                  <span className="text-[10px] text-muted-foreground/50">({list.length})</span>
-                  <div className="flex-1 h-px bg-border/50 ml-1" />
+                  <h2 className="text-xs font-semibold uppercase tracking-[0.16em] text-[#41454d]">{category}</h2>
+                  <span className="text-[10px] text-[#727780]">({list.length})</span>
+                  <div className="project-list-group-line" />
                   {isAdmin && category !== '카테고리 없음' && (
                     <button
                       onClick={() => handleDeleteCategory(category)}
-                      className="text-[10px] text-muted-foreground/50 hover:text-rose-500 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 rounded-sm"
+                      className="text-[10px] text-[#727780] hover:text-[#aa2d00] transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 rounded-sm"
                       title="카테고리 삭제 (관리자 전용)"
                     >
                       × 제거
                     </button>
                   )}
                 </div>
+
                 {list.length === 0 ? (
                   <div className="border border-dashed border-border/40 rounded-lg py-6 text-center">
                     <FolderOpen className="h-6 w-6 mx-auto text-muted-foreground/20 mb-1.5" />

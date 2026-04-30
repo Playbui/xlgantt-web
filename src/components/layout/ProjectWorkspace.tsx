@@ -1,6 +1,6 @@
 import { useEffect } from 'react'
 import { Navigate, useNavigate, useParams } from 'react-router-dom'
-import { ArrowRight, ClipboardList, Home, Network } from 'lucide-react'
+import { ArrowRight, CalendarDays, ClipboardList, Home, Network, Timer } from 'lucide-react'
 import { AppShell } from '@/components/layout/AppShell'
 import { GanttView } from '@/components/gantt/GanttView'
 import { ProgressDashboard } from '@/components/progress/ProgressDashboard'
@@ -79,9 +79,9 @@ function ProjectEntry({
   }
 
   return (
-    <main className="min-h-screen bg-slate-50 text-slate-950">
-      <header className="border-b border-slate-200 bg-white">
-        <div className="mx-auto flex h-14 max-w-6xl items-center justify-between px-5">
+    <main className="project-entry-shell">
+      <header className="project-entry-header">
+        <div className="project-entry-inner flex h-14 items-center justify-between">
           <button
             onClick={() => navigate('/projects')}
             className="flex items-center gap-2 rounded-md px-2 py-1.5 text-sm font-semibold text-slate-700 hover:bg-slate-100"
@@ -96,29 +96,67 @@ function ProjectEntry({
         </div>
       </header>
 
-      <section className="mx-auto max-w-6xl px-5 py-10">
-        <div className="mb-8">
-          <p className="text-sm font-semibold text-slate-500">프로젝트 작업 선택</p>
-          <h1 className="mt-2 text-3xl font-bold tracking-tight text-slate-950">{project.name}</h1>
-          {project.description && <p className="mt-3 max-w-3xl text-sm leading-6 text-slate-600">{project.description}</p>}
+      <section className="project-entry-inner">
+        <div className="project-entry-hero">
+          <div>
+            <p className="project-entry-kicker">Project Workspace</p>
+            <h1 className="project-entry-title">{project.name}</h1>
+            <p className="project-entry-copy">
+              같은 프로젝트 안에서도 외부 협업용 WBS와 내부 처리용 이슈 화면은 성격이 다르다. 필요한 작업면으로 바로 들어갈 수 있게 정리했다.
+            </p>
+            {project.description && (
+              <p className="mt-4 max-w-2xl text-sm leading-7 text-[#727780]">{project.description}</p>
+            )}
+          </div>
+
+          <aside className="project-entry-aside">
+            <div className="project-entry-aside-grid">
+              <div className="project-entry-stat">
+                <p className="project-entry-stat-label">시작일</p>
+                <p className="project-entry-stat-value">{project.start_date}</p>
+              </div>
+              <div className="project-entry-stat">
+                <p className="project-entry-stat-label">종료일</p>
+                <p className="project-entry-stat-value">{project.end_date}</p>
+              </div>
+              <div className="project-entry-stat">
+                <p className="project-entry-stat-label">기준일</p>
+                <p className="project-entry-stat-value">{project.status_date || '미설정'}</p>
+              </div>
+              <div className="project-entry-stat">
+                <p className="project-entry-stat-label">화면 권한</p>
+                <p className="project-entry-stat-value">{canAccessWbs && canAccessIssues ? 'WBS + 이슈' : canAccessWbs ? 'WBS' : '이슈'}</p>
+              </div>
+            </div>
+          </aside>
         </div>
 
-        <div className="grid gap-4 md:grid-cols-2">
+        <div className="project-entry-actions">
           {canAccessWbs && (
             <button
               onClick={() => navigate(`/projects/${project.id}/wbs`)}
-              className="group flex min-h-48 flex-col justify-between rounded-lg border border-slate-300 bg-white p-6 text-left shadow-sm transition-colors hover:border-blue-300 hover:bg-blue-50/40"
+              className="project-entry-card project-entry-card-muted group"
             >
               <div>
-                <div className="mb-4 flex h-10 w-10 items-center justify-center rounded-md bg-blue-50 text-blue-700">
+                <div className="project-entry-icon">
                   <Network className="h-5 w-5" />
                 </div>
-                <h2 className="text-xl font-bold text-slate-950">WBS</h2>
-                <p className="mt-2 max-w-md text-sm leading-6 text-slate-600">
+                <h2 className="project-entry-card-title">WBS</h2>
+                <p className="project-entry-card-copy">
                   일정, 작업, 담당자, 진척률을 관리하는 외부 협업 중심 화면입니다.
                 </p>
+                <div className="mt-6 flex flex-wrap gap-2 text-[11px] text-[#41454d]">
+                  <span className="project-chip border-[#dddddd] bg-white text-[#41454d]">
+                    <CalendarDays className="h-3 w-3" />
+                    일정 관리
+                  </span>
+                  <span className="project-chip border-[#dddddd] bg-white text-[#41454d]">
+                    <Timer className="h-3 w-3" />
+                    진척 추적
+                  </span>
+                </div>
               </div>
-              <div className="mt-6 flex items-center gap-2 text-sm font-semibold text-blue-700">
+              <div className="project-entry-cta">
                 WBS로 들어가기
                 <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-0.5" />
               </div>
@@ -128,18 +166,26 @@ function ProjectEntry({
           {canAccessIssues && (
             <button
               onClick={() => navigate(`/issues?project=${project.id}`)}
-              className="group flex min-h-48 flex-col justify-between rounded-lg border border-slate-300 bg-white p-6 text-left shadow-sm transition-colors hover:border-emerald-300 hover:bg-emerald-50/40"
+              className="project-entry-card project-entry-card-dark group"
             >
               <div>
-                <div className="mb-4 flex h-10 w-10 items-center justify-center rounded-md bg-emerald-50 text-emerald-700">
+                <div className="project-entry-icon">
                   <ClipboardList className="h-5 w-5" />
                 </div>
-                <h2 className="text-xl font-bold text-slate-950">이슈 트래커</h2>
-                <p className="mt-2 max-w-md text-sm leading-6 text-slate-600">
+                <h2 className="project-entry-card-title">이슈 트래커</h2>
+                <p className="project-entry-card-copy">
                   내부 처리 이력, 요청 구분, 공수 로그를 관리하는 별도 업무 화면입니다.
                 </p>
+                <div className="mt-6 flex flex-wrap gap-2 text-[11px] text-white/75">
+                  <span className="project-chip border-white/15 bg-white/10 text-white">
+                    처리 이력
+                  </span>
+                  <span className="project-chip border-white/15 bg-white/10 text-white">
+                    공수 정산
+                  </span>
+                </div>
               </div>
-              <div className="mt-6 flex items-center gap-2 text-sm font-semibold text-emerald-700">
+              <div className="project-entry-cta">
                 이슈로 들어가기
                 <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-0.5" />
               </div>
