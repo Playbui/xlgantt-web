@@ -31,6 +31,7 @@ interface ProjectState {
   theme: ColorTheme
   isLoading: boolean
   projectMembers: ProjectMember[]  // 프로젝트별 멤버/역할
+  projectMembersLoadedProjectIds: string[]
   customStatuses: CustomStatus[]   // 프로젝트별 커스텀 상태
 
   loadProjects: () => Promise<void>
@@ -50,6 +51,7 @@ interface ProjectState {
   updateProjectMemberRole: (projectId: string, userId: string, role: ProjectRole) => void
   getProjectMembers: (projectId: string) => ProjectMember[]
   getMyProjectRole: (projectId: string, userId: string) => ProjectRole | null
+  canAccessWbs: (projectId: string, userId?: string | null, globalRole?: string | null) => boolean
 
   // 커스텀 상태 관리
   addCustomStatus: (projectId: string, label: string, color: string) => void
@@ -100,6 +102,7 @@ export const useProjectStore = create<ProjectState>()(persist((set, get) => ({
   theme: THEME_PRESETS[0],
   isLoading: false,
   projectMembers: [] as ProjectMember[],
+  projectMembersLoadedProjectIds: [] as string[],
   customStatuses: [] as CustomStatus[],
 
   loadProjects: async () => {
@@ -199,6 +202,11 @@ export const useProjectStore = create<ProjectState>()(persist((set, get) => ({
       .eq('project_id', projectId)
     if (error) {
       console.error('프로젝트 멤버 로드 실패:', error.message)
+      set((s) => ({
+        projectMembersLoadedProjectIds: s.projectMembersLoadedProjectIds.includes(projectId)
+          ? s.projectMembersLoadedProjectIds
+          : [...s.projectMembersLoadedProjectIds, projectId],
+      }))
       return
     }
     if (data) {
@@ -213,6 +221,9 @@ export const useProjectStore = create<ProjectState>()(persist((set, get) => ({
           ...s.projectMembers.filter((m) => m.projectId !== projectId),
           ...loaded,
         ],
+        projectMembersLoadedProjectIds: s.projectMembersLoadedProjectIds.includes(projectId)
+          ? s.projectMembersLoadedProjectIds
+          : [...s.projectMembersLoadedProjectIds, projectId],
       }))
     }
   },
@@ -277,6 +288,13 @@ export const useProjectStore = create<ProjectState>()(persist((set, get) => ({
   getMyProjectRole: (projectId, userId) => {
     const member = get().projectMembers.find((m) => m.projectId === projectId && m.userId === userId)
     return member?.role || null
+  },
+
+  canAccessWbs: (projectId, userId, globalRole) => {
+    if (!projectId) return false
+    if (globalRole === 'admin') return true
+    if (!userId) return false
+    return get().projectMembers.some((member) => member.projectId === projectId && member.userId === userId)
   },
 
   // 커스텀 상태 관리

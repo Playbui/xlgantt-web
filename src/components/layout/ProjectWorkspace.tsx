@@ -60,7 +60,13 @@ function MainContent() {
   }
 }
 
-function ProjectEntry({ canAccessIssues }: { canAccessIssues: boolean }) {
+function ProjectEntry({
+  canAccessWbs,
+  canAccessIssues,
+}: {
+  canAccessWbs: boolean
+  canAccessIssues: boolean
+}) {
   const navigate = useNavigate()
   const project = useProjectStore((s) => s.currentProject)
 
@@ -98,24 +104,26 @@ function ProjectEntry({ canAccessIssues }: { canAccessIssues: boolean }) {
         </div>
 
         <div className="grid gap-4 md:grid-cols-2">
-          <button
-            onClick={() => navigate(`/projects/${project.id}/wbs`)}
-            className="group flex min-h-48 flex-col justify-between rounded-lg border border-slate-300 bg-white p-6 text-left shadow-sm transition-colors hover:border-blue-300 hover:bg-blue-50/40"
-          >
-            <div>
-              <div className="mb-4 flex h-10 w-10 items-center justify-center rounded-md bg-blue-50 text-blue-700">
-                <Network className="h-5 w-5" />
+          {canAccessWbs && (
+            <button
+              onClick={() => navigate(`/projects/${project.id}/wbs`)}
+              className="group flex min-h-48 flex-col justify-between rounded-lg border border-slate-300 bg-white p-6 text-left shadow-sm transition-colors hover:border-blue-300 hover:bg-blue-50/40"
+            >
+              <div>
+                <div className="mb-4 flex h-10 w-10 items-center justify-center rounded-md bg-blue-50 text-blue-700">
+                  <Network className="h-5 w-5" />
+                </div>
+                <h2 className="text-xl font-bold text-slate-950">WBS</h2>
+                <p className="mt-2 max-w-md text-sm leading-6 text-slate-600">
+                  일정, 작업, 담당자, 진척률을 관리하는 외부 협업 중심 화면입니다.
+                </p>
               </div>
-              <h2 className="text-xl font-bold text-slate-950">WBS</h2>
-              <p className="mt-2 max-w-md text-sm leading-6 text-slate-600">
-                일정, 작업, 담당자, 진척률을 관리하는 외부 협업 중심 화면입니다.
-              </p>
-            </div>
-            <div className="mt-6 flex items-center gap-2 text-sm font-semibold text-blue-700">
-              WBS로 들어가기
-              <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-0.5" />
-            </div>
-          </button>
+              <div className="mt-6 flex items-center gap-2 text-sm font-semibold text-blue-700">
+                WBS로 들어가기
+                <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-0.5" />
+              </div>
+            </button>
+          )}
 
           {canAccessIssues && (
             <button
@@ -147,6 +155,12 @@ export function ProjectWorkspace({ mode = 'home' }: { mode?: WorkspaceMode }) {
   const { projectId } = useParams<{ projectId: string }>()
   const { switchProject, currentProject, setProject, loadProjectMembers, loadProjects } = useProjectStore()
   const projects = useProjectStore((s) => s.projects)
+  const currentUserId = useAuthStore((s) => s.currentUser?.id)
+  const currentUserRole = useAuthStore((s) => s.currentUser?.role)
+  const projectMembersLoadedProjectIds = useProjectStore((s) => s.projectMembersLoadedProjectIds)
+  const canAccessWbs = useProjectStore((s) =>
+    projectId ? s.canAccessWbs(projectId, currentUserId, currentUserRole) : false
+  )
   const { setTasks, setDependencies, loadTasks, loadDependencies } = useTaskStore()
   const { loadResources } = useResourceStore()
   const fetchAllUsers = useAuthStore((s) => s.fetchAllUsers)
@@ -156,9 +170,11 @@ export function ProjectWorkspace({ mode = 'home' }: { mode?: WorkspaceMode }) {
   const loadIssues = useIssueStore((s) => s.loadIssues)
   const loadIssueMembers = useIssueStore((s) => s.loadIssueMembers)
   const issueMembersLoadedProjectId = useIssueStore((s) => s.issueMembersLoadedProjectId)
-  const currentUserId = useAuthStore((s) => s.currentUser?.id)
   const canAccessIssues = useIssueStore((s) => projectId ? s.canAccessIssues(projectId, currentUserId) : false)
   const clearUndo = useUndoStore((s) => s.clear)
+  const accessReady = !!projectId
+    && projectMembersLoadedProjectIds.includes(projectId)
+    && issueMembersLoadedProjectId === projectId
 
   useEffect(() => {
     if (projectId && projects.length === 0) {
@@ -225,12 +241,52 @@ export function ProjectWorkspace({ mode = 'home' }: { mode?: WorkspaceMode }) {
 
   const isMobile = useIsMobile()
 
+  if (projectId && mode === 'wbs' && projectMembersLoadedProjectIds.includes(projectId) && !canAccessWbs) {
+    return <Navigate to={`/projects/${projectId}`} replace />
+  }
+
   if (projectId && mode === 'issues' && issueMembersLoadedProjectId === projectId && !canAccessIssues) {
     return <Navigate to={`/projects/${projectId}`} replace />
   }
 
   if (mode === 'home') {
-    return <ProjectEntry canAccessIssues={canAccessIssues} />
+    if (!projectId || !accessReady) {
+      return (
+        <div className="flex min-h-screen items-center justify-center bg-slate-50 px-6 text-sm text-slate-500">
+          프로젝트 접근 권한을 확인하는 중입니다.
+        </div>
+      )
+    }
+
+    const accessibleModes = [
+      canAccessWbs ? 'wbs' : null,
+      canAccessIssues ? 'issues' : null,
+    ].filter(Boolean)
+
+    if (accessibleModes.length === 1) {
+      return (
+        <Navigate
+          to={accessibleModes[0] === 'issues' ? `/issues?project=${projectId}` : `/projects/${projectId}/wbs`}
+          replace
+        />
+      )
+    }
+
+    if (accessibleModes.length === 0) {
+      return (
+        <main className="flex min-h-screen items-center justify-center bg-slate-50 px-6 text-center">
+          <div>
+            <p className="text-sm font-semibold text-slate-700">접근 가능한 화면이 없습니다.</p>
+            <p className="mt-2 text-sm text-slate-500">관리자에게 WBS 또는 이슈 접근 권한을 요청하세요.</p>
+            <Button className="mt-5" variant="outline" size="sm" onClick={() => window.history.back()}>
+              돌아가기
+            </Button>
+          </div>
+        </main>
+      )
+    }
+
+    return <ProjectEntry canAccessWbs={canAccessWbs} canAccessIssues={canAccessIssues} />
   }
 
   if (mode === 'issues') {
