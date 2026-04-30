@@ -141,14 +141,14 @@ export function GanttToolbar({ onOpenTaskDialog, onScrollToToday }: GanttToolbar
     // 이미 아카이브된 작업을 삭제하려는 경우 → 영구 삭제
     if (selectedTask?.archived_at) {
       if (!confirm(`"${selectedTask.task_name}"을(를) 영구 삭제하시겠습니까? 이 작업은 되돌릴 수 없습니다.`)) return
-      for (const id of selectedTaskIds) purgeTask(id)
+      for (const id of safeSelectedTaskIds) purgeTask(id)
       return
     }
 
     // 선택된 작업들 중 진행된 것과 빈 것을 분류
     const idsToArchive: string[] = []
     const idsToPurge: string[] = []
-    for (const id of selectedTaskIds) {
+    for (const id of safeSelectedTaskIds) {
       if (isTaskUntouched(id)) idsToPurge.push(id)
       else idsToArchive.push(id)
     }

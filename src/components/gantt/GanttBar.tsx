@@ -49,8 +49,9 @@ export function GanttBar({ task, rowIndex, scale, theme, onDoubleClick, onContex
   const rafRef = useRef<number | null>(null)
 
   const rect = taskToBarRect(task, scale, rowIndex)
+  const safeSelectedTaskIds = selectedTaskIds ?? new Set<string>()
 
-  const isSelected = selectedTaskIds.has(task.id)
+  const isSelected = safeSelectedTaskIds.has(task.id)
   const isLinkSource = linkMode && linkSourceTaskId === task.id
 
   // Determine bar color based on task type and theme

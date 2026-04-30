@@ -35,11 +35,12 @@ export function TaskRow({ task, rowIndex, columns, onDoubleClick, onContextMenu,
   const users = useAuthStore((s) => s.users)
   const workspaceItems = useWorkspaceStore((s) => s.items)
   const rowHeight = useUIStore((s) => s.rowHeight)
+  const safeSelectedTaskIds = selectedTaskIds ?? new Set<string>()
 
   // 레벨1 그룹 작업의 테마 색상 (colors[0] = 그룹 계획 색상)
   const level1GroupColor = task.is_group && task.wbs_level === 1 ? theme.colors[0] : undefined
 
-  const isSelected = selectedTaskIds.has(task.id)
+  const isSelected = safeSelectedTaskIds.has(task.id)
 
   // 담당자 표시 문자열 생성
   const assigneeDisplay = useMemo(() => {

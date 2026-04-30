@@ -40,6 +40,7 @@ export function GanttChart({
   const rowHeight = useUIStore((s) => s.rowHeight)
   const project = useProjectStore((s) => s.currentProject)
   const selectedTaskIds = useTaskStore((s) => s.selectedTaskIds)
+  const safeSelectedTaskIds = selectedTaskIds ?? new Set<string>()
 
   // ESC key to cancel link mode
   useEffect(() => {
@@ -203,7 +204,7 @@ export function GanttChart({
 
           {/* Selected row highlights — TaskRow의 선택 색과 동기화 */}
           {tasks.map((task, index) => {
-            if (!selectedTaskIds.has(task.id)) return null
+            if (!safeSelectedTaskIds.has(task.id)) return null
             return (
               <g key={`sel-${task.id}`} filter="url(#selected-row-shadow)">
                 <rect
