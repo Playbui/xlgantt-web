@@ -1089,7 +1089,7 @@ function TableBordersDropdownMenuContent(
         match: (node) =>
           (node as { type?: string }).type === KEYS.td ||
           (node as { type?: string }).type === KEYS.th,
-      })
+      }) ?? []
     );
 
     if (selectionCellEntries.length > 0) {
@@ -1112,7 +1112,7 @@ function TableBordersDropdownMenuContent(
         match: (node) =>
           (node as { type?: string }).type === KEYS.td ||
           (node as { type?: string }).type === KEYS.th,
-      })
+      }) ?? []
     ).map(([, path]) => path);
   }, [editor]);
   const getActiveCellPaths = React.useCallback(() => {
@@ -1281,7 +1281,7 @@ function ColorDropdownMenu({
         match: (node) =>
           (node as { type?: string }).type === KEYS.td ||
           (node as { type?: string }).type === KEYS.th,
-      })
+      }) ?? []
     );
 
     if (selectionCellEntries.length > 0) {
@@ -1304,7 +1304,7 @@ function ColorDropdownMenu({
         match: (node) =>
           (node as { type?: string }).type === KEYS.td ||
           (node as { type?: string }).type === KEYS.th,
-      })
+      }) ?? []
     );
 
     return restoredSelectionCellEntries.map(([, path]) => path);
