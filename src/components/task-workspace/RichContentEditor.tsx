@@ -84,6 +84,15 @@ function createEditorValue(html: string, plugins = BASE_EDITOR_PLUGINS) {
   ) as Value
 }
 
+function fileToDataUrl(file: File) {
+  return new Promise<string>((resolve, reject) => {
+    const reader = new FileReader()
+    reader.onload = () => resolve(typeof reader.result === 'string' ? reader.result : '')
+    reader.onerror = () => reject(reader.error ?? new Error('이미지 미리보기 생성 실패'))
+    reader.readAsDataURL(file)
+  })
+}
+
 export function RichContentEditor({
   value,
   onChange,
@@ -113,6 +122,14 @@ export function RichContentEditor({
     value: createEditorValue(value || '<p></p>', plugins),
   })
   const plateEditor = editor as any
+
+  const syncEditorHtml = useCallback((html: string) => {
+    const normalized = isRichTextEmpty(html) ? '' : normalizeRichTextHtml(html)
+    syncLockRef.current = true
+    lastSyncedValueRef.current = normalized
+    plateEditor.tf.setValue(createEditorValue(normalized || '<p></p>', plugins))
+    onChange(normalized)
+  }, [onChange, plateEditor, plugins])
 
   const handleValueChange = useCallback((change?: { editor?: unknown; value?: unknown }) => {
     const currentEditor = (change?.editor ?? editor) as any
@@ -153,12 +170,30 @@ export function RichContentEditor({
     if (!enableImages || !editor || files.length === 0) return
 
     if (onUploadImages) {
-      const urls = await onUploadImages(files)
-      for (const url of urls) {
-        if (!url) continue
-        insertImage(plateEditor, url)
-      }
+      const previewUrls = await Promise.all(files.map((file) => fileToDataUrl(file)))
+      previewUrls.forEach((previewUrl) => {
+        if (!previewUrl) return
+        insertImage(plateEditor, previewUrl)
+      })
       window.setTimeout(() => handleValueChange({ editor }), 0)
+
+      void (async () => {
+        const uploadedUrls = await onUploadImages(files)
+        const currentHtml = serializeRichTextValue(plateEditor.children as Value)
+        let nextHtml = currentHtml
+
+        previewUrls.forEach((previewUrl, index) => {
+          const uploadedUrl = uploadedUrls[index]
+          if (!previewUrl || !uploadedUrl) return
+          nextHtml = nextHtml.split(previewUrl).join(uploadedUrl)
+        })
+
+        if (nextHtml !== currentHtml) {
+          syncEditorHtml(nextHtml)
+        }
+      })().catch((error) => {
+        console.error('이미지 업로드 후 본문 동기화 실패:', error)
+      })
       return
     }
 
