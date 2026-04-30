@@ -859,6 +859,15 @@ export function WeeklyReportsPage() {
                     }))}
                   />
                 </div>
+
+                <SidebarCard title="참고사항" description="사업등록 단계에서 팀장 참고 메모를 남깁니다.">
+                  <Textarea
+                    value={payload.leaderMemo}
+                    onChange={(event) => updatePayload((prev) => ({ ...prev, leaderMemo: event.target.value }))}
+                    placeholder="예: 미완료 2명 오전까지 확인 / 표현 통일 필요"
+                    className="min-h-[120px] rounded-2xl border-[#d0d5dd] bg-white"
+                  />
+                </SidebarCard>
               </TabsContent>
 
               <TabsContent value="collect" className="space-y-6">
@@ -867,14 +876,6 @@ export function WeeklyReportsPage() {
                     completedMembers={completedMembers}
                     pendingMembers={pendingMembers}
                   />
-                  <SidebarCard title="팀장 메모" description="최종 취합 전에 남길 메모만 간단히 정리합니다.">
-                    <Textarea
-                      value={payload.leaderMemo}
-                      onChange={(event) => updatePayload((prev) => ({ ...prev, leaderMemo: event.target.value }))}
-                      placeholder="예: 미완료 2명 오전까지 확인 / 표현 통일 필요"
-                      className="min-h-[120px] rounded-2xl border-[#d0d5dd] bg-white"
-                    />
-                  </SidebarCard>
                 </div>
               </TabsContent>
 
