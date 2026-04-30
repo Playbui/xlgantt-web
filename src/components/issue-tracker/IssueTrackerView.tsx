@@ -12,12 +12,12 @@ import { supabase } from '@/lib/supabase'
 import { cn } from '@/lib/utils'
 
 const statusClasses: Record<IssueItem['status'], string> = {
-  접수: 'bg-sky-50 text-sky-700 border-sky-200',
-  검토: 'bg-violet-50 text-violet-700 border-violet-200',
-  작업중: 'bg-amber-50 text-amber-700 border-amber-200',
-  검수요청: 'bg-blue-50 text-blue-700 border-blue-200',
-  완료: 'bg-emerald-50 text-emerald-700 border-emerald-200',
-  보류: 'bg-slate-100 text-slate-700 border-slate-200',
+  접수: 'bg-[#eef4fb] text-[#1b61c9] border-[#bfd2ee]',
+  검토: 'bg-[#f5edf8] text-[#7a4ea3] border-[#dac8ea]',
+  작업중: 'bg-[#f5e9d4] text-[#8a5b13] border-[#e4c88d]',
+  검수요청: 'bg-[#eef4fb] text-[#254fad] border-[#bfd2ee]',
+  완료: 'bg-[#eaf4ec] text-[#0a2e0e] border-[#bfd8c3]',
+  보류: 'bg-[#f3f4f6] text-[#41454d] border-[#dddddd]',
 }
 
 const priorityClasses: Record<IssueItem['priority'], string> = {
@@ -28,10 +28,10 @@ const priorityClasses: Record<IssueItem['priority'], string> = {
 }
 
 const priorityBadgeClasses: Record<IssueItem['priority'], string> = {
-  low: 'bg-slate-50 text-slate-600 border-slate-200',
-  normal: 'bg-slate-50 text-slate-700 border-slate-200',
-  high: 'bg-orange-50 text-orange-700 border-orange-200',
-  urgent: 'bg-red-50 text-red-700 border-red-200',
+  low: 'bg-[#f3f4f6] text-[#727780] border-[#dddddd]',
+  normal: 'bg-[#f8fafc] text-[#41454d] border-[#dddddd]',
+  high: 'bg-[#f8eadf] text-[#aa2d00] border-[#e7c0a8]',
+  urgent: 'bg-[#f7e3da] text-[#aa2d00] border-[#dfb09f]',
 }
 
 const issueKindBadgeClasses = [
@@ -425,23 +425,23 @@ export function IssueTrackerView() {
   }
 
   return (
-    <main className="flex h-screen min-h-0 flex-col bg-slate-50/60">
-      <div className="border-b bg-white px-4 py-2">
+    <main className="flex h-screen min-h-0 flex-col bg-[linear-gradient(180deg,#ffffff_0%,#fbfaf7_100%)]">
+      <div className="border-b border-[#dddddd] bg-white/95 px-4 py-2 backdrop-blur-md">
         <div className="flex items-center justify-between gap-3">
           <button
             onClick={() => navigate('/projects')}
-            className="flex items-center gap-2 rounded-md px-2 py-1.5 text-sm font-semibold text-slate-700 hover:bg-slate-100"
+            className="flex items-center gap-2 rounded-md px-2 py-1.5 text-sm font-semibold text-[#41454d] hover:bg-[#f5f2ea]"
           >
             <ArrowLeft className="h-4 w-4" />
             프로젝트 목록
           </button>
           <div className="flex min-w-0 flex-1 flex-wrap items-center gap-x-4 gap-y-1">
-            <h1 className="text-lg font-semibold text-slate-950">이슈 트래커</h1>
-            <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-slate-600">
-              <span>전체 <strong className="text-slate-950">{summary.total}건</strong></span>
-              <span>진행 중 <strong className="text-slate-950">{summary.active}건</strong></span>
-              <span>완료 <strong className="text-slate-950">{summary.done}건</strong></span>
-              <span>누적 공수 <strong className="text-slate-950">{summary.effort.toFixed(2)} D</strong></span>
+            <h1 className="text-xl font-medium tracking-[-0.02em] text-[#181d26]">이슈 트래커</h1>
+            <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-[#41454d]">
+              <span>전체 <strong className="text-[#181d26]">{summary.total}건</strong></span>
+              <span>진행 중 <strong className="text-[#181d26]">{summary.active}건</strong></span>
+              <span>완료 <strong className="text-[#181d26]">{summary.done}건</strong></span>
+              <span>누적 공수 <strong className="text-[#181d26]">{summary.effort.toFixed(2)} D</strong></span>
             </div>
           </div>
           <div className="flex items-center gap-2">
@@ -461,12 +461,12 @@ export function IssueTrackerView() {
         </div>
       </div>
 
-      <div className="border-b bg-white px-4 py-2">
+      <div className="border-b border-[#dddddd] bg-[#fbfaf7] px-4 py-3">
         <div className="flex flex-wrap items-center gap-2">
           <select
             value={project?.id || ''}
             onChange={(event) => setSearchParams({ project: event.target.value })}
-            className="h-9 min-w-[280px] rounded-md border border-slate-300 bg-white px-3 text-sm font-semibold text-slate-800 outline-none focus:border-sky-400 focus:ring-2 focus:ring-sky-100"
+            className="h-9 min-w-[280px] rounded-md border border-[#dddddd] bg-white px-3 text-sm font-semibold text-[#181d26] outline-none focus:border-[#9297a0] focus:ring-2 focus:ring-[#f5e9d4]"
           >
             {accessibleProjects.length === 0 ? (
               <option value="">접근 가능한 프로젝트 없음</option>
@@ -475,18 +475,18 @@ export function IssueTrackerView() {
             )}
           </select>
           <div className="relative min-w-[260px] flex-1">
-            <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+            <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[#727780]" />
             <input
               value={filters.search || ''}
               onChange={(event) => setFilters({ search: event.target.value })}
               placeholder="Task ID, 제목, 내용, 등록자, 외부 요청자 검색"
-              className="h-9 w-full rounded-md border border-slate-200 bg-white pl-9 pr-3 text-sm outline-none focus:border-sky-400 focus:ring-2 focus:ring-sky-100"
+              className="h-9 w-full rounded-md border border-[#dddddd] bg-white pl-9 pr-3 text-sm outline-none focus:border-[#9297a0] focus:ring-2 focus:ring-[#f5e9d4]"
             />
           </div>
           <select
             value={filters.status || 'all'}
             onChange={(event) => setFilters({ status: event.target.value as IssueItem['status'] | 'all' })}
-            className="h-9 rounded-md border border-slate-200 bg-white px-3 text-sm outline-none focus:border-sky-400 focus:ring-2 focus:ring-sky-100"
+            className="h-9 rounded-md border border-[#dddddd] bg-white px-3 text-sm outline-none focus:border-[#9297a0] focus:ring-2 focus:ring-[#f5e9d4]"
           >
             <option value="all">상태 전체</option>
             {ISSUE_STATUSES.map((status) => <option key={status} value={status}>{status}</option>)}
@@ -494,57 +494,57 @@ export function IssueTrackerView() {
           <select
             value={filters.systemName || 'all'}
             onChange={(event) => setFilters({ systemName: event.target.value })}
-            className="h-9 rounded-md border border-slate-200 bg-white px-3 text-sm outline-none focus:border-sky-400 focus:ring-2 focus:ring-sky-100"
+            className="h-9 rounded-md border border-[#dddddd] bg-white px-3 text-sm outline-none focus:border-[#9297a0] focus:ring-2 focus:ring-[#f5e9d4]"
           >
             <option value="all">구분 전체</option>
             {issueKinds.map((name) => <option key={name} value={name}>{name}</option>)}
           </select>
-          <label className="inline-flex h-9 items-center gap-2 rounded-md border border-slate-200 bg-white px-3 text-sm font-medium text-slate-700">
+          <label className="inline-flex h-9 items-center gap-2 rounded-md border border-[#dddddd] bg-white px-3 text-sm font-medium text-[#41454d]">
             <input
               type="checkbox"
               checked={Boolean(filters.hideDone)}
               onChange={(event) => setFilters({ hideDone: event.target.checked })}
-              className="h-4 w-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500"
+              className="h-4 w-4 rounded border-[#c9ccd1] text-[#181d26] focus:ring-[#f5e9d4]"
             />
             완료 안보기
           </label>
         </div>
       </div>
 
-      <div className="grid min-h-0 flex-1 grid-cols-1 gap-3 overflow-hidden px-4 py-3 xl:grid-cols-[460px_minmax(0,1fr)]">
-        <div className="min-h-0 overflow-hidden rounded-lg border border-slate-200 bg-white">
+      <div className="grid min-h-0 flex-1 grid-cols-1 gap-3 overflow-hidden px-4 py-3 xl:grid-cols-[430px_minmax(0,1fr)]">
+        <div className="min-h-0 overflow-hidden rounded-xl border border-[#dddddd] bg-white shadow-[0_1px_2px_rgba(16,24,40,0.04)]">
           <div className="flex h-full min-h-0 flex-col">
-            <div className="border-b border-slate-200 bg-slate-50 px-3 py-2 text-sm font-semibold text-slate-900">
+            <div className="border-b border-[#dddddd] bg-[#eef4fb] px-4 py-3 text-sm font-semibold text-[#181d26]">
               이슈 목록
             </div>
             <div className="min-h-0 flex-1 overflow-auto">
               {isLoading ? (
-                <div className="px-3 py-12 text-center text-sm text-slate-500">이슈를 불러오는 중...</div>
+                <div className="px-4 py-12 text-center text-sm text-[#727780]">이슈를 불러오는 중...</div>
               ) : filteredIssues.length === 0 ? (
-                <div className="px-3 py-12 text-center text-sm text-slate-500">표시할 이슈가 없습니다.</div>
+                <div className="px-4 py-12 text-center text-sm text-[#727780]">표시할 이슈가 없습니다.</div>
               ) : (
-                <div className="divide-y divide-slate-100">
+                <div className="divide-y divide-[#ece7de]">
                   {filteredIssues.map((issue) => (
                     <button
                       key={issue.id}
                       onClick={() => selectIssue(issue.id)}
                       className={cn(
-                        'block w-full border-l-4 border-transparent px-3 py-3 text-left transition-colors hover:bg-sky-50/60',
-                        selectedIssueId === issue.id && 'border-blue-500 bg-slate-50'
+                        'block w-full border-l-[3px] border-transparent px-4 py-4 text-left transition-colors hover:bg-[#fbfaf7]',
+                        selectedIssueId === issue.id && 'border-[#181d26] bg-[#f7f3ec]'
                       )}
                     >
                       <div className="flex items-start justify-between gap-3">
                         <div className="min-w-0 flex-1">
-                          <div className="flex items-center gap-2 text-xs font-semibold text-slate-500">
+                          <div className="flex items-center gap-2 text-xs font-semibold tracking-[0.01em] text-[#727780]">
                             <span>{issue.issue_no}</span>
-                            <span className="text-slate-300">|</span>
+                            <span className="text-[#c6c8cc]">|</span>
                             <span>{formatDate(issue.created_at)}</span>
                           </div>
-                          <div className="mt-1 line-clamp-2 text-[15px] font-semibold leading-5 text-slate-950">{issue.title}</div>
+                          <div className="mt-1.5 line-clamp-2 text-[15px] font-semibold leading-5 text-[#181d26]">{issue.title}</div>
                         </div>
-                        <span className="shrink-0 text-xs font-semibold tabular-nums text-slate-600">{issue.total_effort.toFixed(2)} D</span>
+                        <span className="shrink-0 text-xs font-semibold tabular-nums text-[#41454d]">{issue.total_effort.toFixed(2)} D</span>
                       </div>
-                      <div className="mt-2 flex flex-wrap items-center gap-1.5">
+                      <div className="mt-3 flex flex-wrap items-center gap-1.5">
                         <span className={cn('rounded-full border px-2 py-0.5 text-xs font-medium', getIssueKindClass(issue.issue_type || issue.legacy_status))}>
                           {issue.issue_type || issue.legacy_status || '이슈'}
                         </span>
@@ -561,22 +561,22 @@ export function IssueTrackerView() {
           </div>
         </div>
 
-        <aside className="min-h-0 overflow-auto rounded-lg border border-slate-200 bg-white">
+        <aside className="min-h-0 overflow-auto rounded-xl border border-[#dddddd] bg-white shadow-[0_1px_2px_rgba(16,24,40,0.04)]">
           {selectedIssue ? (
             <div className="p-3">
-              <section className="rounded-lg border border-slate-200 bg-white">
-                <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-200 bg-white px-3 py-2.5">
+              <section className="overflow-hidden rounded-xl border border-[#dddddd] bg-white">
+                <div className="flex flex-wrap items-center justify-between gap-3 border-b border-[#dddddd] bg-[#eef4fb] px-4 py-3">
                   <div>
-                    <div className="text-xs font-semibold text-slate-500">이슈 번호</div>
-                    <div className="mt-0.5 text-base font-semibold text-slate-950">{selectedIssue.issue_no}</div>
+                    <div className="text-xs font-semibold tracking-[0.01em] text-[#727780]">이슈 번호</div>
+                    <div className="mt-1 text-[28px] font-semibold leading-none tracking-[-0.03em] text-[#181d26]">{selectedIssue.issue_no}</div>
                   </div>
-                  <div className="inline-flex rounded-lg border border-slate-200 bg-white/80 p-0.5">
+                  <div className="inline-flex rounded-lg border border-[#d9d3c8] bg-[#f7f3ec] p-0.5">
                     <button
                       type="button"
                       onClick={() => setDetailTab('input')}
                       className={cn(
                         'h-7 rounded-md px-4 text-sm font-semibold transition-colors',
-                        detailTab === 'input' ? 'bg-white text-slate-950 shadow-sm' : 'text-slate-500 hover:text-slate-800'
+                        detailTab === 'input' ? 'bg-white text-[#181d26] shadow-sm' : 'text-[#727780] hover:text-[#181d26]'
                       )}
                     >
                       입력
@@ -586,7 +586,7 @@ export function IssueTrackerView() {
                       onClick={() => setDetailTab('process')}
                       className={cn(
                         'h-7 rounded-md px-4 text-sm font-semibold transition-colors',
-                        detailTab === 'process' ? 'bg-white text-slate-950 shadow-sm' : 'text-slate-500 hover:text-slate-800'
+                        detailTab === 'process' ? 'bg-white text-[#181d26] shadow-sm' : 'text-[#727780] hover:text-[#181d26]'
                       )}
                     >
                       처리
@@ -599,7 +599,7 @@ export function IssueTrackerView() {
                       <button
                         type="button"
                         onClick={() => void handleDeleteSelectedIssue()}
-                        className="ml-2 inline-flex h-8 items-center gap-1.5 rounded-md border border-red-200 bg-white px-3 text-xs font-semibold text-red-600 hover:bg-red-50"
+                        className="ml-2 inline-flex h-8 items-center gap-1.5 rounded-md border border-[#dfb09f] bg-white px-3 text-xs font-semibold text-[#aa2d00] hover:bg-[#f7e3da]"
                         title="이슈 삭제"
                       >
                         <Trash2 className="h-4 w-4" />
@@ -611,19 +611,19 @@ export function IssueTrackerView() {
 
                 {detailTab === 'input' && (
                 <div className="space-y-4 p-3">
-                  <div className="flex flex-wrap items-center justify-between gap-3 rounded-md border border-slate-200 bg-slate-50/70 px-3 py-2">
-                    <div className="flex flex-wrap gap-x-6 gap-y-1 text-xs text-slate-500">
+                  <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-[#e7dfd1] bg-[#fbfaf7] px-4 py-3">
+                    <div className="flex flex-wrap gap-x-6 gap-y-1 text-xs text-[#727780]">
                       <span className="whitespace-nowrap">
-                        등록자 <strong className="ml-1 font-semibold text-slate-800">{formatUserLabel(selectedIssue.created_by, selectedIssue.internal_owner_name || selectedIssue.requester_name)}</strong>
+                        등록자 <strong className="ml-1 font-semibold text-[#181d26]">{formatUserLabel(selectedIssue.created_by, selectedIssue.internal_owner_name || selectedIssue.requester_name)}</strong>
                       </span>
                       <span className="whitespace-nowrap">
-                        등록일 <strong className="ml-1 font-semibold text-slate-800">{formatDateTime(selectedIssue.created_at)}</strong>
+                        등록일 <strong className="ml-1 font-semibold text-[#181d26]">{formatDateTime(selectedIssue.created_at)}</strong>
                       </span>
                       <span className="whitespace-nowrap">
-                        최종수정 <strong className="ml-1 font-semibold text-slate-800">{formatUserLabel(selectedIssue.updated_by, selectedIssue.internal_owner_name || selectedIssue.requester_name)}</strong>
+                        최종수정 <strong className="ml-1 font-semibold text-[#181d26]">{formatUserLabel(selectedIssue.updated_by, selectedIssue.internal_owner_name || selectedIssue.requester_name)}</strong>
                       </span>
                       <span className="whitespace-nowrap">
-                        수정일 <strong className="ml-1 font-semibold text-slate-800">{formatDateTime(selectedIssue.updated_at)}</strong>
+                        수정일 <strong className="ml-1 font-semibold text-[#181d26]">{formatDateTime(selectedIssue.updated_at)}</strong>
                       </span>
                     </div>
                     <Button
@@ -638,26 +638,26 @@ export function IssueTrackerView() {
                     </Button>
                   </div>
 
-                  <div className="rounded-md border border-slate-200 bg-white p-3">
+                  <div className="rounded-xl border border-[#dddddd] bg-white p-4">
                     <Field label="제목">
                       <input
                         value={inputDraft.title || ''}
                         onChange={(event) => setInputDraftValue({ title: event.target.value })}
-                        className="h-10 w-full rounded-md border border-slate-300 px-3 text-base font-semibold text-slate-950 outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-100"
+                        className="h-11 w-full rounded-md border border-[#d8d8d8] px-3 text-base font-semibold text-[#181d26] outline-none focus:border-[#9297a0] focus:ring-2 focus:ring-[#f5e9d4]"
                       />
                     </Field>
                   </div>
 
                   <div className="grid gap-3 xl:grid-cols-[minmax(0,1fr)_minmax(320px,0.8fr)]">
-                    <div className="overflow-hidden rounded-md border border-slate-200 bg-white">
-                      <div className="border-b border-slate-200 bg-slate-50 px-3 py-1.5 text-sm font-semibold text-slate-900">분류 / 상태</div>
-                      <div className="grid gap-3 p-3 sm:grid-cols-3">
+                    <div className="overflow-hidden rounded-xl border border-[#dddddd] bg-white">
+                      <div className="border-b border-[#dddddd] bg-[#f7f3ec] px-4 py-2 text-sm font-semibold text-[#181d26]">분류 / 상태</div>
+                      <div className="grid gap-3 p-4 sm:grid-cols-3">
                         <Field label="구분">
                           <div className="flex gap-2">
                             <select
                             value={inputDraft.issue_type || inputDraft.legacy_status || ''}
                             onChange={(event) => setInputDraftValue({ issue_type: event.target.value, legacy_status: event.target.value })}
-                              className="h-9 min-w-0 flex-1 rounded-md border border-slate-300 px-2 text-sm"
+                              className="h-9 min-w-0 flex-1 rounded-md border border-[#d8d8d8] bg-white px-2 text-sm outline-none focus:border-[#9297a0] focus:ring-2 focus:ring-[#f5e9d4]"
                             >
                               {issueKinds.length === 0 && <option value="">구분 없음</option>}
                               {issueKinds.map((kind) => <option key={kind} value={kind}>{kind}</option>)}
@@ -693,7 +693,7 @@ export function IssueTrackerView() {
                         </Field>
                       </div>
                       {showIssueKindManager && (
-                        <div className="mx-3 mb-3 rounded-lg border border-slate-200 bg-slate-50 p-3">
+                        <div className="mx-4 mb-4 rounded-lg border border-[#e7dfd1] bg-[#fbfaf7] p-3">
                           <div className="mb-2 flex gap-2">
                             <input
                               value={newIssueKind}
@@ -702,7 +702,7 @@ export function IssueTrackerView() {
                                 if (event.key === 'Enter') void handleAddIssueKind()
                               }}
                               placeholder="새 구분명"
-                              className="h-8 min-w-0 flex-1 rounded-md border border-slate-300 bg-white px-2 text-sm"
+                              className="h-8 min-w-0 flex-1 rounded-md border border-[#d8d8d8] bg-white px-2 text-sm outline-none focus:border-[#9297a0] focus:ring-2 focus:ring-[#f5e9d4]"
                             />
                             <Button type="button" size="sm" variant="outline" className="h-8" onClick={() => void handleAddIssueKind()} disabled={!newIssueKind.trim()}>
                               등록
@@ -710,7 +710,7 @@ export function IssueTrackerView() {
                           </div>
                           <div className="flex flex-wrap gap-2">
                             {issueKinds.map((kind) => (
-                              <span key={kind} className="inline-flex items-center gap-1 rounded-full border border-slate-200 bg-white px-2.5 py-1 text-xs font-medium text-slate-700">
+                              <span key={kind} className="inline-flex items-center gap-1 rounded-full border border-[#dddddd] bg-white px-2.5 py-1 text-xs font-medium text-[#41454d]">
                                 {kind}
                                 <button
                                   type="button"
@@ -727,15 +727,15 @@ export function IssueTrackerView() {
                       )}
                     </div>
 
-                    <div className="overflow-hidden rounded-md border border-slate-200 bg-white">
-                      <div className="border-b border-slate-200 bg-slate-50 px-3 py-1.5 text-sm font-semibold text-slate-900">일정</div>
-                      <div className="grid gap-3 p-3 sm:grid-cols-2">
+                    <div className="overflow-hidden rounded-xl border border-[#dddddd] bg-white">
+                      <div className="border-b border-[#dddddd] bg-[#f7f3ec] px-4 py-2 text-sm font-semibold text-[#181d26]">일정</div>
+                      <div className="grid gap-3 p-4 sm:grid-cols-2">
                         <Field label="등록일">
                           <input
                             type="date"
                             value={inputDraft.received_at || ''}
                             onChange={(event) => setInputDraftValue({ received_at: event.target.value })}
-                            className="h-9 w-full rounded-md border border-slate-300 px-2 text-sm"
+                            className="h-9 w-full rounded-md border border-[#d8d8d8] bg-white px-2 text-sm outline-none focus:border-[#9297a0] focus:ring-2 focus:ring-[#f5e9d4]"
                           />
                         </Field>
                         <Field label="마감요청일">
@@ -743,7 +743,7 @@ export function IssueTrackerView() {
                             type="date"
                             value={inputDraft.due_date || ''}
                             onChange={(event) => setInputDraftValue({ due_date: event.target.value })}
-                            className="h-9 w-full rounded-md border border-slate-300 px-2 text-sm"
+                            className="h-9 w-full rounded-md border border-[#d8d8d8] bg-white px-2 text-sm outline-none focus:border-[#9297a0] focus:ring-2 focus:ring-[#f5e9d4]"
                           />
                         </Field>
                       </div>
@@ -751,35 +751,35 @@ export function IssueTrackerView() {
                   </div>
 
                   <div className="grid gap-3 xl:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
-                    <div className="overflow-hidden rounded-md border border-slate-200 bg-white">
-                      <div className="border-b border-slate-200 bg-slate-50 px-3 py-1.5 text-sm font-semibold text-slate-900">내부 정보</div>
-                      <div className="grid gap-3 p-3 sm:grid-cols-2">
+                    <div className="overflow-hidden rounded-xl border border-[#dddddd] bg-white">
+                      <div className="border-b border-[#dddddd] bg-[#f7f3ec] px-4 py-2 text-sm font-semibold text-[#181d26]">내부 정보</div>
+                      <div className="grid gap-3 p-4 sm:grid-cols-2">
                         <Field label="프로젝트">
                           <input
                             value={project?.name || selectedIssue.system_name || ''}
                             readOnly
-                            className="h-9 w-full rounded-md border border-slate-200 bg-slate-50 px-2 text-sm text-slate-500"
+                            className="h-9 w-full rounded-md border border-[#e7dfd1] bg-[#fbfaf7] px-2 text-sm text-[#727780]"
                           />
                         </Field>
                         <Field label="등록자 / 내부 담당">
                           <input
                             value={inputDraft.internal_owner_name || inputDraft.requester_name || ''}
                             onChange={(event) => setInputDraftValue({ internal_owner_name: event.target.value, requester_name: event.target.value })}
-                            className="h-9 w-full rounded-md border border-slate-300 px-2 text-sm"
+                            className="h-9 w-full rounded-md border border-[#d8d8d8] bg-white px-2 text-sm outline-none focus:border-[#9297a0] focus:ring-2 focus:ring-[#f5e9d4]"
                           />
                         </Field>
                       </div>
                     </div>
 
-                    <div className="overflow-hidden rounded-md border border-slate-200 bg-white">
-                      <div className="border-b border-slate-200 bg-slate-50 px-3 py-1.5 text-sm font-semibold text-slate-900">요청 정보</div>
-                      <div className="grid gap-3 p-3 sm:grid-cols-2">
+                    <div className="overflow-hidden rounded-xl border border-[#dddddd] bg-white">
+                      <div className="border-b border-[#dddddd] bg-[#f7f3ec] px-4 py-2 text-sm font-semibold text-[#181d26]">요청 정보</div>
+                      <div className="grid gap-3 p-4 sm:grid-cols-2">
                         <Field label="요청처">
                           <input
                             value={inputDraft.request_source || ''}
                             onChange={(event) => setInputDraftValue({ request_source: event.target.value })}
                             placeholder="예: 발주처 / 사업부"
-                            className="h-9 w-full rounded-md border border-slate-300 px-2 text-sm"
+                            className="h-9 w-full rounded-md border border-[#d8d8d8] bg-white px-2 text-sm outline-none focus:border-[#9297a0] focus:ring-2 focus:ring-[#f5e9d4]"
                           />
                         </Field>
                         <Field label="외부 요청자">
@@ -787,16 +787,16 @@ export function IssueTrackerView() {
                             value={inputDraft.external_requester || inputDraft.source_url || ''}
                             onChange={(event) => setInputDraftValue({ external_requester: event.target.value, source_url: event.target.value })}
                             placeholder="예: 수협 홍길동"
-                            className="h-9 w-full rounded-md border border-slate-300 px-2 text-sm"
+                            className="h-9 w-full rounded-md border border-[#d8d8d8] bg-white px-2 text-sm outline-none focus:border-[#9297a0] focus:ring-2 focus:ring-[#f5e9d4]"
                           />
                         </Field>
                       </div>
                     </div>
                   </div>
 
-                  <div className="overflow-hidden rounded-md border border-slate-200 bg-white">
-                    <div className="border-b border-slate-200 bg-slate-50 px-3 py-1.5 text-sm font-semibold text-slate-900">상세 내용</div>
-                    <div className="p-3">
+                  <div className="overflow-hidden rounded-xl border border-[#dddddd] bg-white">
+                    <div className="border-b border-[#dddddd] bg-[#eef4fb] px-4 py-2 text-sm font-semibold text-[#181d26]">상세 내용</div>
+                    <div className="p-4">
                     <RichContentEditor
                       key={selectedIssue.id}
                       value={inputDraft.description || ''}
@@ -817,15 +817,15 @@ export function IssueTrackerView() {
 
               {detailTab === 'process' && (
                 <>
-              <section className="mt-3 overflow-hidden rounded-lg border border-slate-200 bg-white">
-                <div className="flex items-center justify-between border-b border-slate-200 bg-slate-50 px-3 py-2">
-                  <h2 className="flex items-center gap-2 text-sm font-semibold text-slate-900">
+              <section className="mt-3 overflow-hidden rounded-xl border border-[#dddddd] bg-white">
+                <div className="flex items-center justify-between border-b border-[#dddddd] bg-[#eef4fb] px-4 py-3">
+                  <h2 className="flex items-center gap-2 text-sm font-semibold text-[#181d26]">
                     <MessageSquareText className="h-4 w-4" />
                     처리 이력
                   </h2>
-                  <span className="text-xs text-slate-500">{selectedComments.length}개</span>
+                  <span className="text-xs text-[#727780]">{selectedComments.length}개</span>
                 </div>
-                <div className="space-y-3 p-3">
+                <div className="space-y-3 p-4">
                 <RichContentEditor
                   value={draftComment}
                   onChange={setDraftComment}
@@ -843,11 +843,11 @@ export function IssueTrackerView() {
                     <div
                       key={comment.id}
                       className={cn(
-                        'rounded-md border px-3 py-2 text-sm',
-                        comment.is_deleted ? 'border-slate-200 bg-slate-50/70 text-slate-500' : 'border-slate-100 bg-slate-50',
+                        'rounded-lg border px-3 py-3 text-sm',
+                        comment.is_deleted ? 'border-[#dddddd] bg-[#fbfaf7] text-[#727780]' : 'border-[#e7dfd1] bg-[#fbfaf7]',
                       )}
                     >
-                      <div className="mb-2 flex flex-wrap items-center justify-between gap-2 text-xs text-slate-500">
+                      <div className="mb-2 flex flex-wrap items-center justify-between gap-2 text-xs text-[#727780]">
                         <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
                           <span>
                             등록 <strong className="font-semibold text-slate-700">{comment.author_name || '작성자'}</strong>
@@ -860,7 +860,7 @@ export function IssueTrackerView() {
                             </span>
                           )}
                           {comment.is_deleted && (
-                            <span className="rounded-full border border-red-200 bg-red-50 px-2 py-0.5 font-semibold text-red-600">
+                            <span className="rounded-full border border-[#dfb09f] bg-[#f7e3da] px-2 py-0.5 font-semibold text-[#aa2d00]">
                               삭제 {comment.deleted_by_name || formatUserLabel(comment.deleted_by, '삭제자')} · {formatDateTime(comment.deleted_at)}
                             </span>
                           )}
@@ -870,7 +870,7 @@ export function IssueTrackerView() {
                             <button
                               type="button"
                               onClick={() => handleStartEditComment(comment.id, comment.body)}
-                              className="inline-flex h-7 items-center gap-1 rounded-md border border-slate-200 bg-white px-2 text-xs font-semibold text-slate-600 hover:bg-slate-100"
+                              className="inline-flex h-7 items-center gap-1 rounded-md border border-[#dddddd] bg-white px-2 text-xs font-semibold text-[#41454d] hover:bg-[#f7f3ec]"
                             >
                               <Pencil className="h-3.5 w-3.5" />
                               수정
@@ -878,7 +878,7 @@ export function IssueTrackerView() {
                             <button
                               type="button"
                               onClick={() => void handleDeleteComment(comment.id)}
-                              className="inline-flex h-7 items-center gap-1 rounded-md border border-red-200 bg-white px-2 text-xs font-semibold text-red-600 hover:bg-red-50"
+                              className="inline-flex h-7 items-center gap-1 rounded-md border border-[#dfb09f] bg-white px-2 text-xs font-semibold text-[#aa2d00] hover:bg-[#f7e3da]"
                             >
                               <Trash2 className="h-3.5 w-3.5" />
                               삭제
@@ -913,8 +913,8 @@ export function IssueTrackerView() {
                       ) : (
                         <div
                           className={cn(
-                            'prose prose-sm max-w-none text-slate-700',
-                            comment.is_deleted && 'opacity-70 line-through decoration-slate-500 decoration-2',
+                            'prose prose-sm max-w-none text-[#41454d]',
+                            comment.is_deleted && 'opacity-70 line-through decoration-[#727780] decoration-2',
                           )}
                           dangerouslySetInnerHTML={{ __html: stripRichTextState(comment.body) || richTextToPlainText(comment.body) }}
                         />
@@ -925,52 +925,52 @@ export function IssueTrackerView() {
                 </div>
               </section>
 
-              <section className="mt-3 overflow-hidden rounded-lg border border-slate-200 bg-white">
-                <div className="flex items-center justify-between border-b border-slate-200 bg-slate-50 px-3 py-2">
-                  <h2 className="text-sm font-semibold text-slate-900">공수 로그</h2>
-                  <span className="text-xs text-slate-500">{selectedIssue.total_effort.toFixed(2)} D</span>
+              <section className="mt-3 overflow-hidden rounded-xl border border-[#dddddd] bg-white">
+                <div className="flex items-center justify-between border-b border-[#dddddd] bg-[#eef4fb] px-4 py-3">
+                  <h2 className="text-sm font-semibold text-[#181d26]">공수 로그</h2>
+                  <span className="text-xs text-[#727780]">{selectedIssue.total_effort.toFixed(2)} D</span>
                 </div>
-                <div className="space-y-3 p-3">
-                <div className="grid grid-cols-[150px_150px_90px_minmax(420px,1fr)_64px] gap-2">
+                <div className="space-y-3 p-4">
+                <div className="grid gap-2 xl:grid-cols-[150px_150px_90px_minmax(320px,1fr)_72px]">
                   <input
                     type="date"
                     value={draftWorkDate}
                     onChange={(event) => setDraftWorkDate(event.target.value)}
-                    className="h-9 rounded-md border border-slate-200 px-2 text-sm"
+                    className="h-9 rounded-md border border-[#d8d8d8] bg-white px-2 text-sm outline-none focus:border-[#9297a0] focus:ring-2 focus:ring-[#f5e9d4]"
                   />
                   <input
                     value={draftWorkWorkerName}
                     onChange={(event) => setDraftWorkWorkerName(event.target.value)}
                     placeholder="작업자"
-                    className="h-9 rounded-md border border-slate-200 px-2 text-sm"
+                    className="h-9 rounded-md border border-[#d8d8d8] bg-white px-2 text-sm outline-none focus:border-[#9297a0] focus:ring-2 focus:ring-[#f5e9d4]"
                   />
                   <input
                     value={draftWorkHours}
                     onChange={(event) => setDraftWorkHours(event.target.value)}
-                    className="h-9 rounded-md border border-slate-200 px-2 text-right text-sm"
+                    className="h-9 rounded-md border border-[#d8d8d8] bg-white px-2 text-right text-sm outline-none focus:border-[#9297a0] focus:ring-2 focus:ring-[#f5e9d4]"
                   />
                   <input
                     value={draftWorkBody}
                     onChange={(event) => setDraftWorkBody(event.target.value)}
                     placeholder="작업내역"
-                    className="h-9 min-w-0 rounded-md border border-slate-200 px-2 text-sm"
+                    className="h-9 min-w-0 rounded-md border border-[#d8d8d8] bg-white px-2 text-sm outline-none focus:border-[#9297a0] focus:ring-2 focus:ring-[#f5e9d4]"
                   />
                   <Button size="sm" variant="outline" onClick={handleAddWorkLog} disabled={!draftWorkBody.trim()}>추가</Button>
                 </div>
                 <div className="space-y-2">
                   {selectedWorkLogs.slice(0, 8).map((log) => (
-                    <div key={log.id} className="rounded-md bg-slate-50 px-3 py-2 text-sm">
-                      <div className="mb-2 grid grid-cols-[160px_130px_72px_minmax(360px,1fr)_28px] items-center gap-2">
+                    <div key={log.id} className="rounded-lg border border-[#e7dfd1] bg-[#fbfaf7] px-3 py-3 text-sm">
+                      <div className="mb-2 grid gap-2 xl:grid-cols-[160px_130px_72px_minmax(260px,1fr)_28px]">
                         <input
                           defaultValue={log.worker_name}
                           onBlur={(event) => updateWorkLog(log.id, { worker_name: event.target.value })}
-                          className="h-8 rounded border border-slate-200 bg-white px-2 text-xs"
+                          className="h-8 rounded border border-[#d8d8d8] bg-white px-2 text-xs"
                         />
                         <input
                           type="date"
                           defaultValue={log.work_date}
                           onBlur={(event) => updateWorkLog(log.id, { work_date: event.target.value })}
-                          className="h-8 rounded border border-slate-200 bg-white px-2 text-xs"
+                          className="h-8 rounded border border-[#d8d8d8] bg-white px-2 text-xs"
                         />
                         <input
                           defaultValue={log.hours.toString()}
@@ -978,16 +978,16 @@ export function IssueTrackerView() {
                             const hours = Number(event.target.value)
                             updateWorkLog(log.id, { hours: Number.isFinite(hours) ? hours : log.hours })
                           }}
-                          className="h-8 rounded border border-slate-200 bg-white px-2 text-right text-xs"
+                          className="h-8 rounded border border-[#d8d8d8] bg-white px-2 text-right text-xs"
                         />
                         <input
                           defaultValue={log.body}
                           onBlur={(event) => updateWorkLog(log.id, { body: event.target.value })}
-                          className="h-8 min-w-0 rounded border border-slate-200 bg-white px-2 text-sm text-slate-700"
+                          className="h-8 min-w-0 rounded border border-[#d8d8d8] bg-white px-2 text-sm text-[#41454d]"
                         />
                         <button
                           onClick={() => deleteWorkLog(log.id)}
-                          className="flex h-7 w-7 items-center justify-center rounded text-slate-400 hover:bg-red-50 hover:text-red-600"
+                          className="flex h-7 w-7 items-center justify-center rounded text-[#727780] hover:bg-[#f7e3da] hover:text-[#aa2d00]"
                           title="공수 로그 삭제"
                         >
                           <Trash2 className="h-3.5 w-3.5" />
@@ -1002,7 +1002,7 @@ export function IssueTrackerView() {
               )}
             </div>
           ) : (
-            <div className="flex h-full items-center justify-center p-8 text-center text-sm text-slate-500">이슈를 선택하면 상세 정보가 표시됩니다.</div>
+            <div className="flex h-full items-center justify-center p-8 text-center text-sm text-[#727780]">이슈를 선택하면 상세 정보가 표시됩니다.</div>
           )}
         </aside>
       </div>

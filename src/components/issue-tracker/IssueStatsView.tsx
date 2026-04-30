@@ -144,8 +144,8 @@ function projectLabel(projects: Map<string, Project>, projectId: string) {
 
 function StatPill({ label, value }: { label: string; value: string }) {
   return (
-    <span className="whitespace-nowrap text-sm text-slate-600">
-      {label} <strong className="font-semibold text-slate-950">{value}</strong>
+    <span className="whitespace-nowrap text-sm text-[#727780]">
+      {label} <strong className="font-semibold text-[#181d26]">{value}</strong>
     </span>
   )
 }
@@ -153,23 +153,23 @@ function StatPill({ label, value }: { label: string; value: string }) {
 function RankList({ title, rows, metric = '건', value = 'count' }: { title: string; rows: RankRow[]; metric?: string; value?: 'count' | 'effort' }) {
   const max = Math.max(...rows.map((row) => value === 'effort' ? row.effort : row.count), 1)
   return (
-    <section className="overflow-hidden rounded-lg border border-slate-200 bg-white">
-      <div className="border-b border-slate-200 bg-slate-50 px-3 py-2 text-sm font-semibold text-slate-900">{title}</div>
-      <div className="divide-y divide-slate-100">
+    <section className="overflow-hidden rounded-xl border border-[#dddddd] bg-white shadow-[0_1px_2px_rgba(16,24,40,0.04)]">
+      <div className="border-b border-[#dddddd] bg-[#eef4fb] px-4 py-3 text-sm font-semibold text-[#181d26]">{title}</div>
+      <div className="divide-y divide-[#ece7de]">
         {rows.length === 0 ? (
-          <div className="px-3 py-10 text-center text-sm text-slate-500">표시할 데이터가 없습니다.</div>
+          <div className="px-4 py-10 text-center text-sm text-[#727780]">표시할 데이터가 없습니다.</div>
         ) : rows.slice(0, 8).map((row, index) => {
           const amount = value === 'effort' ? row.effort : row.count
           return (
-            <div key={row.key} className="px-3 py-2.5">
+            <div key={row.key} className="px-4 py-3">
               <div className="mb-1 flex items-center justify-between gap-3 text-sm">
-                <span className="min-w-0 truncate font-medium text-slate-800">{index + 1}. {row.label}</span>
-                <span className="shrink-0 font-semibold tabular-nums text-slate-950">
+                <span className="min-w-0 truncate font-medium text-[#41454d]">{index + 1}. {row.label}</span>
+                <span className="shrink-0 font-semibold tabular-nums text-[#181d26]">
                   {value === 'effort' ? `${formatNumber(amount, 2)} D` : `${formatNumber(amount)}${metric}`}
                 </span>
               </div>
-              <div className="h-1.5 overflow-hidden rounded-full bg-slate-100">
-                <div className="h-full rounded-full bg-slate-700" style={{ width: `${Math.max(3, (amount / max) * 100)}%` }} />
+              <div className="h-1.5 overflow-hidden rounded-full bg-[#f1ede5]">
+                <div className="h-full rounded-full bg-[#181d26]" style={{ width: `${Math.max(3, (amount / max) * 100)}%` }} />
               </div>
             </div>
           )
@@ -364,19 +364,19 @@ export function IssueStatsView() {
   const maxTrendEffort = Math.max(...stats.trendRows.map((row) => row.effort), 1)
 
   return (
-    <main className="flex min-h-screen flex-col bg-slate-50/70 text-slate-950">
-      <header className="border-b border-slate-200 bg-white px-4 py-2">
+    <main className="flex min-h-screen flex-col bg-[linear-gradient(180deg,#ffffff_0%,#fbfaf7_100%)] text-[#181d26]">
+      <header className="border-b border-[#dddddd] bg-white/95 px-4 py-2 backdrop-blur-md">
         <div className="flex items-center justify-between gap-3">
           <button
             onClick={() => navigate('/issues')}
-            className="flex items-center gap-2 rounded-md px-2 py-1.5 text-sm font-semibold text-slate-700 hover:bg-slate-100"
+            className="flex items-center gap-2 rounded-md px-2 py-1.5 text-sm font-semibold text-[#41454d] hover:bg-[#f5f2ea]"
           >
             <ArrowLeft className="h-4 w-4" />
             이슈 목록
           </button>
           <div className="flex min-w-0 flex-1 flex-wrap items-center gap-x-4 gap-y-1">
-            <h1 className="flex items-center gap-2 text-lg font-semibold text-slate-950">
-              <BarChart3 className="h-5 w-5 text-slate-600" />
+            <h1 className="flex items-center gap-2 text-xl font-medium tracking-[-0.02em] text-[#181d26]">
+              <BarChart3 className="h-5 w-5 text-[#727780]" />
               이슈 통계
             </h1>
             <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
@@ -394,12 +394,12 @@ export function IssueStatsView() {
         </div>
       </header>
 
-      <section className="border-b border-slate-200 bg-white px-4 py-2">
+      <section className="border-b border-[#dddddd] bg-[#fbfaf7] px-4 py-3">
         <div className="flex flex-wrap items-center gap-2">
           <select
             value={selectedProjectId}
             onChange={(event) => setSearchParams(event.target.value === 'all' ? {} : { project: event.target.value })}
-            className="h-9 min-w-[280px] rounded-md border border-slate-300 bg-white px-3 text-sm font-semibold text-slate-800"
+            className="h-9 min-w-[280px] rounded-md border border-[#dddddd] bg-white px-3 text-sm font-semibold text-[#181d26] outline-none focus:border-[#9297a0] focus:ring-2 focus:ring-[#f5e9d4]"
           >
             <option value="all">전체 프로젝트</option>
             {projects.map((project) => <option key={project.id} value={project.id}>{project.name}</option>)}
@@ -407,7 +407,7 @@ export function IssueStatsView() {
           <select
             value={rangeMode}
             onChange={(event) => setRangeMode(event.target.value as RangeMode)}
-            className="h-9 rounded-md border border-slate-300 bg-white px-3 text-sm"
+            className="h-9 rounded-md border border-[#dddddd] bg-white px-3 text-sm outline-none focus:border-[#9297a0] focus:ring-2 focus:ring-[#f5e9d4]"
           >
             <option value="month">최근 30일</option>
             <option value="quarter">최근 90일</option>
@@ -417,26 +417,26 @@ export function IssueStatsView() {
           </select>
           {rangeMode === 'custom' && (
             <>
-              <input type="date" value={customFrom} onChange={(event) => setCustomFrom(event.target.value)} className="h-9 rounded-md border border-slate-300 px-3 text-sm" />
-              <input type="date" value={customTo} onChange={(event) => setCustomTo(event.target.value)} className="h-9 rounded-md border border-slate-300 px-3 text-sm" />
+              <input type="date" value={customFrom} onChange={(event) => setCustomFrom(event.target.value)} className="h-9 rounded-md border border-[#dddddd] bg-white px-3 text-sm outline-none focus:border-[#9297a0] focus:ring-2 focus:ring-[#f5e9d4]" />
+              <input type="date" value={customTo} onChange={(event) => setCustomTo(event.target.value)} className="h-9 rounded-md border border-[#dddddd] bg-white px-3 text-sm outline-none focus:border-[#9297a0] focus:ring-2 focus:ring-[#f5e9d4]" />
             </>
           )}
           <select
             value={trendUnit}
             onChange={(event) => setTrendUnit(event.target.value as TrendUnit)}
-            className="h-9 rounded-md border border-slate-300 bg-white px-3 text-sm"
+            className="h-9 rounded-md border border-[#dddddd] bg-white px-3 text-sm outline-none focus:border-[#9297a0] focus:ring-2 focus:ring-[#f5e9d4]"
           >
             <option value="day">일별</option>
             <option value="week">주별</option>
             <option value="month">월별</option>
           </select>
           <div className="relative min-w-[280px] flex-1">
-            <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+            <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[#727780]" />
             <input
               value={query}
               onChange={(event) => setQuery(event.target.value)}
               placeholder="프로젝트, 이슈번호, 구분, 요청자, 요청처 검색"
-              className="h-9 w-full rounded-md border border-slate-200 bg-white pl-9 pr-3 text-sm outline-none focus:border-sky-400 focus:ring-2 focus:ring-sky-100"
+              className="h-9 w-full rounded-md border border-[#dddddd] bg-white pl-9 pr-3 text-sm outline-none focus:border-[#9297a0] focus:ring-2 focus:ring-[#f5e9d4]"
             />
           </div>
         </div>
@@ -444,18 +444,18 @@ export function IssueStatsView() {
 
       <div className="min-h-0 flex-1 overflow-auto p-4">
         {isLoading ? (
-          <div className="rounded-lg border border-slate-200 bg-white px-4 py-16 text-center text-sm text-slate-500">통계를 불러오는 중...</div>
+          <div className="rounded-xl border border-[#dddddd] bg-white px-4 py-16 text-center text-sm text-[#727780]">통계를 불러오는 중...</div>
         ) : (
           <div className="space-y-4">
-            <section className="overflow-hidden rounded-lg border border-slate-200 bg-white">
-              <div className="flex items-center gap-2 border-b border-slate-200 bg-slate-50 px-3 py-2 text-sm font-semibold text-slate-900">
-                <CalendarDays className="h-4 w-4 text-slate-500" />
+            <section className="overflow-hidden rounded-xl border border-[#dddddd] bg-white shadow-[0_1px_2px_rgba(16,24,40,0.04)]">
+              <div className="flex items-center gap-2 border-b border-[#dddddd] bg-[#eef4fb] px-4 py-3 text-sm font-semibold text-[#181d26]">
+                <CalendarDays className="h-4 w-4 text-[#727780]" />
                 프로젝트 정보와 공수
               </div>
               <div className="overflow-auto">
                 <table className="min-w-[980px] w-full text-sm">
-                  <thead className="bg-white text-xs text-slate-500">
-                    <tr className="border-b border-slate-200">
+                  <thead className="bg-white text-xs text-[#727780]">
+                    <tr className="border-b border-[#dddddd]">
                       <th className="px-3 py-2 text-left font-semibold">프로젝트</th>
                       <th className="px-3 py-2 text-left font-semibold">기간</th>
                       <th className="px-3 py-2 text-left font-semibold">기준일</th>
@@ -466,24 +466,24 @@ export function IssueStatsView() {
                       <th className="px-3 py-2 text-left font-semibold">주요 구분</th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-slate-100">
+                  <tbody className="divide-y divide-[#ece7de]">
                     {stats.projectRows.length === 0 ? (
-                      <tr><td colSpan={8} className="px-3 py-10 text-center text-slate-500">표시할 프로젝트 통계가 없습니다.</td></tr>
+                      <tr><td colSpan={8} className="px-3 py-10 text-center text-[#727780]">표시할 프로젝트 통계가 없습니다.</td></tr>
                     ) : stats.projectRows.map((row) => {
                       const issueDoneRate = row.issueCount > 0 ? (row.doneCount / row.issueCount) * 100 : 0
                       return (
-                        <tr key={row.project.id} className="hover:bg-slate-50">
+                        <tr key={row.project.id} className="hover:bg-[#fbfaf7]">
                           <td className="px-3 py-2">
-                            <div className="font-semibold text-slate-950">{row.project.name}</div>
-                            {row.project.category && <div className="text-xs text-slate-500">{row.project.category}</div>}
+                            <div className="font-semibold text-[#181d26]">{row.project.name}</div>
+                            {row.project.category && <div className="text-xs text-[#727780]">{row.project.category}</div>}
                           </td>
-                          <td className="whitespace-nowrap px-3 py-2 text-slate-700">{formatDate(row.project.start_date)} - {formatDate(row.project.end_date)}</td>
-                          <td className="whitespace-nowrap px-3 py-2 text-slate-700">{formatDate(row.project.status_date)}</td>
+                          <td className="whitespace-nowrap px-3 py-2 text-[#41454d]">{formatDate(row.project.start_date)} - {formatDate(row.project.end_date)}</td>
+                          <td className="whitespace-nowrap px-3 py-2 text-[#41454d]">{formatDate(row.project.status_date)}</td>
                           <td className="px-3 py-2 text-right tabular-nums">{formatNumber(row.periodProgress, 1)}%</td>
                           <td className="px-3 py-2 text-right tabular-nums">{formatNumber(issueDoneRate, 1)}%</td>
                           <td className="px-3 py-2 text-right tabular-nums">{formatNumber(row.issueCount)}건</td>
                           <td className="px-3 py-2 text-right font-semibold tabular-nums">{formatNumber(row.effort, 2)} D</td>
-                          <td className="px-3 py-2 text-slate-700">{row.mainType}</td>
+                          <td className="px-3 py-2 text-[#41454d]">{row.mainType}</td>
                         </tr>
                       )
                     })}
@@ -502,22 +502,22 @@ export function IssueStatsView() {
             </div>
 
             <div className="grid gap-4 xl:grid-cols-[minmax(0,0.8fr)_minmax(0,1.2fr)]">
-              <section className="overflow-hidden rounded-lg border border-slate-200 bg-white">
-                <div className="border-b border-slate-200 bg-slate-50 px-3 py-2 text-sm font-semibold text-slate-900">구분 / 상태 분포</div>
-                <div className="grid gap-0 divide-y divide-slate-100 lg:grid-cols-2 lg:divide-x lg:divide-y-0">
+              <section className="overflow-hidden rounded-xl border border-[#dddddd] bg-white shadow-[0_1px_2px_rgba(16,24,40,0.04)]">
+                <div className="border-b border-[#dddddd] bg-[#eef4fb] px-4 py-3 text-sm font-semibold text-[#181d26]">구분 / 상태 분포</div>
+                <div className="grid gap-0 divide-y divide-[#ece7de] lg:grid-cols-2 lg:divide-x lg:divide-y-0">
                   <div className="p-3">
-                    <div className="mb-2 text-xs font-semibold text-slate-500">구분</div>
+                    <div className="mb-2 text-xs font-semibold text-[#727780]">구분</div>
                     <div className="space-y-2">
                       {stats.issueTypeRows.slice(0, 8).map((row) => (
                         <div key={row.key} className="flex items-center justify-between gap-3 text-sm">
-                          <span className="truncate text-slate-700">{row.label}</span>
-                          <span className="font-semibold tabular-nums">{formatNumber(row.count)}건 · {formatNumber(row.effort, 2)}D</span>
+                          <span className="truncate text-[#41454d]">{row.label}</span>
+                          <span className="font-semibold tabular-nums text-[#181d26]">{formatNumber(row.count)}건 · {formatNumber(row.effort, 2)}D</span>
                         </div>
                       ))}
                     </div>
                   </div>
                   <div className="p-3">
-                    <div className="mb-2 text-xs font-semibold text-slate-500">상태</div>
+                    <div className="mb-2 text-xs font-semibold text-[#727780]">상태</div>
                     <div className="flex flex-wrap gap-2">
                       {ISSUE_STATUSES.map((status) => {
                         const row = stats.statusRows.find((item) => item.key === status)
@@ -532,28 +532,28 @@ export function IssueStatsView() {
                 </div>
               </section>
 
-              <section className="overflow-hidden rounded-lg border border-slate-200 bg-white">
-                <div className="border-b border-slate-200 bg-slate-50 px-3 py-2 text-sm font-semibold text-slate-900">요구 / 공수 추이</div>
+              <section className="overflow-hidden rounded-xl border border-[#dddddd] bg-white shadow-[0_1px_2px_rgba(16,24,40,0.04)]">
+                <div className="border-b border-[#dddddd] bg-[#eef4fb] px-4 py-3 text-sm font-semibold text-[#181d26]">요구 / 공수 추이</div>
                 <div className="space-y-2 p-3">
                   {stats.trendRows.length === 0 ? (
-                    <div className="py-10 text-center text-sm text-slate-500">표시할 추이 데이터가 없습니다.</div>
+                    <div className="py-10 text-center text-sm text-[#727780]">표시할 추이 데이터가 없습니다.</div>
                   ) : stats.trendRows.slice(-18).map((row) => (
                     <div key={row.key} className="grid grid-cols-[92px_minmax(0,1fr)_92px] items-center gap-3 text-sm">
-                      <span className="font-medium text-slate-600">{row.key}</span>
+                      <span className="font-medium text-[#41454d]">{row.key}</span>
                       <div className="grid gap-1">
-                        <div className="h-2 overflow-hidden rounded-full bg-slate-100">
-                          <div className="h-full rounded-full bg-sky-500" style={{ width: `${Math.max(2, (row.issues / maxTrendIssues) * 100)}%` }} />
+                        <div className="h-2 overflow-hidden rounded-full bg-[#f1ede5]">
+                          <div className="h-full rounded-full bg-[#527fbf]" style={{ width: `${Math.max(2, (row.issues / maxTrendIssues) * 100)}%` }} />
                         </div>
-                        <div className="h-2 overflow-hidden rounded-full bg-slate-100">
-                          <div className="h-full rounded-full bg-emerald-500" style={{ width: `${Math.max(2, (row.effort / maxTrendEffort) * 100)}%` }} />
+                        <div className="h-2 overflow-hidden rounded-full bg-[#f1ede5]">
+                          <div className="h-full rounded-full bg-[#181d26]" style={{ width: `${Math.max(2, (row.effort / maxTrendEffort) * 100)}%` }} />
                         </div>
                       </div>
-                      <span className="text-right text-xs tabular-nums text-slate-600">{row.issues}건 · {formatNumber(row.effort, 1)}D</span>
+                      <span className="text-right text-xs tabular-nums text-[#41454d]">{row.issues}건 · {formatNumber(row.effort, 1)}D</span>
                     </div>
                   ))}
-                  <div className="flex gap-4 pt-2 text-xs text-slate-500">
-                    <span className="inline-flex items-center gap-1.5"><span className="h-2 w-5 rounded-full bg-sky-500" />요구 건수</span>
-                    <span className="inline-flex items-center gap-1.5"><span className="h-2 w-5 rounded-full bg-emerald-500" />공수</span>
+                  <div className="flex gap-4 pt-2 text-xs text-[#727780]">
+                    <span className="inline-flex items-center gap-1.5"><span className="h-2 w-5 rounded-full bg-[#527fbf]" />요구 건수</span>
+                    <span className="inline-flex items-center gap-1.5"><span className="h-2 w-5 rounded-full bg-[#181d26]" />공수</span>
                   </div>
                 </div>
               </section>
