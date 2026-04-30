@@ -314,7 +314,7 @@ export function GanttToolbar({ onOpenTaskDialog, onScrollToToday }: GanttToolbar
     <Button
       variant="ghost"
       size="icon"
-      className="h-8 w-8"
+      className="h-8 w-8 rounded-md border border-transparent text-[#41454d] hover:border-[#dddddd] hover:bg-[#f7f3ec] hover:text-[#181d26]"
       onClick={onClick}
       disabled={disabled}
       title={label}
@@ -324,7 +324,7 @@ export function GanttToolbar({ onOpenTaskDialog, onScrollToToday }: GanttToolbar
   )
 
   return (
-    <div className="flex items-center h-10 px-4 border-b border-slate-200 dark:border-slate-800 bg-background gap-1">
+    <div className="flex h-11 items-center gap-1 border-b border-[#dddddd] bg-[#fbfaf7] px-4">
       <ToolbarButton icon={Undo2} label="실행 취소 (Ctrl+Z)" onClick={undo} disabled={!canUndo} />
       <ToolbarButton icon={Redo2} label="다시 실행 (Ctrl+Y)" onClick={redo} disabled={!canRedo} />
 
@@ -350,13 +350,13 @@ export function GanttToolbar({ onOpenTaskDialog, onScrollToToday }: GanttToolbar
       <Separator orientation="vertical" className="mx-1 h-5" />
 
       <div className="flex items-center gap-1.5 px-1">
-        <span className="text-[11px] font-medium text-muted-foreground">레벨 펼치기</span>
+        <span className="text-[11px] font-medium text-[#727780]">레벨 펼치기</span>
         {[1, 2, 3, 4, 5].map((level) => (
           <Button
             key={level}
             variant="outline"
             size="sm"
-            className="h-7 w-8 px-0 text-xs"
+            className="h-7 w-8 border-[#dddddd] bg-white px-0 text-xs text-[#41454d] hover:bg-[#f7f3ec]"
             onClick={() => void handleExpandToLevel(level)}
             title={`${level}레벨까지 펼치기`}
           >
@@ -368,7 +368,7 @@ export function GanttToolbar({ onOpenTaskDialog, onScrollToToday }: GanttToolbar
       <Separator orientation="vertical" className="mx-1 h-5" />
 
       <div className="flex items-center gap-2 px-1">
-        <span className="text-[11px] font-medium text-muted-foreground">줄간격</span>
+        <span className="text-[11px] font-medium text-[#727780]">줄간격</span>
         <input
           type="range"
           min={20}
@@ -379,7 +379,7 @@ export function GanttToolbar({ onOpenTaskDialog, onScrollToToday }: GanttToolbar
           className="h-1.5 w-24 accent-primary"
           title="줄간격 조절"
         />
-        <span className="w-5 text-right text-[11px] font-semibold tabular-nums text-primary">{rowHeight}</span>
+        <span className="w-5 text-right text-[11px] font-semibold tabular-nums text-[#181d26]">{rowHeight}</span>
       </div>
 
       <Separator orientation="vertical" className="mx-1 h-5" />
@@ -400,14 +400,14 @@ export function GanttToolbar({ onOpenTaskDialog, onScrollToToday }: GanttToolbar
           <Button
             variant="ghost"
             size="icon"
-            className="h-8 w-8"
+            className="h-8 w-8 rounded-md border border-transparent text-[#41454d] hover:border-[#dddddd] hover:bg-[#f7f3ec] hover:text-[#181d26]"
             title={canManageWbsImport ? 'WBS 일괄등록 도구' : '관리자 또는 PM만 사용할 수 있습니다'}
             disabled={!canManageWbsImport}
           >
             <FileSpreadsheet className="h-4 w-4" />
           </Button>
         </DropdownMenuTrigger>
-        <DropdownMenuContent align="start" className="w-48">
+        <DropdownMenuContent align="start" className="w-48 border-[#dddddd] bg-white">
           <DropdownMenuGroup>
             <DropdownMenuLabel>WBS 일괄등록</DropdownMenuLabel>
             <DropdownMenuSeparator />
@@ -428,7 +428,12 @@ export function GanttToolbar({ onOpenTaskDialog, onScrollToToday }: GanttToolbar
       <Button
         variant={showProgressLine ? 'default' : 'ghost'}
         size="icon"
-        className="h-8 w-8"
+        className={cn(
+          'h-8 w-8 rounded-md',
+          showProgressLine
+            ? 'bg-[#181d26] text-white hover:bg-[#2a3140]'
+            : 'border border-transparent text-[#41454d] hover:border-[#dddddd] hover:bg-[#f7f3ec] hover:text-[#181d26]'
+        )}
         onClick={toggleProgressLine}
         title="Progress Line 표시/숨기기"
       >
@@ -438,7 +443,12 @@ export function GanttToolbar({ onOpenTaskDialog, onScrollToToday }: GanttToolbar
       <Button
         variant={showArchived ? 'default' : 'ghost'}
         size="icon"
-        className="h-8 w-8"
+        className={cn(
+          'h-8 w-8 rounded-md',
+          showArchived
+            ? 'bg-[#181d26] text-white hover:bg-[#2a3140]'
+            : 'border border-transparent text-[#41454d] hover:border-[#dddddd] hover:bg-[#f7f3ec] hover:text-[#181d26]'
+        )}
         onClick={toggleShowArchived}
         title={showArchived ? '아카이브 숨기기' : '아카이브 보기'}
       >
@@ -456,7 +466,7 @@ export function GanttToolbar({ onOpenTaskDialog, onScrollToToday }: GanttToolbar
 
       {/* 선택 정보 */}
       {selectedTask && (
-        <span className="text-xs text-muted-foreground ml-3">
+        <span className="ml-3 text-xs text-[#727780]">
           선택: [{selectedTask.wbs_code}] {selectedTask.task_name}
         </span>
       )}
@@ -473,8 +483,12 @@ export function GanttToolbar({ onOpenTaskDialog, onScrollToToday }: GanttToolbar
         variant={showFilterPanel || hasActiveFilters ? 'default' : 'outline'}
         size="sm"
         className={cn(
-          "h-8 gap-1.5 text-xs",
-          hasActiveFilters && "bg-blue-600 text-white hover:bg-blue-700"
+          'h-8 gap-1.5 text-xs',
+          hasActiveFilters
+            ? 'border-[#181d26] bg-[#181d26] text-white hover:bg-[#2a3140]'
+            : showFilterPanel
+              ? 'border-[#d9d3c8] bg-[#f7f3ec] text-[#181d26] hover:bg-[#f1ebdf]'
+              : 'border-[#dddddd] bg-white text-[#41454d] hover:bg-[#f7f3ec]'
         )}
         onClick={toggleFilterPanel}
         title={hasActiveFilters ? `필터 ${activeFilterCount}개 적용 중` : '필터 패널 열기/닫기'}
@@ -490,7 +504,7 @@ export function GanttToolbar({ onOpenTaskDialog, onScrollToToday }: GanttToolbar
         <Button
           variant="ghost"
           size="sm"
-          className="h-8 px-2 text-xs font-semibold text-blue-700 hover:bg-blue-50 hover:text-blue-800"
+          className="h-8 px-2 text-xs font-semibold text-[#aa2d00] hover:bg-[#f7e3da] hover:text-[#8f2600]"
           onClick={resetGanttFilters}
           title="적용된 필터 초기화"
         >
@@ -500,7 +514,7 @@ export function GanttToolbar({ onOpenTaskDialog, onScrollToToday }: GanttToolbar
 
       {/* 검색 입력창 */}
       <div className="relative flex items-center ml-2">
-        <Search className="absolute left-2 h-3.5 w-3.5 text-muted-foreground pointer-events-none" />
+        <Search className="pointer-events-none absolute left-2 h-3.5 w-3.5 text-[#727780]" />
         <Input
           ref={searchInputRef}
           type="text"
@@ -513,15 +527,15 @@ export function GanttToolbar({ onOpenTaskDialog, onScrollToToday }: GanttToolbar
               searchInputRef.current?.blur()
             }
           }}
-          className="h-7 w-48 pl-7 pr-7 text-xs"
+          className="h-8 w-52 border-[#dddddd] bg-white pl-7 pr-7 text-xs focus-visible:ring-[#f5e9d4]"
         />
         {searchQuery && (
           <button
             onClick={() => setSearchQuery('')}
-            className="absolute right-1.5 p-0.5 rounded-sm hover:bg-muted"
+            className="absolute right-1.5 rounded-sm p-0.5 hover:bg-[#f7f3ec]"
             title="검색 초기화 (ESC)"
           >
-            <X className="h-3 w-3 text-muted-foreground" />
+            <X className="h-3 w-3 text-[#727780]" />
           </button>
         )}
       </div>

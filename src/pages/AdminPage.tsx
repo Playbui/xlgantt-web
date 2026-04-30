@@ -446,12 +446,12 @@ export function AdminPage() {
       </header>
 
       <main className="std-page-main">
-        <div className="flex items-end justify-between mb-6">
+        <div className="mb-6 flex items-end justify-between">
           <div>
-            <h1 className="text-xl font-bold tracking-tight flex items-center gap-2">
+            <h1 className="flex items-center gap-2 text-2xl font-semibold tracking-[-0.03em] text-[#181d26]">
               <Shield className="h-5 w-5" />사용자 관리
             </h1>
-            <p className="text-xs text-muted-foreground/60 mt-0.5">
+            <p className="mt-1 text-xs text-[#727780]">
               {users.length}명의 사용자
               {authMode === 'supabase' && <span className="ml-2">(Supabase)</span>}
             </p>
@@ -469,7 +469,7 @@ export function AdminPage() {
         </div>
 
         <Tabs value={adminTab} onValueChange={setAdminTab} className="mb-5">
-          <TabsList className="h-10 bg-muted/40 p-1">
+          <TabsList className="h-10 border border-[#dddddd] bg-[#fbfaf7] p-1">
             <TabsTrigger value="users" className="text-xs">사용자 관리</TabsTrigger>
             <TabsTrigger value="organization" className="text-xs">조직 관리</TabsTrigger>
             <TabsTrigger value="access" className="text-xs">프로젝트 권한</TabsTrigger>
@@ -606,8 +606,8 @@ export function AdminPage() {
               </div>
             )}
 
-            <div className="std-surface p-4">
-              <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+              <div className="std-surface p-4">
+                <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
                 <div>
                   <div className="flex items-center gap-2">
                     <LayoutList className="h-4 w-4 text-primary" />
@@ -618,7 +618,7 @@ export function AdminPage() {
                   </p>
                 </div>
 
-                <div className="w-full lg:w-[440px]">
+                <div className="w-full lg:w-[480px]">
                   <Select value={selectedAccessProjectId || undefined} onValueChange={setSelectedAccessProjectId}>
                     <SelectTrigger className="h-9 text-sm w-full">
                       <SelectValue placeholder="프로젝트 선택">
@@ -635,7 +635,7 @@ export function AdminPage() {
               </div>
             </div>
 
-            <div className="std-surface overflow-hidden">
+            <div className="std-surface overflow-hidden border border-[#dddddd] shadow-[0_1px_2px_rgba(16,24,40,0.04)]">
               <Table>
                 <TableHeader>
                   <TableRow>
@@ -657,10 +657,10 @@ export function AdminPage() {
                     </TableRow>
                   ) : (
                     groupedProjectAccessUsers.flatMap((group) => [
-                      <TableRow key={`${group.key}-group`} className="bg-muted/30 hover:bg-muted/30">
-                        <TableCell colSpan={7} className="h-9 text-xs font-semibold text-foreground/80">
+                      <TableRow key={`${group.key}-group`} className="bg-[#eef4fb] hover:bg-[#eef4fb]">
+                        <TableCell colSpan={7} className="h-10 text-xs font-semibold text-[#181d26]">
                           {group.label}
-                          <span className="ml-2 text-[11px] font-normal text-muted-foreground">{group.users.length}명</span>
+                          <span className="ml-2 text-[11px] font-normal text-[#727780]">{group.users.length}명</span>
                         </TableCell>
                       </TableRow>,
                       ...group.users.map((user) => {
@@ -738,7 +738,7 @@ export function AdminPage() {
         )}
 
         {adminTab === 'users' && (
-        <div className="std-surface overflow-hidden">
+        <div className="std-surface overflow-hidden border border-[#dddddd] shadow-[0_1px_2px_rgba(16,24,40,0.04)]">
           <Table>
             <TableHeader>
               <TableRow>
@@ -753,10 +753,10 @@ export function AdminPage() {
             </TableHeader>
             <TableBody>
               {groupedUsers.flatMap((group) => [
-                <TableRow key={`${group.key}-group`} className="bg-muted/30 hover:bg-muted/30">
-                  <TableCell colSpan={7} className="h-9 text-xs font-semibold text-foreground/80">
+                <TableRow key={`${group.key}-group`} className="bg-[#eef4fb] hover:bg-[#eef4fb]">
+                  <TableCell colSpan={7} className="h-10 text-xs font-semibold text-[#181d26]">
                     {group.label}
-                    <span className="ml-2 text-[11px] font-normal text-muted-foreground">{group.users.length}명</span>
+                    <span className="ml-2 text-[11px] font-normal text-[#727780]">{group.users.length}명</span>
                   </TableCell>
                 </TableRow>,
                 ...group.users.map((user) => (

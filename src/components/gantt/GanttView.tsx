@@ -104,10 +104,10 @@ function GanttFilterPanel() {
   )
 
   return (
-    <div className="flex min-h-12 flex-shrink-0 items-center gap-4 overflow-x-auto border-b border-blue-200 bg-[linear-gradient(90deg,#f6fbff_0%,#f4fbf7_55%,#fffaf0_100%)] px-4 py-2 shadow-[inset_0_-1px_0_rgba(15,23,42,.04)]">
-      <div className="flex flex-shrink-0 items-center gap-2 rounded-full border border-blue-200 bg-white px-3 py-1.5 text-xs font-bold text-blue-700">
+    <div className="flex min-h-12 flex-shrink-0 items-center gap-4 overflow-x-auto border-b border-[#dddddd] bg-[#fbfaf7] px-4 py-2 shadow-[inset_0_-1px_0_rgba(24,29,38,.03)]">
+      <div className="flex flex-shrink-0 items-center gap-2 rounded-full border border-[#d9d3c8] bg-white px-3 py-1.5 text-xs font-bold text-[#181d26]">
         필터
-        {activeFilterCount > 0 && <span className="rounded-full bg-blue-600 px-1.5 text-[10px] text-white">{activeFilterCount}</span>}
+        {activeFilterCount > 0 && <span className="rounded-full bg-[#181d26] px-1.5 text-[10px] text-white">{activeFilterCount}</span>}
       </div>
       {renderGroup('상태', 'status', Object.entries(FILTER_LABELS.status).map(([value, label]) => ({ value: value as GanttFilters['status'], label })))}
       <div className="h-5 w-px flex-shrink-0 bg-border" />
@@ -127,7 +127,7 @@ function GanttFilterPanel() {
       {renderGroup('연계', 'workspace', Object.entries(FILTER_LABELS.workspace).map(([value, label]) => ({ value: value as GanttFilters['workspace'], label })))}
       <div className="h-5 w-px flex-shrink-0 bg-border" />
       {renderGroup('산출물', 'deliverable', Object.entries(FILTER_LABELS.deliverable).map(([value, label]) => ({ value: value as GanttFilters['deliverable'], label })))}
-      <button type="button" className="ml-auto h-7 flex-shrink-0 rounded-md border border-slate-300 bg-white px-3 text-xs font-bold text-slate-600 hover:border-red-200 hover:bg-red-50 hover:text-red-600" onClick={resetGanttFilters}>
+      <button type="button" className="ml-auto h-7 flex-shrink-0 rounded-md border border-[#dddddd] bg-white px-3 text-xs font-bold text-[#41454d] hover:border-[#dfb09f] hover:bg-[#f7e3da] hover:text-[#aa2d00]" onClick={resetGanttFilters}>
         초기화
       </button>
     </div>
@@ -447,30 +447,30 @@ export function GanttView() {
 
       {showFilterPanel && <GanttFilterPanel />}
 
-      <div className="flex h-10 flex-shrink-0 items-center gap-5 border-b border-slate-200 bg-slate-50/70 px-5 text-sm">
+      <div className="flex h-11 flex-shrink-0 items-center gap-5 border-b border-[#dddddd] bg-white px-5 text-sm">
         <div className="flex items-center gap-2">
-          <BriefcaseBusiness className="h-4 w-4 text-slate-500" />
-          <span className="text-xs text-muted-foreground">작업</span>
-          <span className="font-bold text-foreground">{ganttSummary.totalTasks.toLocaleString()}개</span>
-          <span className="text-xs font-medium text-muted-foreground">(단위 {ganttSummary.leafTasks.toLocaleString()}개)</span>
+          <BriefcaseBusiness className="h-4 w-4 text-[#727780]" />
+          <span className="text-xs text-[#727780]">작업</span>
+          <span className="font-bold text-[#181d26]">{ganttSummary.totalTasks.toLocaleString()}개</span>
+          <span className="text-xs font-medium text-[#727780]">(단위 {ganttSummary.leafTasks.toLocaleString()}개)</span>
         </div>
-        <div className="h-4 w-px bg-border" />
+        <div className="h-4 w-px bg-[#e5e0d8]" />
         <div className="flex items-center gap-2">
-          <Sigma className="h-4 w-4 text-slate-500" />
-          <span className="text-xs text-muted-foreground">총 공수</span>
-          <span className="font-bold text-foreground">{ganttSummary.totalWorkload.toLocaleString(undefined, { maximumFractionDigits: 1 })}일</span>
+          <Sigma className="h-4 w-4 text-[#727780]" />
+          <span className="text-xs text-[#727780]">총 공수</span>
+          <span className="font-bold text-[#181d26]">{ganttSummary.totalWorkload.toLocaleString(undefined, { maximumFractionDigits: 1 })}일</span>
         </div>
-        <div className="h-4 w-px bg-border" />
+        <div className="h-4 w-px bg-[#e5e0d8]" />
         <div className="flex items-center gap-2">
-          <BarChart3 className="h-4 w-4 text-slate-500" />
-          <span className="text-xs text-muted-foreground">전체 진척률</span>
-          <span className="font-bold text-foreground">{ganttSummary.progressPercent}%</span>
+          <BarChart3 className="h-4 w-4 text-[#727780]" />
+          <span className="text-xs text-[#727780]">전체 진척률</span>
+          <span className="font-bold text-[#181d26]">{ganttSummary.progressPercent}%</span>
         </div>
-        <div className="h-4 w-px bg-border" />
+        <div className="h-4 w-px bg-[#e5e0d8]" />
         <div className="flex items-center gap-2">
-          <CalendarDays className="h-4 w-4 text-slate-500" />
-          <span className="text-xs text-muted-foreground">기간</span>
-          <span className="font-bold text-foreground">
+          <CalendarDays className="h-4 w-4 text-[#727780]" />
+          <span className="text-xs text-[#727780]">기간</span>
+          <span className="font-bold text-[#181d26]">
             {ganttSummary.start || '-'} ~ {ganttSummary.end || '-'}
           </span>
         </div>
@@ -482,7 +482,7 @@ export function GanttView() {
         {!tableCollapsed && (
           <div
             style={{ width: tableWidth, minWidth: 300 }}
-            className="flex-shrink-0 shadow-[1px_0_4px_rgba(0,0,0,0.06)]"
+            className="flex-shrink-0 border-r border-[#dddddd] bg-white shadow-[1px_0_2px_rgba(16,24,40,0.04)]"
           >
             <TaskTable
               tasks={visibleTasks}
@@ -495,12 +495,12 @@ export function GanttView() {
 
         {/* Resize Handle with Toggle Button */}
         <div
-          className="relative w-[6px] bg-transparent hover:bg-primary/10 cursor-col-resize flex-shrink-0 transition-all duration-150 group"
+          className="group relative w-[6px] flex-shrink-0 cursor-col-resize bg-transparent transition-all duration-150 hover:bg-[#f1ebdf]"
           onPointerDown={!tableCollapsed ? handleResizeStart : undefined}
           style={{ cursor: tableCollapsed ? 'default' : 'col-resize' }}
         >
           {/* Visible divider line (2px, slate-400 → hover primary) */}
-          <div className="absolute top-0 bottom-0 left-1/2 -translate-x-1/2 w-[2px] bg-slate-400 dark:bg-slate-600 group-hover:bg-primary transition-colors pointer-events-none" />
+          <div className="pointer-events-none absolute bottom-0 left-1/2 top-0 w-[2px] -translate-x-1/2 bg-[#b8b2a8] transition-colors group-hover:bg-[#181d26]" />
           {/* Toggle Button */}
           <button
             onClick={(e) => {
@@ -509,8 +509,8 @@ export function GanttView() {
             }}
             className="absolute top-1/2 -translate-y-1/2 -translate-x-1/2 left-1/2 z-50
               w-5 h-10 flex items-center justify-center
-              bg-background border border-border rounded-sm shadow-md
-              hover:bg-accent hover:border-primary/50 hover:shadow-lg
+              border border-[#d9d3c8] bg-white rounded-sm shadow-md
+              hover:bg-[#f7f3ec] hover:border-[#181d26]/35 hover:shadow-lg
               opacity-60 group-hover:opacity-100 hover:!opacity-100
               transition-all duration-200 cursor-pointer"
             title={tableCollapsed ? '테이블 펼치기' : '테이블 접기'}
@@ -521,7 +521,7 @@ export function GanttView() {
               height="14"
               viewBox="0 0 10 14"
               fill="none"
-              className="text-muted-foreground hover:text-foreground transition-colors"
+              className="text-[#727780] transition-colors hover:text-[#181d26]"
             >
               {tableCollapsed ? (
                 <path d="M2 1L8 7L2 13" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
