@@ -50,6 +50,15 @@ interface IssueRow {
   action: string
 }
 
+interface MemberWorkUpdate {
+  email: string
+  name: string
+  content: string
+  note: string
+  updatedAt?: string
+  updatedByName?: string
+}
+
 interface WorkReportRow {
   projectName: string
   category: string
@@ -60,6 +69,7 @@ interface WorkReportRow {
   actualRate: string
   detail: string
   note: string
+  memberUpdates?: MemberWorkUpdate[]
 }
 
 interface PlannedWorkRow {
@@ -71,6 +81,7 @@ interface PlannedWorkRow {
   probability: string
   detail: string
   note: string
+  memberUpdates?: MemberWorkUpdate[]
 }
 
 interface MemberEntry {
@@ -88,6 +99,14 @@ interface MajorWorkItem {
   label: string
   thisWeek: string
   nextWeek: string
+  memberUpdates?: Array<{
+    email: string
+    name: string
+    thisWeek: string
+    nextWeek: string
+    updatedAt?: string
+    updatedByName?: string
+  }>
 }
 
 interface WeeklyReportPayload {
@@ -114,6 +133,7 @@ interface WeeklyReportRecord {
 const WEEK_OPTIONS = buildWeekOptions()
 const STRATEGY_STATUS_OPTIONS = ['대기', '진행중', '완료']
 const TEAM_MEMBERS = getWeeklyReportMembers().filter((member) => member.email !== 'admin@gmtc.kr')
+const TEAM_INPUT_MEMBERS = TEAM_MEMBERS.filter((member) => member.role !== 'manager')
 
 const INITIAL_STRATEGY_ROWS: StrategyMeetingRow[] = [
   {
@@ -147,6 +167,7 @@ const INITIAL_CARRY_OVER_ROWS: WorkReportRow[] = [
     actualRate: '81%',
     detail: '- DB서버 정보보호본부 업무 대응.\n- 통합관리콘솔 잦은 오류 발송분 원인 파악 및 대응방안 차주 보고(수협)\n- 9월 이후 유지보수 계약 방향 논의 중',
     note: '',
+    memberUpdates: [],
   },
 ]
 
@@ -161,6 +182,7 @@ const INITIAL_IN_PROGRESS_ROWS: WorkReportRow[] = [
     actualRate: '19%',
     detail: '- 위치미수신 분석프로그램 업데이트 후 기능오류로 롤백. 차주 재포팅\n- DB, 스토리지 통합을 위한 DB구조 및 크기 파악대응',
     note: '',
+    memberUpdates: [],
   },
   {
     projectName: '[수협] 26년 해상디지털 통신망(D-MF/HF) 운영시스템 유지보수 [4010]',
@@ -172,6 +194,7 @@ const INITIAL_IN_PROGRESS_ROWS: WorkReportRow[] = [
     actualRate: '31%',
     detail: '- 울릉도동 D-MF/HF 중계소 이전 옥외 함체 2.2M 견적중\n- 1분기 대금청구 진행',
     note: '',
+    memberUpdates: [],
   },
   {
     projectName: '[해경] 항공 채증영상 기반 분석 AI Deep Blue Eye 실증',
@@ -183,6 +206,7 @@ const INITIAL_IN_PROGRESS_ROWS: WorkReportRow[] = [
     actualRate: '2%',
     detail: '- WBS 작성, 요구사항정의서 수정, 추정손익 작성 중\n- 협약 변경 (투입인력/사업비 변경, 증빙서류 작성)\n- 기구 제작 업체 컨택 및 견적 요청\n- 전시회 홍보영상 제작 (스토리보드 초안, 업체 컨택)',
     note: '',
+    memberUpdates: [],
   },
 ]
 
@@ -196,6 +220,7 @@ const INITIAL_PLANNED_ROWS: PlannedWorkRow[] = [
     probability: '',
     detail: '- 계약 수의시담완료, 계약품의 진행. 차주 내 계약 진행 예정',
     note: '',
+    memberUpdates: [],
   },
   {
     projectName: '[해양수산부] 2026년 어선사고징후 모니터링 시스템 (FIS고도화)',
@@ -206,6 +231,7 @@ const INITIAL_PLANNED_ROWS: PlannedWorkRow[] = [
     probability: '',
     detail: '- RFP초안 분석 중\n- S/W구매를 제외한 H/W구매 수행 예산으로 7.8억 공고예정\n- 오션인포 주관업무진행 타당성 파악 중',
     note: '',
+    memberUpdates: [],
   },
 ]
 
@@ -219,6 +245,7 @@ const INITIAL_TBD_ROWS: PlannedWorkRow[] = [
     probability: '',
     detail: '- 5군단 차주 방문 진행\n- 사업 의뢰 담당자 병원 입원으로 인한 사업 추진 일정 재협의 (차주)',
     note: '',
+    memberUpdates: [],
   },
 ]
 
@@ -227,21 +254,25 @@ const INITIAL_MAJOR_WORK_ITEMS: MajorWorkItem[] = [
     label: '[항해통신사업부]',
     thisWeek: '',
     nextWeek: '',
+    memberUpdates: [],
   },
   {
     label: '[해양경찰청]',
     thisWeek: '',
     nextWeek: '',
+    memberUpdates: [],
   },
   {
     label: '[수협중앙회]',
     thisWeek: '',
     nextWeek: '',
+    memberUpdates: [],
   },
   {
     label: '[해양수산부]',
     thisWeek: '',
     nextWeek: '',
+    memberUpdates: [],
   },
 ]
 
@@ -257,7 +288,7 @@ export function WeeklyReportsPage() {
   const [isDirty, setIsDirty] = useState(false)
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
   const [notice, setNotice] = useState<string | null>(null)
-  const [managerTab, setManagerTab] = useState<'setup' | 'collect'>('setup')
+  const [managerTab, setManagerTab] = useState<'setup' | 'collect' | 'summary'>('setup')
 
   const currentMemberEntry = useMemo(() => {
     const email = normalizeEmail(currentUser?.email)
@@ -380,6 +411,44 @@ export function WeeklyReportsPage() {
     }
   }, [canManage, currentUser])
 
+  const updateCurrentMemberWork = useCallback((
+    updates: MemberWorkUpdate[] | undefined,
+    key: 'content' | 'note',
+    value: string,
+  ) => {
+    const base = normalizeMemberWorkUpdates(updates)
+    if (!currentUser) return base
+    return base.map((entry) =>
+      normalizeEmail(entry.email) === normalizeEmail(currentUser.email)
+        ? {
+            ...entry,
+            [key]: value,
+            updatedAt: new Date().toISOString(),
+            updatedByName: currentUser.name || currentUser.email,
+          }
+        : entry
+    )
+  }, [currentUser])
+
+  const updateCurrentMemberMajor = useCallback((
+    updates: MajorWorkItem['memberUpdates'],
+    key: 'thisWeek' | 'nextWeek',
+    value: string,
+  ) => {
+    const base = normalizeMemberMajorUpdates(updates)
+    if (!currentUser) return base
+    return base.map((entry) =>
+      normalizeEmail(entry.email) === normalizeEmail(currentUser.email)
+        ? {
+            ...entry,
+            [key]: value,
+            updatedAt: new Date().toISOString(),
+            updatedByName: currentUser.name || currentUser.email,
+          }
+        : entry
+    )
+  }, [currentUser])
+
   const saveReport = useCallback(async (options?: { finalize?: boolean; completeMyInput?: boolean }) => {
     if (!currentUser) return
     if (!report && !canManage) {
@@ -460,7 +529,7 @@ export function WeeklyReportsPage() {
     ...prev,
     [section]: [
       ...prev[section],
-      { projectName: '', category: '', period: '', pm: '', pl: '', targetRate: '', actualRate: '', detail: '', note: '' },
+      { projectName: '', category: '', period: '', pm: '', pl: '', targetRate: '', actualRate: '', detail: '', note: '', memberUpdates: buildMemberWorkUpdates() },
     ],
   }))
 
@@ -468,7 +537,7 @@ export function WeeklyReportsPage() {
     ...prev,
     [section]: [
       ...prev[section],
-      { projectName: '', category: '', bidType: '', budget: '', pm: '', probability: '', detail: '', note: '' },
+      { projectName: '', category: '', bidType: '', budget: '', pm: '', probability: '', detail: '', note: '', memberUpdates: buildMemberWorkUpdates() },
     ],
   }))
 
@@ -476,14 +545,14 @@ export function WeeklyReportsPage() {
     ...prev,
     majorWorkItems: [
       ...prev.majorWorkItems,
-      { label: '', thisWeek: '', nextWeek: '' },
+      { label: '', thisWeek: '', nextWeek: '', memberUpdates: buildMemberMajorUpdates() },
     ],
   }))
 
   return (
     <div className="std-page">
       <header className="std-page-header">
-        <div className="std-page-header-inner">
+        <div className="std-page-header-inner max-w-[1760px]">
           <div className="flex items-center gap-3">
             <Button variant="ghost" size="sm" className="h-8 gap-1.5 text-xs" onClick={() => navigate('/projects')}>
               <ArrowLeft className="h-3.5 w-3.5" />
@@ -501,7 +570,7 @@ export function WeeklyReportsPage() {
         </div>
       </header>
 
-      <main className="std-page-main space-y-6">
+      <main className="std-page-main max-w-[1760px] space-y-6">
         <section className="overflow-hidden rounded-[22px] border border-[#d7dde4] bg-white shadow-[0_18px_48px_rgba(15,23,42,0.05)]">
           <div className="border-b border-[#e4e7ec] bg-[linear-gradient(180deg,#fffdfb_0%,#f8fafc_100%)] px-5 py-5">
             <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
@@ -639,14 +708,15 @@ export function WeeklyReportsPage() {
               주간보고를 불러오는 중입니다...
             </div>
           ) : canManage ? (
-            <Tabs value={managerTab} onValueChange={(value) => setManagerTab(value as 'setup' | 'collect')} className="p-5">
+            <Tabs value={managerTab} onValueChange={(value) => setManagerTab(value as 'setup' | 'collect' | 'summary')} className="p-5">
               <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
                 <TabsList className="h-10 rounded-xl bg-[#eef3f8] p-1">
                   <TabsTrigger value="setup" className="px-4 text-sm">사업등록</TabsTrigger>
-                  <TabsTrigger value="collect" className="px-4 text-sm">주간보고 취합상황</TabsTrigger>
+                  <TabsTrigger value="collect" className="px-4 text-sm">취합상황</TabsTrigger>
+                  <TabsTrigger value="summary" className="px-4 text-sm">취합목록</TabsTrigger>
                 </TabsList>
 
-                {managerTab === 'collect' && (
+                {managerTab !== 'setup' && (
                   <div className="flex flex-wrap items-center gap-2 text-xs text-[#667085]">
                     <span className="rounded-full border border-[#dbeadf] bg-[#f7fbf8] px-2.5 py-1 text-[#14532d]">완료 {completedMembers.length}명</span>
                     <span className="rounded-full border border-[#f0e2bb] bg-[#fffbf0] px-2.5 py-1 text-[#9a6700]">미완료 {pendingMembers.length}명</span>
@@ -780,38 +850,63 @@ export function WeeklyReportsPage() {
                 </div>
 
                 <div className="space-y-4">
-                  <SectionLabel index="3." title="업무보고 입력" />
-                  <CollectWorkReportTable
+                  <SectionLabel index="3." title="프로젝트별 원본 입력" />
+                  <ContributionWorkReportTable
                     title="이월 사업"
                     rows={payload.carryOver}
-                    editable
+                  />
+                  <ContributionWorkReportTable
+                    title="진행 사업"
+                    rows={payload.inProgress}
+                  />
+                  <ContributionPlannedWorkTable
+                    title="예정 사업"
+                    rows={payload.planned}
+                  />
+                  <ContributionPlannedWorkTable
+                    title="미정 사업"
+                    rows={payload.tbd}
+                  />
+                </div>
+
+                <div className="space-y-4">
+                  <SectionLabel index="4." title="기타 주요 업무" />
+                  <ContributionMajorWorkItems
+                    rows={payload.majorWorkItems}
+                  />
+                </div>
+              </TabsContent>
+
+              <TabsContent value="summary" className="space-y-6">
+                <div className="space-y-4">
+                  <SectionLabel index="3." title="최종 취합본 작성" />
+                  <FinalWorkReportTable
+                    title="이월 사업"
+                    rows={payload.carryOver}
                     onChange={(rowIndex, key, value) => updatePayload((prev) => ({
                       ...prev,
                       carryOver: prev.carryOver.map((row, index) => index === rowIndex ? { ...row, [key]: value } : row),
                     }))}
                   />
-                  <CollectWorkReportTable
+                  <FinalWorkReportTable
                     title="진행 사업"
                     rows={payload.inProgress}
-                    editable
                     onChange={(rowIndex, key, value) => updatePayload((prev) => ({
                       ...prev,
                       inProgress: prev.inProgress.map((row, index) => index === rowIndex ? { ...row, [key]: value } : row),
                     }))}
                   />
-                  <CollectPlannedWorkTable
+                  <FinalPlannedWorkTable
                     title="예정 사업"
                     rows={payload.planned}
-                    editable
                     onChange={(rowIndex, key, value) => updatePayload((prev) => ({
                       ...prev,
                       planned: prev.planned.map((row, index) => index === rowIndex ? { ...row, [key]: value } : row),
                     }))}
                   />
-                  <CollectPlannedWorkTable
+                  <FinalPlannedWorkTable
                     title="미정 사업"
                     rows={payload.tbd}
-                    editable
                     onChange={(rowIndex, key, value) => updatePayload((prev) => ({
                       ...prev,
                       tbd: prev.tbd.map((row, index) => index === rowIndex ? { ...row, [key]: value } : row),
@@ -820,10 +915,9 @@ export function WeeklyReportsPage() {
                 </div>
 
                 <div className="space-y-4">
-                  <SectionLabel index="4." title="기타 주요 업무" />
-                  <CollectMajorWorkItems
+                  <SectionLabel index="4." title="기타 주요 업무 최종본" />
+                  <FinalMajorWorkItems
                     rows={payload.majorWorkItems}
-                    editable
                     onChange={(rowIndex, key, value) => updatePayload((prev) => ({
                       ...prev,
                       majorWorkItems: prev.majorWorkItems.map((row, index) =>
@@ -839,54 +933,57 @@ export function WeeklyReportsPage() {
               <WeeklyReadOnlySummary currentMemberEntry={currentMemberEntry} />
 
               <div className="space-y-4">
-                <SectionLabel index="3." title="업무보고 입력" />
-                <CollectWorkReportTable
+                <SectionLabel index="3." title="주간업무작성" />
+                <MemberWorkInputTable
                   title="이월 사업"
                   rows={payload.carryOver}
-                  editable
                   onChange={(rowIndex, key, value) => updatePayload((prev) => touchCurrentMember({
                     ...prev,
-                    carryOver: prev.carryOver.map((row, index) => index === rowIndex ? { ...row, [key]: value } : row),
+                    carryOver: prev.carryOver.map((row, index) => index === rowIndex
+                      ? { ...row, memberUpdates: updateCurrentMemberWork(row.memberUpdates, key, value) }
+                      : row),
                   }))}
                 />
-                <CollectWorkReportTable
+                <MemberWorkInputTable
                   title="진행 사업"
                   rows={payload.inProgress}
-                  editable
                   onChange={(rowIndex, key, value) => updatePayload((prev) => touchCurrentMember({
                     ...prev,
-                    inProgress: prev.inProgress.map((row, index) => index === rowIndex ? { ...row, [key]: value } : row),
+                    inProgress: prev.inProgress.map((row, index) => index === rowIndex
+                      ? { ...row, memberUpdates: updateCurrentMemberWork(row.memberUpdates, key, value) }
+                      : row),
                   }))}
                 />
-                <CollectPlannedWorkTable
+                <MemberPlannedInputTable
                   title="예정 사업"
                   rows={payload.planned}
-                  editable
                   onChange={(rowIndex, key, value) => updatePayload((prev) => touchCurrentMember({
                     ...prev,
-                    planned: prev.planned.map((row, index) => index === rowIndex ? { ...row, [key]: value } : row),
+                    planned: prev.planned.map((row, index) => index === rowIndex
+                      ? { ...row, memberUpdates: updateCurrentMemberWork(row.memberUpdates, key, value) }
+                      : row),
                   }))}
                 />
-                <CollectPlannedWorkTable
+                <MemberPlannedInputTable
                   title="미정 사업"
                   rows={payload.tbd}
-                  editable
                   onChange={(rowIndex, key, value) => updatePayload((prev) => touchCurrentMember({
                     ...prev,
-                    tbd: prev.tbd.map((row, index) => index === rowIndex ? { ...row, [key]: value } : row),
+                    tbd: prev.tbd.map((row, index) => index === rowIndex
+                      ? { ...row, memberUpdates: updateCurrentMemberWork(row.memberUpdates, key, value) }
+                      : row),
                   }))}
                 />
               </div>
 
               <div className="space-y-4">
                 <SectionLabel index="4." title="기타 주요 업무" />
-                <CollectMajorWorkItems
+                <MemberMajorInputTable
                   rows={payload.majorWorkItems}
-                  editable
                   onChange={(rowIndex, key, value) => updatePayload((prev) => touchCurrentMember({
                     ...prev,
                     majorWorkItems: prev.majorWorkItems.map((row, index) =>
-                      index === rowIndex ? { ...row, [key]: value } : row
+                      index === rowIndex ? { ...row, memberUpdates: updateCurrentMemberMajor(row.memberUpdates, key, value) } : row
                     ),
                   }))}
                 />
@@ -968,11 +1065,11 @@ function normalizePayload(raw: unknown): WeeklyReportPayload {
   return {
     strategyMeetings: normalizeRows(source.strategyMeetings, base.strategyMeetings),
     issues: normalizeRows(source.issues, base.issues),
-    carryOver: normalizeRows(source.carryOver, base.carryOver),
-    inProgress: normalizeRows(source.inProgress, base.inProgress),
-    planned: normalizeRows(source.planned, base.planned),
-    tbd: normalizeRows(source.tbd, base.tbd),
-    majorWorkItems: normalizeRows(source.majorWorkItems, base.majorWorkItems),
+    carryOver: normalizeWorkRows(source.carryOver, base.carryOver),
+    inProgress: normalizeWorkRows(source.inProgress, base.inProgress),
+    planned: normalizePlannedRows(source.planned, base.planned),
+    tbd: normalizePlannedRows(source.tbd, base.tbd),
+    majorWorkItems: normalizeMajorWorkItems(source.majorWorkItems, base.majorWorkItems),
     memberEntries: base.memberEntries.map((defaultEntry) => {
       const incoming = rawEntries.find((entry) => normalizeEmail(entry?.email) === normalizeEmail(defaultEntry.email))
       return {
@@ -987,6 +1084,70 @@ function normalizePayload(raw: unknown): WeeklyReportPayload {
 function normalizeRows<T>(rows: unknown, fallback: T[]): T[] {
   if (!Array.isArray(rows) || rows.length === 0) return deepCopy(fallback)
   return rows as T[]
+}
+
+function buildMemberWorkUpdates() {
+  return TEAM_INPUT_MEMBERS.map((member) => ({
+    email: member.email,
+    name: member.name,
+    content: '',
+    note: '',
+  }))
+}
+
+function buildMemberMajorUpdates() {
+  return TEAM_INPUT_MEMBERS.map((member) => ({
+    email: member.email,
+    name: member.name,
+    thisWeek: '',
+    nextWeek: '',
+  }))
+}
+
+function normalizeMemberWorkUpdates(raw: unknown) {
+  const source = Array.isArray(raw) ? raw : []
+  return buildMemberWorkUpdates().map((defaultEntry) => {
+    const incoming = source.find((entry) => normalizeEmail(entry?.email) === normalizeEmail(defaultEntry.email))
+    return {
+      ...defaultEntry,
+      ...(incoming || {}),
+    }
+  })
+}
+
+function normalizeMemberMajorUpdates(raw: unknown) {
+  const source = Array.isArray(raw) ? raw : []
+  return buildMemberMajorUpdates().map((defaultEntry) => {
+    const incoming = source.find((entry) => normalizeEmail(entry?.email) === normalizeEmail(defaultEntry.email))
+    return {
+      ...defaultEntry,
+      ...(incoming || {}),
+    }
+  })
+}
+
+function normalizeWorkRows(rows: unknown, fallback: WorkReportRow[]) {
+  const normalized = normalizeRows(rows, fallback)
+  return normalized.map((row) => ({
+    ...row,
+    memberUpdates: normalizeMemberWorkUpdates(row.memberUpdates),
+  }))
+}
+
+function normalizePlannedRows(rows: unknown, fallback: PlannedWorkRow[]) {
+  const normalized = normalizeRows(rows, fallback)
+  return normalized.map((row) => ({
+    ...row,
+    memberUpdates: normalizeMemberWorkUpdates(row.memberUpdates),
+  }))
+}
+
+function normalizeMajorWorkItems(rows: unknown, fallback: MajorWorkItem[]) {
+  const normalized = normalizeRows(rows, fallback)
+  return normalized.map((row) => ({
+    ...row,
+    memberUpdates: normalizeMemberMajorUpdates(row.memberUpdates),
+  }))
 }
 
 function normalizeEmail(email?: string | null) {
@@ -1366,10 +1527,9 @@ function SetupPlannedWorkTable(props: {
   )
 }
 
-function CollectWorkReportTable(props: {
+function FinalWorkReportTable(props: {
   title: string
   rows: WorkReportRow[]
-  editable: boolean
   onChange: (rowIndex: number, key: keyof WorkReportRow, value: string) => void
 }) {
   return (
@@ -1387,7 +1547,7 @@ function CollectWorkReportTable(props: {
               <div className="space-y-1">
                 <div className="text-[11px] font-semibold text-[#667085]">달성율</div>
                 <InputCell
-                  editable={props.editable}
+                  editable
                   value={row.actualRate}
                   onChange={(value) => props.onChange(rowIndex, 'actualRate', value)}
                   placeholder="달성율"
@@ -1398,7 +1558,7 @@ function CollectWorkReportTable(props: {
               <div className="space-y-2">
                 <div className="text-xs font-semibold text-[#344054]">내용</div>
                 <TextareaCell
-                  editable={props.editable}
+                  editable
                   value={row.detail}
                   onChange={(value) => props.onChange(rowIndex, 'detail', value)}
                   placeholder="진행 내용 입력"
@@ -1408,7 +1568,7 @@ function CollectWorkReportTable(props: {
               <div className="space-y-2">
                 <div className="text-xs font-semibold text-[#344054]">비고</div>
                 <TextareaCell
-                  editable={props.editable}
+                  editable
                   value={row.note}
                   onChange={(value) => props.onChange(rowIndex, 'note', value)}
                   placeholder="비고 입력"
@@ -1423,10 +1583,9 @@ function CollectWorkReportTable(props: {
   )
 }
 
-function CollectPlannedWorkTable(props: {
+function FinalPlannedWorkTable(props: {
   title: string
   rows: PlannedWorkRow[]
-  editable: boolean
   onChange: (rowIndex: number, key: keyof PlannedWorkRow, value: string) => void
 }) {
   return (
@@ -1443,7 +1602,7 @@ function CollectPlannedWorkTable(props: {
               <div className="space-y-1">
                 <div className="text-[11px] font-semibold text-[#667085]">수주확률</div>
                 <InputCell
-                  editable={props.editable}
+                  editable
                   value={row.probability}
                   onChange={(value) => props.onChange(rowIndex, 'probability', value)}
                   placeholder="수주확률"
@@ -1454,7 +1613,7 @@ function CollectPlannedWorkTable(props: {
               <div className="space-y-2">
                 <div className="text-xs font-semibold text-[#344054]">내용</div>
                 <TextareaCell
-                  editable={props.editable}
+                  editable
                   value={row.detail}
                   onChange={(value) => props.onChange(rowIndex, 'detail', value)}
                   placeholder="사업관리 및 영업 진행 현황 입력"
@@ -1464,7 +1623,7 @@ function CollectPlannedWorkTable(props: {
               <div className="space-y-2">
                 <div className="text-xs font-semibold text-[#344054]">비고</div>
                 <TextareaCell
-                  editable={props.editable}
+                  editable
                   value={row.note}
                   onChange={(value) => props.onChange(rowIndex, 'note', value)}
                   placeholder="비고 입력"
@@ -1528,9 +1687,8 @@ function EditableMajorWorkItems(props: {
   )
 }
 
-function CollectMajorWorkItems(props: {
+function FinalMajorWorkItems(props: {
   rows: MajorWorkItem[]
-  editable: boolean
   onChange: (rowIndex: number, key: keyof MajorWorkItem, value: string) => void
 }) {
   return (
@@ -1550,7 +1708,7 @@ function CollectMajorWorkItems(props: {
                 <EditableCell><ReadValue value={row.label} empty="항목명 입력" /></EditableCell>
                 <EditableCell>
                   <TextareaCell
-                    editable={props.editable}
+                    editable
                     value={row.thisWeek}
                     onChange={(value) => props.onChange(rowIndex, 'thisWeek', value)}
                     placeholder="금주 진행 업무 입력"
@@ -1559,7 +1717,7 @@ function CollectMajorWorkItems(props: {
                 </EditableCell>
                 <EditableCell>
                   <TextareaCell
-                    editable={props.editable}
+                    editable
                     value={row.nextWeek}
                     onChange={(value) => props.onChange(rowIndex, 'nextWeek', value)}
                     placeholder="차주 예정 업무 입력"
@@ -1575,6 +1733,321 @@ function CollectMajorWorkItems(props: {
   )
 }
 
+function MemberWorkInputTable(props: {
+  title: string
+  rows: WorkReportRow[]
+  onChange: (rowIndex: number, key: 'content' | 'note', value: string) => void
+}) {
+  return (
+    <SectionCard title={`■ ${props.title}`}>
+      <div className="space-y-4 bg-white p-4">
+        {props.rows.map((row, rowIndex) => {
+          const currentUpdate = getCurrentMemberWorkUpdate(row.memberUpdates)
+          return (
+            <ProjectInputBlock
+              key={`${props.title}-member-${rowIndex}`}
+              summary={[
+                { label: '프로젝트명', value: row.projectName, grow: true },
+                { label: '구분', value: row.category },
+                { label: '사업 기간', value: row.period },
+                { label: '사업PM', value: row.pm },
+                { label: '개발PL', value: row.pl || '-' },
+                { label: '목표율', value: row.targetRate || '-' },
+                { label: '달성율', value: row.actualRate || '-', alignEnd: true },
+              ]}
+              content={currentUpdate?.content || ''}
+              note={currentUpdate?.note || ''}
+              onContentChange={(value) => props.onChange(rowIndex, 'content', value)}
+              onNoteChange={(value) => props.onChange(rowIndex, 'note', value)}
+            />
+          )
+        })}
+      </div>
+    </SectionCard>
+  )
+}
+
+function MemberPlannedInputTable(props: {
+  title: string
+  rows: PlannedWorkRow[]
+  onChange: (rowIndex: number, key: 'content' | 'note', value: string) => void
+}) {
+  return (
+    <SectionCard title={`■ ${props.title}`}>
+      <div className="space-y-4 bg-white p-4">
+        {props.rows.map((row, rowIndex) => {
+          const currentUpdate = getCurrentMemberWorkUpdate(row.memberUpdates)
+          return (
+            <ProjectInputBlock
+              key={`${props.title}-member-planned-${rowIndex}`}
+              summary={[
+                { label: '프로젝트명', value: row.projectName, grow: true },
+                { label: '사업유형', value: row.category },
+                { label: '입찰 구분', value: row.bidType },
+                { label: '사업예산', value: row.budget },
+                { label: '사업PM', value: row.pm },
+                { label: '수주확률', value: row.probability || '-', alignEnd: true },
+              ]}
+              content={currentUpdate?.content || ''}
+              note={currentUpdate?.note || ''}
+              onContentChange={(value) => props.onChange(rowIndex, 'content', value)}
+              onNoteChange={(value) => props.onChange(rowIndex, 'note', value)}
+            />
+          )
+        })}
+      </div>
+    </SectionCard>
+  )
+}
+
+function ContributionWorkReportTable(props: {
+  title: string
+  rows: WorkReportRow[]
+}) {
+  return (
+    <SectionCard title={`■ ${props.title}`}>
+      <div className="space-y-4 bg-white p-4">
+        {props.rows.map((row, rowIndex) => (
+          <ContributionProjectBlock
+            key={`${props.title}-contrib-${rowIndex}`}
+            summary={[
+              { label: '프로젝트명', value: row.projectName, grow: true },
+              { label: '구분', value: row.category },
+              { label: '사업 기간', value: row.period },
+              { label: '사업PM', value: row.pm },
+              { label: '개발PL', value: row.pl || '-' },
+              { label: '달성율', value: row.actualRate || '-', alignEnd: true },
+            ]}
+            updates={normalizeMemberWorkUpdates(row.memberUpdates)}
+          />
+        ))}
+      </div>
+    </SectionCard>
+  )
+}
+
+function ContributionPlannedWorkTable(props: {
+  title: string
+  rows: PlannedWorkRow[]
+}) {
+  return (
+    <SectionCard title={`■ ${props.title}`}>
+      <div className="space-y-4 bg-white p-4">
+        {props.rows.map((row, rowIndex) => (
+          <ContributionProjectBlock
+            key={`${props.title}-contrib-planned-${rowIndex}`}
+            summary={[
+              { label: '프로젝트명', value: row.projectName, grow: true },
+              { label: '사업유형', value: row.category },
+              { label: '입찰 구분', value: row.bidType },
+              { label: '사업예산', value: row.budget },
+              { label: '사업PM', value: row.pm },
+              { label: '수주확률', value: row.probability || '-', alignEnd: true },
+            ]}
+            updates={normalizeMemberWorkUpdates(row.memberUpdates)}
+          />
+        ))}
+      </div>
+    </SectionCard>
+  )
+}
+
+function MemberMajorInputTable(props: {
+  rows: MajorWorkItem[]
+  onChange: (rowIndex: number, key: 'thisWeek' | 'nextWeek', value: string) => void
+}) {
+  return (
+    <SectionCard title="■ 기타 주요 업무">
+      <div className="space-y-4 bg-white p-4">
+        {props.rows.map((row, rowIndex) => {
+          const currentUpdate = getCurrentMemberMajorUpdate(row.memberUpdates)
+          return (
+            <MajorWorkBlock
+              key={`major-member-${rowIndex}`}
+              label={row.label}
+              thisWeek={currentUpdate?.thisWeek || ''}
+              nextWeek={currentUpdate?.nextWeek || ''}
+              onThisWeekChange={(value) => props.onChange(rowIndex, 'thisWeek', value)}
+              onNextWeekChange={(value) => props.onChange(rowIndex, 'nextWeek', value)}
+            />
+          )
+        })}
+      </div>
+    </SectionCard>
+  )
+}
+
+function ContributionMajorWorkItems(props: { rows: MajorWorkItem[] }) {
+  return (
+    <SectionCard title="■ 기타 주요 업무 원본 입력">
+      <div className="space-y-4 bg-white p-4">
+        {props.rows.map((row, rowIndex) => (
+          <MajorContributionBlock
+            key={`major-contrib-${rowIndex}`}
+            label={row.label}
+            updates={normalizeMemberMajorUpdates(row.memberUpdates)}
+          />
+        ))}
+      </div>
+    </SectionCard>
+  )
+}
+
+function ProjectInputBlock(props: {
+  summary: Array<{ label: string; value: string; grow?: boolean; alignEnd?: boolean }>
+  content: string
+  note: string
+  onContentChange: (value: string) => void
+  onNoteChange: (value: string) => void
+}) {
+  return (
+    <div className="overflow-hidden rounded-2xl border border-[#d7dde4] bg-[#fcfcfd]">
+      <div className="grid gap-0 border-b border-[#dbe3ec] bg-[linear-gradient(180deg,#f8fbff_0%,#f2f6fb_100%)] md:grid-cols-12">
+        {props.summary.map((item, index) => (
+          <div
+            key={`${item.label}-${index}`}
+            className={`min-w-0 border-b border-r border-[#dbe3ec] px-4 py-3 md:border-b-0 ${item.grow ? 'md:col-span-4' : 'md:col-span-1'} ${item.alignEnd ? 'bg-[#fffaf0]' : index % 2 === 0 ? 'bg-white/40' : 'bg-[#f8fbff]'}`}
+          >
+            <div className="text-[11px] font-semibold uppercase tracking-[0.08em] text-[#5c6b82]">{item.label}</div>
+            <div className="mt-1 break-words text-sm font-medium text-[#0f172a]">{item.value || '-'}</div>
+          </div>
+        ))}
+      </div>
+      <div className="grid gap-4 p-4 lg:grid-cols-2">
+        <div className="space-y-2">
+          <div className="text-xs font-semibold text-[#344054]">내용</div>
+          <Textarea
+            value={props.content}
+            onChange={(event) => props.onContentChange(event.target.value)}
+            placeholder="내용 입력"
+            className="min-h-[170px] rounded-2xl border-[#cfd8e3] bg-white text-sm leading-6"
+          />
+        </div>
+        <div className="space-y-2">
+          <div className="text-xs font-semibold text-[#344054]">비고</div>
+          <Textarea
+            value={props.note}
+            onChange={(event) => props.onNoteChange(event.target.value)}
+            placeholder="비고 입력"
+            className="min-h-[170px] rounded-2xl border-[#cfd8e3] bg-white text-sm leading-6"
+          />
+        </div>
+      </div>
+    </div>
+  )
+}
+
+function ContributionProjectBlock(props: {
+  summary: Array<{ label: string; value: string; grow?: boolean; alignEnd?: boolean }>
+  updates: MemberWorkUpdate[]
+}) {
+  return (
+    <div className="overflow-hidden rounded-2xl border border-[#d7dde4] bg-[#fcfcfd]">
+      <div className="grid gap-0 border-b border-[#dbe3ec] bg-[linear-gradient(180deg,#f8fbff_0%,#f2f6fb_100%)] md:grid-cols-12">
+        {props.summary.map((item, index) => (
+          <div
+            key={`${item.label}-${index}`}
+            className={`min-w-0 border-b border-r border-[#dbe3ec] px-4 py-3 md:border-b-0 ${item.grow ? 'md:col-span-4' : 'md:col-span-1'} ${item.alignEnd ? 'bg-[#fffaf0]' : index % 2 === 0 ? 'bg-white/40' : 'bg-[#f8fbff]'}`}
+          >
+            <div className="text-[11px] font-semibold uppercase tracking-[0.08em] text-[#5c6b82]">{item.label}</div>
+            <div className="mt-1 break-words text-sm font-medium text-[#0f172a]">{item.value || '-'}</div>
+          </div>
+        ))}
+      </div>
+      <div className="grid gap-3 p-4 xl:grid-cols-2">
+        {props.updates.map((entry) => (
+          <div key={entry.email} className="rounded-2xl border border-[#d9e2ec] bg-white p-4">
+            <div className="mb-3 flex items-start justify-between gap-3">
+              <div>
+                <div className="text-sm font-semibold text-[#101828]">{entry.name}</div>
+                <div className="text-xs text-[#667085]">{entry.email}</div>
+              </div>
+              <div className="text-right text-[11px] text-[#667085]">
+                {entry.updatedAt ? formatDateTime(entry.updatedAt) : '미입력'}
+                {entry.updatedByName ? <div>{entry.updatedByName}</div> : null}
+              </div>
+            </div>
+            <div className="grid gap-3 lg:grid-cols-2">
+              <ContributionPreview label="내용" value={entry.content} />
+              <ContributionPreview label="비고" value={entry.note} />
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  )
+}
+
+function MajorWorkBlock(props: {
+  label: string
+  thisWeek: string
+  nextWeek: string
+  onThisWeekChange: (value: string) => void
+  onNextWeekChange: (value: string) => void
+}) {
+  return (
+    <div className="overflow-hidden rounded-2xl border border-[#d7dde4] bg-[#fcfcfd]">
+      <div className="border-b border-[#dbe3ec] bg-[linear-gradient(180deg,#f8fbff_0%,#f2f6fb_100%)] px-4 py-3">
+        <div className="text-sm font-semibold text-[#101828]">{props.label || '항목명 미정'}</div>
+      </div>
+      <div className="grid gap-4 p-4 lg:grid-cols-2">
+        <div className="space-y-2">
+          <div className="text-xs font-semibold text-[#344054]">금주 진행 업무</div>
+          <Textarea value={props.thisWeek} onChange={(event) => props.onThisWeekChange(event.target.value)} className="min-h-[150px] rounded-2xl border-[#cfd8e3] bg-white text-sm leading-6" />
+        </div>
+        <div className="space-y-2">
+          <div className="text-xs font-semibold text-[#344054]">차주 예정 업무</div>
+          <Textarea value={props.nextWeek} onChange={(event) => props.onNextWeekChange(event.target.value)} className="min-h-[150px] rounded-2xl border-[#cfd8e3] bg-white text-sm leading-6" />
+        </div>
+      </div>
+    </div>
+  )
+}
+
+function MajorContributionBlock(props: {
+  label: string
+  updates: NonNullable<MajorWorkItem['memberUpdates']>
+}) {
+  return (
+    <div className="overflow-hidden rounded-2xl border border-[#d7dde4] bg-[#fcfcfd]">
+      <div className="border-b border-[#dbe3ec] bg-[linear-gradient(180deg,#f8fbff_0%,#f2f6fb_100%)] px-4 py-3">
+        <div className="text-sm font-semibold text-[#101828]">{props.label || '항목명 미정'}</div>
+      </div>
+      <div className="grid gap-3 p-4 xl:grid-cols-2">
+        {props.updates.map((entry) => (
+          <div key={entry.email} className="rounded-2xl border border-[#d9e2ec] bg-white p-4">
+            <div className="mb-3 flex items-start justify-between gap-3">
+              <div>
+                <div className="text-sm font-semibold text-[#101828]">{entry.name}</div>
+                <div className="text-xs text-[#667085]">{entry.email}</div>
+              </div>
+              <div className="text-right text-[11px] text-[#667085]">
+                {entry.updatedAt ? formatDateTime(entry.updatedAt) : '미입력'}
+                {entry.updatedByName ? <div>{entry.updatedByName}</div> : null}
+              </div>
+            </div>
+            <div className="grid gap-3 lg:grid-cols-2">
+              <ContributionPreview label="금주 진행 업무" value={entry.thisWeek} />
+              <ContributionPreview label="차주 예정 업무" value={entry.nextWeek} />
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  )
+}
+
+function ContributionPreview({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="rounded-2xl border border-[#e4e7ec] bg-[#f8fafc] p-3">
+      <div className="text-[11px] font-semibold text-[#667085]">{label}</div>
+      <div className="mt-2 min-h-[84px] whitespace-pre-wrap text-sm leading-6 text-[#344054]">
+        {value || '아직 입력 전'}
+      </div>
+    </div>
+  )
+}
+
 function SummaryField({ label, value }: { label: string; value: string }) {
   return (
     <div className="space-y-1">
@@ -1582,6 +2055,18 @@ function SummaryField({ label, value }: { label: string; value: string }) {
       <div className="truncate text-sm text-[#101828]">{value || '-'}</div>
     </div>
   )
+}
+
+function getCurrentMemberWorkUpdate(updates: MemberWorkUpdate[] | undefined) {
+  const currentUser = useAuthStore.getState().currentUser
+  const email = normalizeEmail(currentUser?.email)
+  return normalizeMemberWorkUpdates(updates).find((entry) => normalizeEmail(entry.email) === email) ?? null
+}
+
+function getCurrentMemberMajorUpdate(updates: MajorWorkItem['memberUpdates']) {
+  const currentUser = useAuthStore.getState().currentUser
+  const email = normalizeEmail(currentUser?.email)
+  return normalizeMemberMajorUpdates(updates).find((entry) => normalizeEmail(entry.email) === email) ?? null
 }
 
 function ReadOnlyStrategySection({ rows }: { rows: StrategyMeetingRow[] }) {
