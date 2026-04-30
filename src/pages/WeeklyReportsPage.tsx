@@ -2685,7 +2685,7 @@ function InputCell({
       value={value}
       onChange={(event) => onChange(event.target.value)}
       placeholder={placeholder}
-      className="h-9 rounded-xl border-[#d0d5dd] bg-white text-sm"
+      className="h-9 rounded-xl border-[#d0d5dd] bg-white text-sm text-[#475467] placeholder:text-[#c5ced8] placeholder:opacity-100"
     />
   )
 }
@@ -2709,13 +2709,13 @@ function TextareaCell({
       value={value}
       onChange={(event) => onChange(event.target.value)}
       placeholder={placeholder}
-      className={`${minHeightClass} rounded-2xl border-[#d0d5dd] bg-white text-sm leading-6`}
+      className={`${minHeightClass} rounded-2xl border-[#d0d5dd] bg-white text-sm leading-6 text-[#475467] placeholder:text-[#c5ced8] placeholder:opacity-100`}
     />
   )
 }
 
 function ReadValue({ value, empty, multiline }: { value: string; empty: string; multiline?: boolean }) {
-  if (!value) return <span className="text-[#98a2b3]">{empty}</span>
+  if (!value) return <span className="text-[#c5ced8]">{empty}</span>
   return (
     <div className={multiline ? 'whitespace-pre-wrap leading-6 text-[#475467]' : 'text-[#475467]'}>
       {value}
