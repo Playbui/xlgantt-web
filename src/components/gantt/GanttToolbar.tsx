@@ -64,9 +64,10 @@ export function GanttToolbar({ onOpenTaskDialog, onScrollToToday }: GanttToolbar
   const searchInputRef = useRef<HTMLInputElement>(null)
   const [excelDialogOpen, setExcelDialogOpen] = useState(false)
 
-  const selectedId = selectedTaskIds.size === 1 ? Array.from(selectedTaskIds)[0] : null
+  const safeSelectedTaskIds = selectedTaskIds ?? new Set<string>()
+  const selectedId = safeSelectedTaskIds.size === 1 ? Array.from(safeSelectedTaskIds)[0] : null
   const selectedTask = selectedId ? tasks.find((t) => t.id === selectedId) : null
-  const hasSelection = selectedTaskIds.size > 0
+  const hasSelection = safeSelectedTaskIds.size > 0
   const myProjectRole = project && currentUser ? getMyProjectRole(project.id, currentUser.id) : null
   const canManageWbsImport = currentUser?.role === 'admin' || currentUser?.role === 'pm' || myProjectRole === 'pm'
   const activeFilterCount = [

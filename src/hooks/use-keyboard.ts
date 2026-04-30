@@ -22,8 +22,9 @@ export function useKeyboard() {
   /** 현재 단일 선택된 taskId를 반환. 다중 선택이면 null. */
   const getSelectedId = useCallback((): string | null => {
     const { selectedTaskIds } = useTaskStore.getState()
-    if (selectedTaskIds.size !== 1) return null
-    return Array.from(selectedTaskIds)[0]
+    const safeSelectedTaskIds = selectedTaskIds ?? new Set<string>()
+    if (safeSelectedTaskIds.size !== 1) return null
+    return Array.from(safeSelectedTaskIds)[0]
   }, [])
 
   /** 표시 순서대로 정렬된 tasks */
@@ -81,10 +82,11 @@ export function useKeyboard() {
   /** Ctrl+Delete: 삭제 */
   const handleDelete = useCallback(() => {
     const { selectedTaskIds, deleteTask, clearSelection } = useTaskStore.getState()
-    if (selectedTaskIds.size === 0) return
+    const safeSelectedTaskIds = selectedTaskIds ?? new Set<string>()
+    if (safeSelectedTaskIds.size === 0) return
 
     // 선택된 모든 작업 삭제
-    const ids = Array.from(selectedTaskIds)
+    const ids = Array.from(safeSelectedTaskIds)
     for (const id of ids) {
       deleteTask(id)
     }
