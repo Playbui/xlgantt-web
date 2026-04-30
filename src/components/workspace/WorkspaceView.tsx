@@ -361,46 +361,56 @@ export function WorkspaceView() {
   const saveDraft = async (changeType: Parameters<typeof updateItem>[2] = 'body') => {
     if (!selectedItem || !draft || !dirty) return
     setSaving(true)
-    let nextDraft = draft
+    try {
+      let nextDraft = draft
 
-    if (changeType === 'body' && draft.body && hasEmbeddedImages(draft.body)) {
-      try {
-        const parser = new DOMParser()
-        const doc = parser.parseFromString(draft.body, 'text/html')
-        const imageElements = Array.from(doc.querySelectorAll('img')).filter((img) => {
-          const src = img.getAttribute('src') || ''
-          return src.startsWith('data:image/')
-        })
-
-        if (imageElements.length > 0) {
-          const files = await Promise.all(
-            imageElements.map(async (img, index) => {
-              const src = img.getAttribute('src') || ''
-              const response = await fetch(src)
-              const blob = await response.blob()
-              const extension = blob.type.split('/')[1] || 'png'
-              return new File([blob], `workspace-inline-${index + 1}.${extension}`, { type: blob.type || 'image/png' })
-            })
-          )
-
-          const uploadedUrls = await uploadEmbeddedImages(selectedItem.id, files)
-          uploadedUrls.forEach((url, index) => {
-            if (!url) return
-            imageElements[index]?.setAttribute('src', url)
+      if (changeType === 'body' && draft.body && hasEmbeddedImages(draft.body)) {
+        try {
+          const parser = new DOMParser()
+          const doc = parser.parseFromString(draft.body, 'text/html')
+          const imageElements = Array.from(doc.querySelectorAll('img')).filter((img) => {
+            const src = img.getAttribute('src') || ''
+            return src.startsWith('data:image/')
           })
 
-          const normalizedBody = doc.body.innerHTML
-          nextDraft = { ...draft, body: normalizedBody }
-          setDraft(nextDraft)
-        }
-      } catch (error) {
-        console.error('업무노트 본문 이미지 정리 실패:', error)
-      }
-    }
+          if (imageElements.length > 0) {
+            const files = await Promise.all(
+              imageElements.map(async (img, index) => {
+                const src = img.getAttribute('src') || ''
+                const response = await fetch(src)
+                const blob = await response.blob()
+                const extension = blob.type.split('/')[1] || 'png'
+                return new File([blob], `workspace-inline-${index + 1}.${extension}`, { type: blob.type || 'image/png' })
+              })
+            )
 
-    await updateItem(selectedItem.id, nextDraft, changeType)
-    setSaving(false)
-    setDirty(false)
+            const uploadedUrls = await uploadEmbeddedImages(selectedItem.id, files)
+            uploadedUrls.forEach((url, index) => {
+              if (!url) return
+              imageElements[index]?.setAttribute('src', url)
+            })
+
+            const normalizedBody = doc.body.innerHTML
+            nextDraft = { ...draft, body: normalizedBody }
+            setDraft(nextDraft)
+          }
+        } catch (error) {
+          console.error('업무노트 본문 이미지 정리 실패:', error)
+        }
+      }
+
+      const saved = await updateItem(selectedItem.id, nextDraft, changeType)
+      if (saved) {
+        setDirty(false)
+      } else {
+        alert('업무노트 저장에 실패했습니다. 잠시 후 다시 시도해주세요.')
+      }
+    } catch (error) {
+      console.error('업무노트 저장 중 오류:', error)
+      alert('업무노트 저장 중 오류가 발생했습니다.')
+    } finally {
+      setSaving(false)
+    }
   }
 
   const handleSelectItem = (id: string) => {

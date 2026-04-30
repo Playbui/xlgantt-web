@@ -12,7 +12,7 @@ interface WorkspaceState {
   loadItems: (projectId: string) => Promise<void>
   createItem: (projectId: string, parentId?: string | null, itemType?: WorkspaceItem['item_type']) => Promise<string | null>
   selectItem: (id: string | null) => void
-  updateItem: (id: string, changes: Partial<WorkspaceItem>, changeType?: WorkspaceRevision['change_type']) => Promise<void>
+  updateItem: (id: string, changes: Partial<WorkspaceItem>, changeType?: WorkspaceRevision['change_type']) => Promise<boolean>
   deleteItem: (id: string) => Promise<void>
   uploadAttachment: (itemId: string, file: File) => Promise<void>
   uploadEmbeddedImages: (itemId: string, files: File[]) => Promise<string[]>
@@ -325,7 +325,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => ({
 
   updateItem: async (id, changes, changeType = 'body') => {
     const prev = get().items.find((item) => item.id === id)
-    if (!prev) return
+    if (!prev) return false
 
     const currentUserId = useAuthStore.getState().currentUser?.id
     const nextLinkedTaskIds = changes.linkedTaskIds ?? prev.linkedTaskIds
@@ -409,7 +409,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => ({
       set((state) => ({
         items: state.items.map((item) => (item.id === id ? prev : item)),
       }))
-      return
+      return false
     }
 
     if (changes.linkedTaskIds) {
@@ -450,6 +450,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => ({
         revisions: [dbRowToRevision(latestRevision[0] as Record<string, unknown>), ...state.revisions].slice(0, 200),
       }))
     }
+    return true
   },
 
   deleteItem: async (id) => {
