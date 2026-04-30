@@ -48,6 +48,14 @@ interface IssueRow {
   category: string
   issue: string
   action: string
+  memberUpdates?: Array<{
+    email: string
+    name: string
+    issue: string
+    action: string
+    updatedAt?: string
+    updatedByName?: string
+  }>
 }
 
 interface MemberWorkUpdate {
@@ -153,6 +161,7 @@ const INITIAL_ISSUE_ROWS: IssueRow[] = [
     category: '[해경] Deep Blue Eye 실증 - ICD 협의',
     issue: '- 항공단 ICD 협의 및 신호확인 위한 현장실사 필요\n- 카메라 물리적 연동관련 분석 필요',
     action: '- ICD문서(보안) 취합하여 분석 중 (w.LIG)\n- 항공단 협조하에 비행 동승 예정. (업무프로세스 및 실동작환경 확인)',
+    memberUpdates: [],
   },
 ]
 
@@ -449,6 +458,25 @@ export function WeeklyReportsPage() {
     )
   }, [currentUser])
 
+  const updateCurrentMemberIssue = useCallback((
+    updates: IssueRow['memberUpdates'],
+    key: 'issue' | 'action',
+    value: string,
+  ) => {
+    const base = normalizeMemberIssueUpdates(updates)
+    if (!currentUser) return base
+    return base.map((entry) =>
+      normalizeEmail(entry.email) === normalizeEmail(currentUser.email)
+        ? {
+            ...entry,
+            [key]: value,
+            updatedAt: new Date().toISOString(),
+            updatedByName: currentUser.name || currentUser.email,
+          }
+        : entry
+    )
+  }, [currentUser])
+
   const saveReport = useCallback(async (options?: { finalize?: boolean; completeMyInput?: boolean }) => {
     if (!currentUser) return
     if (!report && !canManage) {
@@ -522,7 +550,7 @@ export function WeeklyReportsPage() {
 
   const addIssueRow = () => updatePayload((prev) => ({
     ...prev,
-    issues: [...prev.issues, { category: '', issue: '', action: '' }],
+    issues: [...prev.issues, { category: '', issue: '', action: '', memberUpdates: buildMemberIssueUpdates() }],
   }))
 
   const addWorkRow = (section: 'carryOver' | 'inProgress') => updatePayload((prev) => ({
@@ -850,6 +878,11 @@ export function WeeklyReportsPage() {
                 </div>
 
                 <div className="space-y-4">
+                  <SectionLabel index="2." title="이슈보고 입력 현황" />
+                  <ContributionIssueTable rows={payload.issues} />
+                </div>
+
+                <div className="space-y-4">
                   <SectionLabel index="3." title="프로젝트별 원본 입력" />
                   <ContributionWorkReportTable
                     title="이월 사업"
@@ -878,6 +911,17 @@ export function WeeklyReportsPage() {
               </TabsContent>
 
               <TabsContent value="summary" className="space-y-6">
+                <div className="space-y-4">
+                  <SectionLabel index="2." title="이슈보고 최종 취합본" />
+                  <FinalIssueTable
+                    rows={payload.issues}
+                    onChange={(rowIndex, key, value) => updatePayload((prev) => ({
+                      ...prev,
+                      issues: prev.issues.map((row, index) => index === rowIndex ? { ...row, [key]: value } : row),
+                    }))}
+                  />
+                </div>
+
                 <div className="space-y-4">
                   <SectionLabel index="3." title="최종 취합본 작성" />
                   <FinalWorkReportTable
@@ -931,6 +975,19 @@ export function WeeklyReportsPage() {
           ) : (
             <div className="space-y-6 p-5">
               <WeeklyReadOnlySummary currentMemberEntry={currentMemberEntry} />
+
+              <div className="space-y-4">
+                <SectionLabel index="2." title="이슈보고" />
+                <MemberIssueInputTable
+                  rows={payload.issues}
+                  onChange={(rowIndex, key, value) => updatePayload((prev) => touchCurrentMember({
+                    ...prev,
+                    issues: prev.issues.map((row, index) => index === rowIndex
+                      ? { ...row, memberUpdates: updateCurrentMemberIssue(row.memberUpdates, key, value) }
+                      : row),
+                  }))}
+                />
+              </div>
 
               <div className="space-y-4">
                 <SectionLabel index="3." title="주간업무작성" />
@@ -1064,7 +1121,7 @@ function normalizePayload(raw: unknown): WeeklyReportPayload {
 
   return {
     strategyMeetings: normalizeRows(source.strategyMeetings, base.strategyMeetings),
-    issues: normalizeRows(source.issues, base.issues),
+    issues: normalizeIssueRows(source.issues, base.issues),
     carryOver: normalizeWorkRows(source.carryOver, base.carryOver),
     inProgress: normalizeWorkRows(source.inProgress, base.inProgress),
     planned: normalizePlannedRows(source.planned, base.planned),
@@ -1095,6 +1152,15 @@ function buildMemberWorkUpdates() {
   }))
 }
 
+function buildMemberIssueUpdates() {
+  return TEAM_INPUT_MEMBERS.map((member) => ({
+    email: member.email,
+    name: member.name,
+    issue: '',
+    action: '',
+  }))
+}
+
 function buildMemberMajorUpdates() {
   return TEAM_INPUT_MEMBERS.map((member) => ({
     email: member.email,
@@ -1107,6 +1173,17 @@ function buildMemberMajorUpdates() {
 function normalizeMemberWorkUpdates(raw: unknown) {
   const source = Array.isArray(raw) ? raw : []
   return buildMemberWorkUpdates().map((defaultEntry) => {
+    const incoming = source.find((entry) => normalizeEmail(entry?.email) === normalizeEmail(defaultEntry.email))
+    return {
+      ...defaultEntry,
+      ...(incoming || {}),
+    }
+  })
+}
+
+function normalizeMemberIssueUpdates(raw: unknown) {
+  const source = Array.isArray(raw) ? raw : []
+  return buildMemberIssueUpdates().map((defaultEntry) => {
     const incoming = source.find((entry) => normalizeEmail(entry?.email) === normalizeEmail(defaultEntry.email))
     return {
       ...defaultEntry,
@@ -1131,6 +1208,14 @@ function normalizeWorkRows(rows: unknown, fallback: WorkReportRow[]) {
   return normalized.map((row) => ({
     ...row,
     memberUpdates: normalizeMemberWorkUpdates(row.memberUpdates),
+  }))
+}
+
+function normalizeIssueRows(rows: unknown, fallback: IssueRow[]) {
+  const normalized = normalizeRows(rows, fallback)
+  return normalized.map((row) => ({
+    ...row,
+    memberUpdates: normalizeMemberIssueUpdates(row.memberUpdates),
   }))
 }
 
@@ -1416,6 +1501,137 @@ function EditableIssueSection(props: {
         </table>
       </div>
     </div>
+  )
+}
+
+function MemberIssueInputTable(props: {
+  rows: IssueRow[]
+  onChange: (rowIndex: number, key: 'issue' | 'action', value: string) => void
+}) {
+  return (
+    <SectionCard title="■ 이슈보고 입력">
+      <div className="space-y-4 bg-white p-4">
+        {props.rows.map((row, rowIndex) => {
+          const currentUpdate = getCurrentMemberIssueUpdate(row.memberUpdates)
+          return (
+            <div key={`member-issue-${rowIndex}`} className="overflow-hidden rounded-2xl border border-[#d7dde4] bg-[#fcfcfd]">
+              <div className="border-b border-[#dbe3ec] bg-[linear-gradient(180deg,#f8fbff_0%,#f2f6fb_100%)] px-4 py-3">
+                <div className="text-[11px] font-semibold uppercase tracking-[0.08em] text-[#5c6b82]">구분</div>
+                <div className="mt-1 break-words text-sm font-medium text-[#0f172a]">{row.category || '-'}</div>
+              </div>
+              <div className="grid gap-4 p-4 lg:grid-cols-2">
+                <div className="space-y-2">
+                  <div className="text-xs font-semibold text-[#344054]">이슈 내용</div>
+                  <Textarea
+                    value={currentUpdate?.issue || ''}
+                    onChange={(event) => props.onChange(rowIndex, 'issue', event.target.value)}
+                    placeholder="이슈 내용 입력"
+                    className="min-h-[170px] rounded-2xl border-[#cfd8e3] bg-white text-sm leading-6"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <div className="text-xs font-semibold text-[#344054]">조치계획 및 결과</div>
+                  <Textarea
+                    value={currentUpdate?.action || ''}
+                    onChange={(event) => props.onChange(rowIndex, 'action', event.target.value)}
+                    placeholder="조치계획 및 결과 입력"
+                    className="min-h-[170px] rounded-2xl border-[#cfd8e3] bg-white text-sm leading-6"
+                  />
+                </div>
+              </div>
+            </div>
+          )
+        })}
+      </div>
+    </SectionCard>
+  )
+}
+
+function ContributionIssueTable(props: { rows: IssueRow[] }) {
+  return (
+    <SectionCard title="■ 이슈보고 입력 현황">
+      <div className="space-y-4 bg-white p-4">
+        {props.rows.map((row, rowIndex) => (
+          <div key={`contribution-issue-${rowIndex}`} className="overflow-hidden rounded-2xl border border-[#d7dde4] bg-[#fcfcfd]">
+            <div className="border-b border-[#dbe3ec] bg-[linear-gradient(180deg,#f8fbff_0%,#f2f6fb_100%)] px-4 py-3">
+              <div className="text-[11px] font-semibold uppercase tracking-[0.08em] text-[#5c6b82]">구분</div>
+              <div className="mt-1 break-words text-sm font-medium text-[#0f172a]">{row.category || '-'}</div>
+            </div>
+            <div className="grid gap-3 p-4 xl:grid-cols-2">
+              {normalizeMemberIssueUpdates(row.memberUpdates).map((entry) => (
+                <div key={entry.email} className="rounded-2xl border border-[#d9e2ec] bg-white p-4">
+                  <div className="mb-3 flex items-start justify-between gap-3">
+                    <div>
+                      <div className="text-sm font-semibold text-[#101828]">{entry.name}</div>
+                      <div className="text-xs text-[#667085]">{entry.email}</div>
+                    </div>
+                    <div className="text-right text-[11px] text-[#667085]">
+                      {entry.updatedAt ? formatDateTime(entry.updatedAt) : '미입력'}
+                      {entry.updatedByName ? <div>{entry.updatedByName}</div> : null}
+                    </div>
+                  </div>
+                  <div className="rounded-2xl border border-[#e4e7ec] bg-[#f8fafc] px-3 py-2 text-sm text-[#475467]">
+                    {entry.updatedAt ? '입력 완료' : '아직 작성 전'}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        ))}
+      </div>
+    </SectionCard>
+  )
+}
+
+function FinalIssueTable(props: {
+  rows: IssueRow[]
+  onChange: (rowIndex: number, key: keyof IssueRow, value: string) => void
+}) {
+  return (
+    <SectionCard title="■ 이슈보고">
+      <div className="space-y-4 bg-white p-4">
+        {props.rows.map((row, rowIndex) => (
+          <div key={`final-issue-${rowIndex}`} className="overflow-hidden rounded-2xl border border-[#d7dde4] bg-[#fcfcfd]">
+            <div className="border-b border-[#dbe3ec] bg-[linear-gradient(180deg,#f8fbff_0%,#f2f6fb_100%)] px-4 py-3">
+              <div className="text-[11px] font-semibold uppercase tracking-[0.08em] text-[#5c6b82]">구분</div>
+              <div className="mt-1 break-words text-sm font-medium text-[#0f172a]">{row.category || '-'}</div>
+            </div>
+            <div className="grid gap-4 border-b border-[#e4e7ec] bg-[#f9fbff] p-4 xl:grid-cols-2">
+              <AggregatePreviewPanel
+                title="팀원 입력 합본 - 이슈 내용"
+                value={aggregateIssueText(row.memberUpdates, 'issue')}
+              />
+              <AggregatePreviewPanel
+                title="팀원 입력 합본 - 조치계획 및 결과"
+                value={aggregateIssueText(row.memberUpdates, 'action')}
+              />
+            </div>
+            <div className="grid gap-4 p-4 lg:grid-cols-2">
+              <div className="space-y-2">
+                <div className="text-xs font-semibold text-[#344054]">최종 이슈 내용</div>
+                <TextareaCell
+                  editable
+                  value={row.issue}
+                  onChange={(value) => props.onChange(rowIndex, 'issue', value)}
+                  placeholder="이슈 내용 입력"
+                  minHeightClass="min-h-[156px]"
+                />
+              </div>
+              <div className="space-y-2">
+                <div className="text-xs font-semibold text-[#344054]">최종 조치계획 및 결과</div>
+                <TextareaCell
+                  editable
+                  value={row.action}
+                  onChange={(value) => props.onChange(rowIndex, 'action', value)}
+                  placeholder="조치계획 및 결과 입력"
+                  minHeightClass="min-h-[156px]"
+                />
+              </div>
+            </div>
+          </div>
+        ))}
+      </div>
+    </SectionCard>
   )
 }
 
@@ -2116,6 +2332,12 @@ function getCurrentMemberWorkUpdate(updates: MemberWorkUpdate[] | undefined) {
   return normalizeMemberWorkUpdates(updates).find((entry) => normalizeEmail(entry.email) === email) ?? null
 }
 
+function getCurrentMemberIssueUpdate(updates: IssueRow['memberUpdates']) {
+  const currentUser = useAuthStore.getState().currentUser
+  const email = normalizeEmail(currentUser?.email)
+  return normalizeMemberIssueUpdates(updates).find((entry) => normalizeEmail(entry.email) === email) ?? null
+}
+
 function getCurrentMemberMajorUpdate(updates: MajorWorkItem['memberUpdates']) {
   const currentUser = useAuthStore.getState().currentUser
   const email = normalizeEmail(currentUser?.email)
@@ -2127,6 +2349,16 @@ function aggregateMemberText(
   key: 'content' | 'note',
 ) {
   return normalizeMemberWorkUpdates(updates)
+    .filter((entry) => (entry[key] || '').trim().length > 0)
+    .map((entry) => `[${entry.name}] ${entry[key].trim()}`)
+    .join('\n\n')
+}
+
+function aggregateIssueText(
+  updates: IssueRow['memberUpdates'],
+  key: 'issue' | 'action',
+) {
+  return normalizeMemberIssueUpdates(updates)
     .filter((entry) => (entry[key] || '').trim().length > 0)
     .map((entry) => `[${entry.name}] ${entry[key].trim()}`)
     .join('\n\n')
