@@ -1184,7 +1184,7 @@ function normalizePayload(raw: unknown): WeeklyReportPayload {
 }
 
 function normalizeRows<T>(rows: unknown, fallback: T[]): T[] {
-  if (!Array.isArray(rows) || rows.length === 0) return deepCopy(fallback)
+  if (!Array.isArray(rows)) return deepCopy(fallback)
   return rows as T[]
 }
 
