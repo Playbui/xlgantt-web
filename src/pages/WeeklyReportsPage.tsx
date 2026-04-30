@@ -22,12 +22,12 @@ import { Badge } from '@/components/ui/badge'
 import { Input } from '@/components/ui/input'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Separator } from '@/components/ui/separator'
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Textarea } from '@/components/ui/textarea'
 import { supabase } from '@/lib/supabase'
 import {
   canManageWeeklyReports,
   getWeeklyReportAllowedEmails,
-  getWeeklyReportMember,
   getWeeklyReportMembers,
   WEEKLY_REPORT_TEAM_KEY,
   WEEKLY_REPORT_TEAM_NAME,
@@ -230,6 +230,7 @@ export function WeeklyReportsPage() {
   const [isDirty, setIsDirty] = useState(false)
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
   const [notice, setNotice] = useState<string | null>(null)
+  const [managerTab, setManagerTab] = useState<'setup' | 'collect'>('setup')
 
   const currentMemberEntry = useMemo(() => {
     const email = normalizeEmail(currentUser?.email)
@@ -593,23 +594,46 @@ export function WeeklyReportsPage() {
           </div>
         )}
 
-        <section className="grid gap-4 xl:grid-cols-[minmax(0,1.95fr)_380px]">
-          <div className="rounded-[22px] border border-[#d7dde4] bg-white shadow-[0_14px_36px_rgba(15,23,42,0.05)]">
-            <SectionHeader
-              title={report?.title ?? `${getWeekTitle(selectedWeek)} 주간보고`}
-              description={canManage ? '팀장은 기본 사업 항목과 취합 문안을 계속 수정할 수 있습니다.' : '팀원은 아래 기타 주요 업무에서 자기 담당 구역만 입력하면 됩니다.'}
-            />
+        {canManage && (
+          <section className="grid gap-3 md:grid-cols-4">
+            <CompactSummaryCard title="입력 완료" value={`${completedMembers.length}명`} tone="green" />
+            <CompactSummaryCard title="미완료" value={`${pendingMembers.length}명`} tone="amber" />
+            <CompactSummaryCard title="권한 대상" value={`${payload.memberEntries.length}명`} tone="slate" />
+            <CompactSummaryCard title="최근 저장" value={report?.updated_at ? formatDateTime(report.updated_at) : '-'} tone="blue" />
+          </section>
+        )}
 
-            {isLoading ? (
-              <div className="flex min-h-[320px] items-center justify-center p-10 text-sm text-[#667085]">
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                주간보고를 불러오는 중입니다...
+        <section className="rounded-[22px] border border-[#d7dde4] bg-white shadow-[0_14px_36px_rgba(15,23,42,0.05)]">
+          <SectionHeader
+            title={report?.title ?? `${getWeekTitle(selectedWeek)} 주간보고`}
+            description={canManage ? '팀장은 사업 틀을 정리하고, 취합상황 탭에서 팀원 입력을 한 번에 확인합니다.' : '팀원은 아래 입력 화면만 사용하면 됩니다. 잠긴 칸은 팀장이 관리하는 영역입니다.'}
+          />
+
+          {isLoading ? (
+            <div className="flex min-h-[320px] items-center justify-center p-10 text-sm text-[#667085]">
+              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              주간보고를 불러오는 중입니다...
+            </div>
+          ) : canManage ? (
+            <Tabs value={managerTab} onValueChange={(value) => setManagerTab(value as 'setup' | 'collect')} className="p-5">
+              <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
+                <TabsList className="h-10 rounded-xl bg-[#eef3f8] p-1">
+                  <TabsTrigger value="setup" className="px-4 text-sm">사업등록</TabsTrigger>
+                  <TabsTrigger value="collect" className="px-4 text-sm">주간보고 취합상황</TabsTrigger>
+                </TabsList>
+
+                {managerTab === 'collect' && (
+                  <div className="flex flex-wrap items-center gap-2 text-xs text-[#667085]">
+                    <span className="rounded-full border border-[#dbeadf] bg-[#f7fbf8] px-2.5 py-1 text-[#14532d]">완료 {completedMembers.length}명</span>
+                    <span className="rounded-full border border-[#f0e2bb] bg-[#fffbf0] px-2.5 py-1 text-[#9a6700]">미완료 {pendingMembers.length}명</span>
+                  </div>
+                )}
               </div>
-            ) : (
-              <div className="space-y-6 p-5">
+
+              <TabsContent value="setup" className="space-y-6">
                 <EditableStrategySection
                   rows={payload.strategyMeetings}
-                  editable={canManage}
+                  editable
                   onChange={(rowIndex, key, value) => updatePayload((prev) => ({
                     ...prev,
                     strategyMeetings: prev.strategyMeetings.map((row, index) => index === rowIndex ? { ...row, [key]: value } : row),
@@ -623,7 +647,7 @@ export function WeeklyReportsPage() {
 
                 <EditableIssueSection
                   rows={payload.issues}
-                  editable={canManage}
+                  editable
                   onChange={(rowIndex, key, value) => updatePayload((prev) => ({
                     ...prev,
                     issues: prev.issues.map((row, index) => index === rowIndex ? { ...row, [key]: value } : row),
@@ -640,7 +664,7 @@ export function WeeklyReportsPage() {
                   <EditableWorkReportTable
                     title="이월 사업"
                     rows={payload.carryOver}
-                    editable={canManage}
+                    editable
                     onAdd={() => addWorkRow('carryOver')}
                     onChange={(rowIndex, key, value) => updatePayload((prev) => ({
                       ...prev,
@@ -654,7 +678,7 @@ export function WeeklyReportsPage() {
                   <EditableWorkReportTable
                     title="진행 사업"
                     rows={payload.inProgress}
-                    editable={canManage}
+                    editable
                     onAdd={() => addWorkRow('inProgress')}
                     onChange={(rowIndex, key, value) => updatePayload((prev) => ({
                       ...prev,
@@ -668,7 +692,7 @@ export function WeeklyReportsPage() {
                   <EditablePlannedWorkTable
                     title="예정 사업"
                     rows={payload.planned}
-                    editable={canManage}
+                    editable
                     onAdd={() => addPlannedRow('planned')}
                     onChange={(rowIndex, key, value) => updatePayload((prev) => ({
                       ...prev,
@@ -682,7 +706,7 @@ export function WeeklyReportsPage() {
                   <EditablePlannedWorkTable
                     title="미정 사업"
                     rows={payload.tbd}
-                    editable={canManage}
+                    editable
                     onAdd={() => addPlannedRow('tbd')}
                     onChange={(rowIndex, key, value) => updatePayload((prev) => ({
                       ...prev,
@@ -694,100 +718,110 @@ export function WeeklyReportsPage() {
                     }))}
                   />
                 </div>
+              </TabsContent>
 
-                <div className="space-y-4">
-                  <SectionLabel index="4." title="기타 주요 업무" />
-                  <div className="grid gap-4">
-                    {payload.memberEntries.map((entry, index) => {
-                      const isCurrentUser = normalizeEmail(entry.email) === normalizeEmail(currentUser?.email)
-                      const canEdit = canManage || isCurrentUser
-
-                      return (
-                        <MemberNarrativeCard
-                          key={entry.email}
-                          entry={entry}
-                          canEdit={canEdit}
-                          onChange={(key, value) => updatePayload((prev) => ({
-                            ...prev,
-                            memberEntries: prev.memberEntries.map((row, rowIndex) =>
-                              rowIndex === index
-                                ? {
-                                    ...row,
-                                    [key]: value,
-                                    updatedAt: new Date().toISOString(),
-                                    updatedByName: currentUser?.name || currentUser?.email || row.updatedByName,
-                                  }
-                                : row
-                            ),
-                          }))}
-                        />
-                      )
-                    })}
+              <TabsContent value="collect" className="space-y-6">
+                <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_320px]">
+                  <div className="space-y-4">
+                    <SectionLabel index="4." title="팀원 주간 입력" />
+                    {payload.memberEntries.map((entry, index) => (
+                      <MemberNarrativeCard
+                        key={entry.email}
+                        entry={entry}
+                        canEdit
+                        onChange={(key, value) => updatePayload((prev) => ({
+                          ...prev,
+                          memberEntries: prev.memberEntries.map((row, rowIndex) =>
+                            rowIndex === index
+                              ? {
+                                  ...row,
+                                  [key]: value,
+                                  updatedAt: new Date().toISOString(),
+                                  updatedByName: currentUser?.name || currentUser?.email || row.updatedByName,
+                                }
+                              : row
+                          ),
+                        }))}
+                      />
+                    ))}
                   </div>
-                </div>
-              </div>
-            )}
-          </div>
 
-          <div className="space-y-4 xl:sticky xl:top-20 xl:self-start">
-            <SidebarCard
-              title="입력 현황"
-              description="승인은 없고, 누가 썼는지와 아직 안 쓴 사람만 빠르게 확인합니다."
-            >
-              <div className="space-y-3">
-                <MemberList title="입력 완료자" members={completedMembers} tone="green" />
-                <MemberList title="미완료자" members={pendingMembers} tone="amber" />
-              </div>
-            </SidebarCard>
-
-            <SidebarCard
-              title="내 입력 상태"
-              description={currentMemberEntry ? '팀원은 자기 입력칸만 수정하고 완료 여부만 체크하면 됩니다.' : '현재 계정은 열람 또는 팀장 권한으로 들어와 있습니다.'}
-            >
-              {currentMemberEntry ? (
-                <div className="space-y-3 text-sm text-[#475467]">
-                  <div className="rounded-2xl border border-[#e4e7ec] bg-[#fbfcfd] px-4 py-3">
-                    <div className="flex items-center justify-between gap-3">
-                      <div>
-                        <div className="font-semibold text-[#101828]">{currentMemberEntry.name}</div>
-                        <div className="text-xs text-[#667085]">{currentMemberEntry.email}</div>
+                  <div className="space-y-4">
+                    <SidebarCard
+                      title="입력 현황"
+                      description="누가 썼고 누가 아직 안 썼는지만 간단하게 보면 됩니다."
+                    >
+                      <div className="space-y-3">
+                        <MemberList title="입력 완료자" members={completedMembers} tone="green" />
+                        <MemberList title="미완료자" members={pendingMembers} tone="amber" />
                       </div>
-                      <StatusBadge status={currentMemberEntry.done ? '취합중' : '입력중'} />
-                    </div>
-                    <div className="mt-3 text-xs leading-6 text-[#667085]">
-                      {currentMemberEntry.updatedAt
-                        ? `마지막 수정 ${formatDateTime(currentMemberEntry.updatedAt)} · ${currentMemberEntry.updatedByName || currentMemberEntry.name}`
-                        : '아직 입력 기록이 없습니다.'}
-                    </div>
-                  </div>
-                  <div className="rounded-2xl border border-[#e4e7ec] bg-white px-4 py-3">
-                    <div className="text-xs font-semibold uppercase tracking-[0.16em] text-[#667085]">금주 진행 요약</div>
-                    <p className="mt-2 whitespace-pre-wrap text-sm leading-6 text-[#475467]">
-                      {currentMemberEntry.thisWeek || '아직 작성 전'}
-                    </p>
-                  </div>
-                </div>
-              ) : (
-                <div className="text-sm leading-6 text-[#475467]">
-                  팀원 입력 블록이 없는 계정입니다. 팀장은 전체 보고서 취합과 최종 저장만 진행하면 됩니다.
-                </div>
-              )}
-            </SidebarCard>
+                    </SidebarCard>
 
-            {canManage && (
-              <SidebarCard
-                title="팀장 메모"
-                description="이번 주 보고서에서 마지막에 다듬어야 할 포인트를 짧게 남겨둘 수 있습니다."
-              >
-                <Textarea
-                  value={payload.leaderMemo}
-                  onChange={(event) => updatePayload((prev) => ({ ...prev, leaderMemo: event.target.value }))}
-                  placeholder="예: 미완료자 확인 후 금요일 오전까지 취합 / Deep Blue Eye 문구 정리 필요"
-                  className="min-h-[160px] rounded-2xl border-[#d0d5dd] bg-white"
-                />
-              </SidebarCard>
-            )}
-          </div>
+                    <SidebarCard
+                      title="팀장 메모"
+                      description="이번 주 보고서 마지막 정리 포인트를 짧게 남겨둘 수 있습니다."
+                    >
+                      <Textarea
+                        value={payload.leaderMemo}
+                        onChange={(event) => updatePayload((prev) => ({ ...prev, leaderMemo: event.target.value }))}
+                        placeholder="예: 미완료자 확인 후 금요일 오전까지 취합 / Deep Blue Eye 문구 정리 필요"
+                        className="min-h-[180px] rounded-2xl border-[#d0d5dd] bg-white"
+                      />
+                    </SidebarCard>
+                  </div>
+                </div>
+              </TabsContent>
+            </Tabs>
+          ) : (
+            <div className="space-y-6 p-5">
+              <WeeklyReadOnlySummary currentMemberEntry={currentMemberEntry} />
+
+              <div className="space-y-4">
+                <SectionLabel index="1." title="전략회의" />
+                <ReadOnlyStrategySection rows={payload.strategyMeetings} />
+              </div>
+
+              <div className="space-y-4">
+                <SectionLabel index="2." title="이슈보고" />
+                <ReadOnlyIssueSection rows={payload.issues} />
+              </div>
+
+              <div className="space-y-4">
+                <SectionLabel index="3." title="업무보고" />
+                <ReadOnlyWorkReportTable title="이월 사업" rows={payload.carryOver} />
+                <ReadOnlyWorkReportTable title="진행 사업" rows={payload.inProgress} />
+                <ReadOnlyPlannedWorkTable title="예정 사업" rows={payload.planned} />
+                <ReadOnlyPlannedWorkTable title="미정 사업" rows={payload.tbd} />
+              </div>
+
+              <div className="space-y-4">
+                <SectionLabel index="4." title="내 주간 입력" />
+                {currentMemberEntry ? (
+                  <MemberNarrativeCard
+                    entry={currentMemberEntry}
+                    canEdit
+                    onChange={(key, value) => updatePayload((prev) => ({
+                      ...prev,
+                      memberEntries: prev.memberEntries.map((row) =>
+                        normalizeEmail(row.email) === normalizeEmail(currentMemberEntry.email)
+                          ? {
+                              ...row,
+                              [key]: value,
+                              updatedAt: new Date().toISOString(),
+                              updatedByName: currentUser?.name || currentUser?.email || row.updatedByName,
+                            }
+                          : row
+                      ),
+                    }))}
+                  />
+                ) : (
+                  <div className="rounded-2xl border border-dashed border-[#d0d5dd] px-4 py-5 text-sm text-[#667085]">
+                    이 계정에는 연결된 주간 입력칸이 없습니다.
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
         </section>
       </main>
     </div>
@@ -1313,6 +1347,134 @@ function MemberNarrativeCard(props: {
   )
 }
 
+function ReadOnlyStrategySection({ rows }: { rows: StrategyMeetingRow[] }) {
+  return (
+    <div className="overflow-x-auto rounded-2xl border border-[#d7dde4] bg-white">
+      <table className="w-full min-w-[1180px] border-collapse text-sm">
+        <thead className="bg-[#edf2f7] text-[#344054]">
+          <tr>
+            {['조직명', '구분', '내용', '시작일자', '계획일자', '종료일자', '조치계획 및 결과', '상태'].map((column) => (
+              <th key={column} className="border-b border-r border-[#d7dde4] px-3 py-2 text-left font-semibold last:border-r-0">
+                {column}
+              </th>
+            ))}
+          </tr>
+        </thead>
+        <tbody>
+          {rows.map((row, rowIndex) => (
+            <tr key={`readonly-strategy-${rowIndex}`} className="align-top odd:bg-white even:bg-[#fcfcfd]">
+              <EditableCell><ReadValue value={row.org} empty="-" /></EditableCell>
+              <EditableCell><ReadValue value={row.category} empty="-" /></EditableCell>
+              <EditableCell><ReadValue value={row.content} empty="입력 예정" multiline /></EditableCell>
+              <EditableCell><ReadValue value={row.startDate} empty="-" /></EditableCell>
+              <EditableCell><ReadValue value={row.targetDate} empty="-" /></EditableCell>
+              <EditableCell><ReadValue value={row.endDate} empty="-" /></EditableCell>
+              <EditableCell><ReadValue value={row.action} empty="입력 예정" multiline /></EditableCell>
+              <EditableCell><ReadValue value={row.status} empty="-" /></EditableCell>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  )
+}
+
+function ReadOnlyIssueSection({ rows }: { rows: IssueRow[] }) {
+  return (
+    <div className="overflow-x-auto rounded-2xl border border-[#d7dde4] bg-white">
+      <table className="w-full min-w-[980px] border-collapse text-sm">
+        <thead className="bg-[#edf2f7] text-[#344054]">
+          <tr>
+            {['구분', '이슈 내용', '조치계획 및 결과'].map((column) => (
+              <th key={column} className="border-b border-r border-[#d7dde4] px-3 py-2 text-left font-semibold last:border-r-0">
+                {column}
+              </th>
+            ))}
+          </tr>
+        </thead>
+        <tbody>
+          {rows.map((row, rowIndex) => (
+            <tr key={`readonly-issue-${rowIndex}`} className="align-top odd:bg-white even:bg-[#fcfcfd]">
+              <EditableCell><ReadValue value={row.category} empty="입력 예정" multiline /></EditableCell>
+              <EditableCell><ReadValue value={row.issue} empty="입력 예정" multiline /></EditableCell>
+              <EditableCell><ReadValue value={row.action} empty="입력 예정" multiline /></EditableCell>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  )
+}
+
+function ReadOnlyWorkReportTable({ title, rows }: { title: string; rows: WorkReportRow[] }) {
+  return (
+    <SectionCard title={`■ ${title}`}>
+      <div className="overflow-x-auto bg-white">
+        <table className="w-full min-w-[1260px] border-collapse text-sm">
+          <thead className="bg-white text-[#344054]">
+            <tr>
+              {['프로젝트명', '구분', '사업 기간', '사업PM', '개발PL', '목표율', '달성율', '내용', '비고'].map((column) => (
+                <th key={column} className="border-b border-r border-[#d7dde4] px-3 py-2 text-left font-semibold last:border-r-0">
+                  {column}
+                </th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {rows.map((row, rowIndex) => (
+              <tr key={`readonly-${title}-${rowIndex}`} className="align-top odd:bg-white even:bg-[#fcfcfd]">
+                <EditableCell><ReadValue value={row.projectName} empty="-" /></EditableCell>
+                <EditableCell><ReadValue value={row.category} empty="-" /></EditableCell>
+                <EditableCell><ReadValue value={row.period} empty="-" /></EditableCell>
+                <EditableCell><ReadValue value={row.pm} empty="-" /></EditableCell>
+                <EditableCell><ReadValue value={row.pl} empty="-" /></EditableCell>
+                <EditableCell><ReadValue value={row.targetRate} empty="-" /></EditableCell>
+                <EditableCell><ReadValue value={row.actualRate} empty="-" /></EditableCell>
+                <EditableCell><ReadValue value={row.detail} empty="입력 예정" multiline /></EditableCell>
+                <EditableCell><ReadValue value={row.note} empty="-" multiline /></EditableCell>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </SectionCard>
+  )
+}
+
+function ReadOnlyPlannedWorkTable({ title, rows }: { title: string; rows: PlannedWorkRow[] }) {
+  return (
+    <SectionCard title={`■ ${title}`}>
+      <div className="overflow-x-auto bg-white">
+        <table className="w-full min-w-[1220px] border-collapse text-sm">
+          <thead className="bg-white text-[#344054]">
+            <tr>
+              {['프로젝트명', '사업유형', '입찰 구분', '사업예산', '사업PM', '수주확률', '사업관리 및 영업 진행 현황', '비고'].map((column) => (
+                <th key={column} className="border-b border-r border-[#d7dde4] px-3 py-2 text-left font-semibold last:border-r-0">
+                  {column}
+                </th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {rows.map((row, rowIndex) => (
+              <tr key={`readonly-planned-${title}-${rowIndex}`} className="align-top odd:bg-white even:bg-[#fcfcfd]">
+                <EditableCell><ReadValue value={row.projectName} empty="-" /></EditableCell>
+                <EditableCell><ReadValue value={row.category} empty="-" /></EditableCell>
+                <EditableCell><ReadValue value={row.bidType} empty="-" /></EditableCell>
+                <EditableCell><ReadValue value={row.budget} empty="-" /></EditableCell>
+                <EditableCell><ReadValue value={row.pm} empty="-" /></EditableCell>
+                <EditableCell><ReadValue value={row.probability} empty="-" /></EditableCell>
+                <EditableCell><ReadValue value={row.detail} empty="입력 예정" multiline /></EditableCell>
+                <EditableCell><ReadValue value={row.note} empty="-" multiline /></EditableCell>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </SectionCard>
+  )
+}
+
 function EditableCell({ children }: { children: ReactNode }) {
   return (
     <td className="min-w-[120px] border-r border-t border-[#e4e7ec] px-3 py-3 align-top text-[#475467] last:border-r-0">
@@ -1382,6 +1544,48 @@ function SidebarCard({ title, description, children }: { title: string; descript
       <h3 className="text-base font-semibold tracking-[-0.02em] text-[#101828]">{title}</h3>
       <p className="mt-1 text-sm text-[#667085]">{description}</p>
       <div className="mt-4">{children}</div>
+    </div>
+  )
+}
+
+function CompactSummaryCard({
+  title,
+  value,
+  tone,
+}: {
+  title: string
+  value: string
+  tone: 'green' | 'amber' | 'blue' | 'slate'
+}) {
+  const toneMap = {
+    green: 'border-[#dbeadf] bg-[#f7fbf8] text-[#14532d]',
+    amber: 'border-[#f0e2bb] bg-[#fffbf0] text-[#9a6700]',
+    blue: 'border-[#dbe6f4] bg-[#f7faff] text-[#1d4f91]',
+    slate: 'border-[#e4e7ec] bg-[#fbfcfd] text-[#344054]',
+  }
+
+  return (
+    <div className={`rounded-2xl border px-4 py-3 ${toneMap[tone]}`}>
+      <div className="text-[11px] font-semibold uppercase tracking-[0.16em]">{title}</div>
+      <div className="mt-1 text-sm font-semibold">{value}</div>
+    </div>
+  )
+}
+
+function WeeklyReadOnlySummary({ currentMemberEntry }: { currentMemberEntry: MemberEntry | null }) {
+  return (
+    <div className="rounded-2xl border border-[#d7dde4] bg-[linear-gradient(180deg,#fbfcfe_0%,#f7f9fc_100%)] px-5 py-4">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div>
+          <div className="text-sm font-semibold text-[#101828]">팀원 입력 화면</div>
+          <div className="mt-1 text-sm text-[#667085]">사업 정보는 읽기 전용이고, 아래 내 주간 입력만 수정하면 됩니다.</div>
+        </div>
+        {currentMemberEntry && (
+          <Badge variant="outline" className={`rounded-full px-2.5 text-[11px] ${currentMemberEntry.done ? 'border-[#dbeadf] bg-[#f7fbf8] text-[#14532d]' : 'border-[#f0e2bb] bg-[#fffbf0] text-[#9a6700]'}`}>
+            {currentMemberEntry.done ? '내 입력 완료' : '내 입력 작성중'}
+          </Badge>
+        )}
+      </div>
     </div>
   )
 }
