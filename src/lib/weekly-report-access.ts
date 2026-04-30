@@ -14,7 +14,6 @@ const WEEKLY_REPORT_ALLOWED_EMAILS = [
   'waterer@gmtc.kr',
   'sjw@gmtc.kr',
   'jack@gmtc.kr',
-  'erichan@gmtc.kr',
   'juchen131@gmtc.kr',
   'leejh@gmtc.kr',
 ]
@@ -29,7 +28,6 @@ const WEEKLY_REPORT_MEMBERS: WeeklyReportMember[] = [
   { email: 'waterer@gmtc.kr', name: '황준호', role: 'manager' },
   { email: 'sjw@gmtc.kr', name: '신진우', role: 'member' },
   { email: 'jack@gmtc.kr', name: '노재원', role: 'member' },
-  { email: 'erichan@gmtc.kr', name: '한규혁', role: 'member' },
   { email: 'juchen131@gmtc.kr', name: '김주영', role: 'member' },
   { email: 'leejh@gmtc.kr', name: '이준혁', role: 'member' },
 ]
