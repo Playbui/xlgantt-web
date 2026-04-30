@@ -1,8 +1,10 @@
 import { useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { ArrowLeft, CalendarDays, CheckCircle2, CircleAlert, Clock3, Download, FileLock2, FileSpreadsheet, Save, ShieldCheck, Users } from 'lucide-react'
+import { ArrowLeft, CalendarDays, CheckCircle2, CircleAlert, Clock3, FileLock2, FileSpreadsheet, Save, ShieldCheck, Sparkles, Users } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+import { Separator } from '@/components/ui/separator'
 import { useAuthStore } from '@/stores/auth-store'
 import { canManageWeeklyReports, getWeeklyReportAllowedEmails } from '@/lib/weekly-report-access'
 
@@ -223,10 +225,14 @@ export function WeeklyReportsPage() {
 
       <main className="std-page-main space-y-6">
         <section className="overflow-hidden rounded-[22px] border border-[#d7dde4] bg-white shadow-[0_18px_48px_rgba(15,23,42,0.05)]">
-          <div className="border-b border-[#e4e7ec] bg-[linear-gradient(180deg,#ffffff_0%,#f8fafc_100%)] px-5 py-5">
+          <div className="border-b border-[#e4e7ec] bg-[linear-gradient(180deg,#fffdfb_0%,#f8fafc_100%)] px-5 py-5">
             <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
               <div className="space-y-3">
                 <div className="flex flex-wrap items-center gap-2">
+                  <Badge variant="outline" className="h-6 rounded-full border-[#eadfda] bg-[#fff7f4] px-2.5 text-[11px] text-[#8f3b2e]">
+                    <Sparkles className="h-3 w-3" />
+                    Team Weekly
+                  </Badge>
                   <Badge variant="outline" className="h-6 rounded-full border-[#d7dde4] bg-white px-2.5 text-[11px] text-[#344054]">
                     <Users className="h-3 w-3" />
                     항해통신1팀
@@ -274,17 +280,20 @@ export function WeeklyReportsPage() {
                     <CalendarDays className="h-4 w-4 text-[#667085]" />
                     주차 선택
                   </label>
-                  <select
-                    value={selectedWeek}
-                    onChange={(event) => setSelectedWeek(event.target.value)}
-                    className="h-10 min-w-[240px] rounded-xl border border-[#d0d5dd] bg-white px-3 text-sm text-[#101828] outline-none focus:border-[#98a2b3] focus:ring-2 focus:ring-[#dce7f5]"
-                  >
-                    {WEEK_OPTIONS.map((option) => (
-                      <option key={option.value} value={option.value}>
-                        {option.label}
-                      </option>
-                    ))}
-                  </select>
+                  <Select value={selectedWeek} onValueChange={setSelectedWeek}>
+                    <SelectTrigger className="h-10 min-w-[260px] rounded-xl border-[#d0d5dd] bg-white text-sm shadow-none">
+                      <SelectValue placeholder="주차 선택">
+                        {WEEK_OPTIONS.find((option) => option.value === selectedWeek)?.label}
+                      </SelectValue>
+                    </SelectTrigger>
+                    <SelectContent className="min-w-[280px] rounded-xl border border-[#d7dde4] bg-white">
+                      {WEEK_OPTIONS.map((option) => (
+                        <SelectItem key={option.value} value={option.value}>
+                          {option.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                 </div>
                 <div className="text-xs text-[#667085]">지난 주차 조회와 이번 주차 입력 준비</div>
               </div>
@@ -318,6 +327,7 @@ export function WeeklyReportsPage() {
                   엑셀 출력
                 </Button>
               </div>
+              <Separator className="my-3 bg-[#edf0f4]" />
               <div className="mt-3 text-xs leading-6 text-[#667085]">
                 팀원은 자기 항목 입력과 완료 체크만, 팀장은 전체 문안 정리와 최종 저장을 담당합니다.
               </div>
@@ -429,11 +439,11 @@ function getWeekOfMonth(date: Date) {
 
 function MetricCard({ label, value, accent }: { label: string; value: string; accent: 'green' | 'red' | 'amber' | 'blue' | 'slate' }) {
   const accentMap = {
-    green: 'border-[#cce7d5] bg-[#f3fbf6] text-[#14532d]',
-    red: 'border-[#f0c7c7] bg-[#fff5f5] text-[#991b1b]',
-    amber: 'border-[#ead4a3] bg-[#fff9ec] text-[#9a6700]',
-    blue: 'border-[#cfe0f5] bg-[#f5f9ff] text-[#1d4f91]',
-    slate: 'border-[#d7dde4] bg-[#f8fafc] text-[#344054]',
+    green: 'border-[#dbeadf] bg-[#f7fbf8] text-[#14532d]',
+    red: 'border-[#f0d8d3] bg-[#fff7f4] text-[#8f3b2e]',
+    amber: 'border-[#f0e2bb] bg-[#fffbf0] text-[#9a6700]',
+    blue: 'border-[#dbe6f4] bg-[#f7faff] text-[#1d4f91]',
+    slate: 'border-[#e4e7ec] bg-[#fbfcfd] text-[#344054]',
   }
 
   return (
@@ -446,10 +456,10 @@ function MetricCard({ label, value, accent }: { label: string; value: string; ac
 
 function StatusBadge({ status }: { status: WeeklyStatus }) {
   const tone = status === '입력중'
-    ? 'border-[#ead4a3] bg-[#fff9ec] text-[#9a6700]'
+    ? 'border-[#f0e2bb] bg-[#fffbf0] text-[#9a6700]'
     : status === '취합중'
-      ? 'border-[#cfe0f5] bg-[#f5f9ff] text-[#1d4f91]'
-      : 'border-[#cce7d5] bg-[#f3fbf6] text-[#14532d]'
+      ? 'border-[#dbe6f4] bg-[#f7faff] text-[#1d4f91]'
+      : 'border-[#dbeadf] bg-[#f7fbf8] text-[#14532d]'
 
   return (
     <Badge variant="outline" className={`h-6 rounded-full px-2.5 text-[11px] ${tone}`}>
@@ -460,7 +470,7 @@ function StatusBadge({ status }: { status: WeeklyStatus }) {
 
 function SectionHeader({ title, description }: { title: string; description: string }) {
   return (
-    <div className="border-b border-[#e4e7ec] bg-[linear-gradient(180deg,#f8fafc_0%,#f2f6fb_100%)] px-5 py-4">
+    <div className="border-b border-[#e4e7ec] bg-[linear-gradient(180deg,#fbfcfe_0%,#f4f7fb_100%)] px-5 py-4">
       <h2 className="text-lg font-semibold tracking-[-0.02em] text-[#101828]">{title}</h2>
       <p className="mt-1 text-sm text-[#667085]">{description}</p>
     </div>
@@ -511,7 +521,7 @@ function WeeklyTableSection({ index, title, columns, rows }: { index: string; ti
 function WorkReportTable({ title, rows }: { title: string; rows: WorkReportRow[] }) {
   return (
     <div className="overflow-hidden rounded-2xl border border-[#d7dde4]">
-      <div className="border-b border-[#d7dde4] bg-[linear-gradient(180deg,#edf2f7_0%,#e6edf5_100%)] px-4 py-2 text-sm font-semibold text-[#101828]">■ {title}</div>
+      <div className="border-b border-[#d7dde4] bg-[linear-gradient(180deg,#f9fbfd_0%,#eef3f8_100%)] px-4 py-2 text-sm font-semibold text-[#101828]">■ {title}</div>
       <table className="w-full border-collapse text-sm">
         <thead className="bg-white text-[#344054]">
           <tr>
@@ -545,7 +555,7 @@ function WorkReportTable({ title, rows }: { title: string; rows: WorkReportRow[]
 function PlannedWorkTable({ title, rows }: { title: string; rows: PlannedWorkRow[] }) {
   return (
     <div className="overflow-hidden rounded-2xl border border-[#d7dde4]">
-      <div className="border-b border-[#d7dde4] bg-[linear-gradient(180deg,#edf2f7_0%,#e6edf5_100%)] px-4 py-2 text-sm font-semibold text-[#101828]">■ {title}</div>
+      <div className="border-b border-[#d7dde4] bg-[linear-gradient(180deg,#f9fbfd_0%,#eef3f8_100%)] px-4 py-2 text-sm font-semibold text-[#101828]">■ {title}</div>
       <table className="w-full border-collapse text-sm">
         <thead className="bg-white text-[#344054]">
           <tr>
@@ -578,7 +588,7 @@ function PlannedWorkTable({ title, rows }: { title: string; rows: PlannedWorkRow
 function NarrativePanel({ title, items }: { title: string; items: string[] }) {
   return (
     <div className="overflow-hidden rounded-2xl border border-[#d7dde4] bg-white">
-      <div className="border-b border-[#d7dde4] bg-[linear-gradient(180deg,#edf2f7_0%,#e6edf5_100%)] px-4 py-2 text-sm font-semibold text-[#101828]">{title}</div>
+      <div className="border-b border-[#d7dde4] bg-[linear-gradient(180deg,#f9fbfd_0%,#eef3f8_100%)] px-4 py-2 text-sm font-semibold text-[#101828]">{title}</div>
       <div className="space-y-0">
         {items.map((item, index) => (
           <div key={`${title}-${index}`} className="whitespace-pre-wrap border-t border-[#e4e7ec] px-4 py-4 text-sm leading-7 text-[#475467] first:border-t-0">
@@ -592,7 +602,7 @@ function NarrativePanel({ title, items }: { title: string; items: string[] }) {
 
 function SidebarCard({ title, description, children }: { title: string; description: string; children: React.ReactNode }) {
   return (
-    <div className="rounded-[22px] border border-[#d7dde4] bg-white p-5 shadow-[0_12px_30px_rgba(15,23,42,0.05)]">
+    <div className="rounded-[22px] border border-[#e4e7ec] bg-[linear-gradient(180deg,#ffffff_0%,#fdfdfd_100%)] p-5 shadow-[0_12px_30px_rgba(15,23,42,0.05)]">
       <h3 className="text-base font-semibold tracking-[-0.02em] text-[#101828]">{title}</h3>
       <p className="mt-1 text-sm text-[#667085]">{description}</p>
       <div className="mt-4">{children}</div>
@@ -602,8 +612,8 @@ function SidebarCard({ title, description, children }: { title: string; descript
 
 function MemberList({ title, members, tone }: { title: string; members: Array<{ email: string; name: string }>; tone: 'green' | 'amber' }) {
   const toneClass = tone === 'green'
-    ? 'border-[#cce7d5] bg-[#f3fbf6] text-[#14532d]'
-    : 'border-[#ead4a3] bg-[#fff9ec] text-[#9a6700]'
+    ? 'border-[#dbeadf] bg-[#f7fbf8] text-[#14532d]'
+    : 'border-[#f0e2bb] bg-[#fffbf0] text-[#9a6700]'
 
   return (
     <div>
