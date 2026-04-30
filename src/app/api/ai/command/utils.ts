@@ -286,7 +286,7 @@ export const isSingleCellSelection = (editor: SlateEditor): boolean => {
     editor.api.nodes({
       at: editor.selection,
       match: { type: KEYS.td },
-    })
+    }) ?? []
   );
 
   return cells.length === 1;
