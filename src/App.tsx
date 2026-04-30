@@ -9,7 +9,9 @@ import { ProjectDashboard } from '@/pages/ProjectDashboard'
 import { AdminPage } from '@/pages/AdminPage'
 import { ProfilePage } from '@/pages/ProfilePage'
 import { ForcePasswordChangePage } from '@/pages/ForcePasswordChangePage'
+import { WeeklyReportsPage } from '@/pages/WeeklyReportsPage'
 import { useAuthStore } from '@/stores/auth-store'
+import { canAccessWeeklyReports } from '@/lib/weekly-report-access'
 
 function AuthGuard({ children }: { children: React.ReactNode }) {
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated)
@@ -42,6 +44,12 @@ function AdminGuard({ children }: { children: React.ReactNode }) {
   return <>{children}</>
 }
 
+function WeeklyReportGuard({ children }: { children: React.ReactNode }) {
+  const currentUser = useAuthStore((s) => s.currentUser)
+  if (!canAccessWeeklyReports(currentUser)) return <Navigate to="/projects" replace />
+  return <>{children}</>
+}
+
 function App() {
   const initSession = useAuthStore((s) => s.initSession)
 
@@ -57,6 +65,7 @@ function App() {
       <Route path="/projects" element={<AuthGuard><PasswordFreshGuard><ProjectDashboard /></PasswordFreshGuard></AuthGuard>} />
       <Route path="/issues" element={<AuthGuard><PasswordFreshGuard><IssueTrackerView /></PasswordFreshGuard></AuthGuard>} />
       <Route path="/issues/stats" element={<AuthGuard><PasswordFreshGuard><IssueStatsView /></PasswordFreshGuard></AuthGuard>} />
+      <Route path="/weekly-reports" element={<AuthGuard><PasswordFreshGuard><WeeklyReportGuard><WeeklyReportsPage /></WeeklyReportGuard></PasswordFreshGuard></AuthGuard>} />
       <Route path="/projects/:projectId" element={<AuthGuard><PasswordFreshGuard><ProjectWorkspace mode="home" /></PasswordFreshGuard></AuthGuard>} />
       <Route path="/projects/:projectId/wbs" element={<AuthGuard><PasswordFreshGuard><ProjectWorkspace mode="wbs" /></PasswordFreshGuard></AuthGuard>} />
       <Route path="/projects/:projectId/issues" element={<AuthGuard><PasswordFreshGuard><ProjectWorkspace mode="issues" /></PasswordFreshGuard></AuthGuard>} />

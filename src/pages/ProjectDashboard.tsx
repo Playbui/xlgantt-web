@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Plus, Calendar, Trash2, FolderOpen, User, Shield, LogOut, ChevronDown, Diamond, CheckCircle2, Folder, ArrowDownUp, FolderPlus, Tag, Gauge, FolderKanban, AlertTriangle, Timer, ClipboardList } from 'lucide-react'
+import { Plus, Calendar, Trash2, FolderOpen, User, Shield, LogOut, ChevronDown, Diamond, CheckCircle2, Folder, ArrowDownUp, FolderPlus, Tag, Gauge, FolderKanban, AlertTriangle, Timer, ClipboardList, FileLock2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
@@ -11,6 +11,7 @@ import { useIssueStore } from '@/stores/issue-store'
 import { DatePicker } from '@/components/ui/date-picker'
 import { supabase } from '@/lib/supabase'
 import { cn } from '@/lib/utils'
+import { canAccessWeeklyReports } from '@/lib/weekly-report-access'
 
 type SortMode = 'updated' | 'name' | 'progress'
 
@@ -86,6 +87,8 @@ export function ProjectDashboard() {
     if (!currentUser?.id) return false
     return issueMembers.some((member) => member.user_id === currentUser.id)
   }, [currentUser?.id, isAdmin, issueMembers])
+
+  const canOpenWeeklyReports = useMemo(() => canAccessWeeklyReports(currentUser), [currentUser])
 
   // 전체 카테고리 목록 = 마스터 테이블 + 프로젝트에 박힌 값 (일관성 보정용 union)
   const allCategories = useMemo(() => {
@@ -589,6 +592,17 @@ export function ProjectDashboard() {
               >
                 <ClipboardList className="h-3 w-3" />
                 이슈 트래커
+              </Button>
+            )}
+            {canOpenWeeklyReports && (
+              <Button
+                variant="outline"
+                size="sm"
+                className="h-8 text-xs gap-1.5"
+                onClick={() => navigate('/weekly-reports')}
+              >
+                <FileLock2 className="h-3 w-3" />
+                주간업무보고
               </Button>
             )}
             {/* 카테고리 만들기 (admin 전용) */}
