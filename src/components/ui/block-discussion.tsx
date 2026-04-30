@@ -57,10 +57,11 @@ export const BlockDiscussion: RenderNodeWrapper<AnyPluginConfig> = (props) => {
 
   const draftCommentNode = commentsApi.node({ at: blockPath, isDraft: true });
 
-  const commentNodes = [...commentsApi.nodes({ at: blockPath })];
+  const commentNodes = [...(commentsApi.nodes({ at: blockPath }) ?? [])];
 
   const suggestionNodes = [
-    ...editor.getApi(SuggestionPlugin).suggestion.nodes({ at: blockPath }),
+    ...(editor.getApi(SuggestionPlugin).suggestion.nodes({ at: blockPath }) ??
+      []),
   ].filter(([node]) => !node[getTransientSuggestionKey()]);
 
   if (
