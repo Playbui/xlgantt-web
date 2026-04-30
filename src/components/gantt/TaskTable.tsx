@@ -96,22 +96,22 @@ export function TaskTable({ tasks, scrollRef, onScroll, onDoubleClickTask }: Tas
     <div className="flex flex-col h-full">
       {/* Column Headers - fixed height 48px to match GanttTimescale (24+24) */}
       <div
-        className="flex border-b border-border/50 bg-gradient-to-b from-muted/60 to-muted/90 text-xs font-semibold text-muted-foreground uppercase tracking-wider flex-shrink-0 sticky top-0 z-10"
+        className="sticky top-0 z-10 flex flex-shrink-0 border-b border-[#d8dde6] bg-[#f8fafc] text-[11px] font-semibold tracking-[0.08em] text-[#667085]"
         style={{ height: 48, minWidth: totalWidth + 20 }}
       >
         {/* 드래그 핸들 공간 맞춤 */}
-        <div className="flex-shrink-0 w-5" />
+        <div className="w-5 flex-shrink-0 border-r border-[#e7ebf1] bg-[#f1f5f9]" />
         {columns.map((col) => (
           <div
             key={col.id}
             style={{ width: col.width, minWidth: 30 }}
-            className="relative px-2 flex items-center justify-center border-r border-border/30 truncate select-none"
+            className="relative flex items-center justify-center border-r border-[#e7ebf1] px-2 truncate select-none"
             onDoubleClick={() => handleHeaderDoubleClick(col.id)}
           >
             {col.label}
             {/* 리사이즈 핸들 (오른쪽 가장자리) */}
             <div
-              className="absolute right-0 top-0 bottom-0 w-1.5 cursor-col-resize hover:bg-primary/30 active:bg-primary/50 z-20"
+              className="absolute right-0 top-0 bottom-0 z-20 w-1.5 cursor-col-resize hover:bg-[#c7d2fe] active:bg-[#a5b4fc]"
               onMouseDown={(e) => handleResizeStart(e, col.id, col.width)}
               onDoubleClick={(e) => e.stopPropagation()}
             />
@@ -122,14 +122,16 @@ export function TaskTable({ tasks, scrollRef, onScroll, onDoubleClickTask }: Tas
       {/* Task Rows */}
       <div
         ref={scrollRef}
-        className="flex-1 overflow-y-auto overflow-x-auto"
+        className="flex-1 overflow-x-auto overflow-y-auto bg-white"
         onScroll={onScroll}
         onDragOver={handleDragOver}
         onDrop={handleDrop}
       >
         {tasks.length === 0 ? (
-          <div className="flex items-center justify-center h-32 text-sm text-muted-foreground">
-            툴바의 + 버튼으로 작업을 추가하세요
+          <div className="flex h-40 items-center justify-center px-6 text-center">
+            <div className="max-w-sm rounded-xl border border-dashed border-[#d8dde6] bg-[#f8fafc] px-6 py-7 text-sm text-[#667085]">
+              작업이 아직 없습니다. 상단 툴바에서 새 작업을 추가하면 WBS와 간트가 함께 시작됩니다.
+            </div>
           </div>
         ) : (
           <>

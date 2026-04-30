@@ -186,7 +186,7 @@ export function GanttChart({
             <feDropShadow dx="0" dy="1" stdDeviation="1.5" floodOpacity="0.12" />
           </filter>
           <filter id="selected-row-shadow" x="-2%" y="-40%" width="104%" height="180%">
-            <feDropShadow dx="0" dy="10" stdDeviation="10" floodColor="#ef4444" floodOpacity="0.16" />
+            <feDropShadow dx="0" dy="12" stdDeviation="10" floodColor="#60a5fa" floodOpacity="0.16" />
           </filter>
 
           {/* Non-working day bands */}
@@ -212,16 +212,16 @@ export function GanttChart({
                   y={index * rowHeight}
                   width={totalWidth}
                   height={rowHeight}
-                  fill="rgba(254, 242, 242, 0.88)"
-                  stroke="rgba(248, 113, 113, 0.95)"
-                  strokeWidth={2}
+                  fill="rgba(234, 243, 255, 0.88)"
+                  stroke="rgba(96, 165, 250, 0.95)"
+                  strokeWidth={1.5}
                 />
                 <rect
                   x={0}
                   y={index * rowHeight}
                   width={3}
                   height={rowHeight}
-                  fill="#ef4444"
+                  fill="#2563eb"
                 />
               </g>
             )
@@ -235,7 +235,7 @@ export function GanttChart({
               y1={(index + 1) * rowHeight - 0.5}
               x2={totalWidth}
               y2={(index + 1) * rowHeight - 0.5}
-              stroke="#cbd5e1"
+              stroke="#e5ebf2"
               strokeWidth={1}
             />
           ))}

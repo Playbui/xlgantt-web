@@ -339,6 +339,19 @@ export function GanttView() {
     }
   }, [tasks, project?.start_date, project?.end_date])
 
+  const zoomLabel = useMemo(() => {
+    switch (zoomLevel) {
+      case 1:
+        return '일'
+      case 2:
+        return '주'
+      case 3:
+        return '월'
+      default:
+        return '주'
+    }
+  }, [zoomLevel])
+
   // Auto-scroll to project start date on mount
   useEffect(() => {
     if (scale && chartScrollRef.current && project) {
@@ -484,6 +497,15 @@ export function GanttView() {
             style={{ width: tableWidth, minWidth: 300 }}
             className="flex-shrink-0 border-r border-[#dddddd] bg-white shadow-[1px_0_2px_rgba(16,24,40,0.04)]"
           >
+            <div className="flex h-11 items-center justify-between border-b border-[#e4e9f0] bg-[#f8fafc] px-4">
+              <div>
+                <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-[#667085]">Task Grid</p>
+                <p className="text-sm font-semibold text-[#111827]">작업 표</p>
+              </div>
+              <div className="rounded-full border border-[#d8e1ee] bg-white px-2.5 py-1 text-[11px] font-medium text-[#475467]">
+                {visibleTasks.length.toLocaleString()} rows
+              </div>
+            </div>
             <TaskTable
               tasks={visibleTasks}
               scrollRef={tableScrollRef}
@@ -534,6 +556,20 @@ export function GanttView() {
 
         {/* Gantt Chart (Right Pane) */}
         <div className="flex-1 min-w-0 h-full overflow-hidden">
+          <div className="flex h-11 items-center justify-between border-b border-[#e4e9f0] bg-[#f8fafc] px-5">
+            <div>
+              <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-[#667085]">Timeline</p>
+              <p className="text-sm font-semibold text-[#111827]">간트 타임라인</p>
+            </div>
+            <div className="flex items-center gap-2">
+              <span className="rounded-full border border-[#d8e1ee] bg-white px-2.5 py-1 text-[11px] font-medium text-[#475467]">
+                기준일 {project.status_date || '-'}
+              </span>
+              <span className="rounded-full border border-[#d8e1ee] bg-white px-2.5 py-1 text-[11px] font-medium text-[#475467]">
+                확대 {zoomLabel}
+              </span>
+            </div>
+          </div>
           <GanttChart
             tasks={visibleTasks}
             dependencies={dependencies}

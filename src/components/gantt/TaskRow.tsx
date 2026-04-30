@@ -135,7 +135,7 @@ export function TaskRow({ task, rowIndex, columns, onDoubleClick, onContextMenu,
         <div
           key={col.id}
           style={{ width: col.width, minWidth: col.width }}
-          className="flex items-center border-r overflow-hidden"
+          className="flex items-center overflow-hidden border-r border-[#edf1f5]"
         >
           {/* Indent spacer */}
           <div style={{ width: (task.wbs_level - 1) * 16 }} className="flex-shrink-0" />
@@ -143,7 +143,7 @@ export function TaskRow({ task, rowIndex, columns, onDoubleClick, onContextMenu,
           {/* Expand/collapse toggle for group tasks */}
           {task.is_group ? (
             <button
-              className="flex-shrink-0 p-0.5 hover:bg-accent rounded"
+              className="flex-shrink-0 rounded p-0.5 text-[#667085] hover:bg-[#e2e8f0] hover:text-[#111827]"
               onClick={handleToggleCollapse}
             >
               {task.is_collapsed ? (
@@ -191,7 +191,7 @@ export function TaskRow({ task, rowIndex, columns, onDoubleClick, onContextMenu,
         <div
           key={col.id}
           style={{ width: col.width, minWidth: col.width }}
-          className="flex items-center justify-center px-1.5 border-r overflow-hidden"
+          className="flex items-center justify-center overflow-hidden border-r border-[#edf1f5] px-1.5"
         >
           {assigneeDisplay ? (
             <div className="flex items-center gap-0.5 overflow-hidden">
@@ -230,7 +230,7 @@ export function TaskRow({ task, rowIndex, columns, onDoubleClick, onContextMenu,
         <div
           key={col.id}
           style={{ width: col.width, minWidth: col.width }}
-          className="flex items-center justify-center px-2 border-r gap-1.5"
+          className="flex items-center justify-center gap-1.5 border-r border-[#edf1f5] px-2"
         >
           {task.actual_progress_override != null && (
             <span className="inline-block w-1.5 h-1.5 rounded-full bg-red-500 flex-shrink-0" title="수동 진척률" />
@@ -260,7 +260,7 @@ export function TaskRow({ task, rowIndex, columns, onDoubleClick, onContextMenu,
         <div
           key={col.id}
           style={{ width: col.width, minWidth: col.width }}
-          className="flex items-center justify-center px-2 border-r gap-1.5"
+          className="flex items-center justify-center gap-1.5 border-r border-[#edf1f5] px-2"
         >
           {task.planned_progress_override != null && (
             <span className="inline-block w-1.5 h-1.5 rounded-full bg-red-500 flex-shrink-0" title="수동 계획진척률" />
@@ -290,7 +290,7 @@ export function TaskRow({ task, rowIndex, columns, onDoubleClick, onContextMenu,
         <div
           key={col.id}
           style={{ width: col.width, minWidth: col.width }}
-          className="flex items-center justify-center border-r"
+          className="flex items-center justify-center border-r border-[#edf1f5]"
         >
           <span className={cn(
             "text-[11px] font-medium px-1.5 py-0.5 rounded",
@@ -318,7 +318,7 @@ export function TaskRow({ task, rowIndex, columns, onDoubleClick, onContextMenu,
         <div
           key={col.id}
           style={{ width: col.width, minWidth: col.width }}
-          className="flex items-center justify-start border-r relative"
+          className="relative flex items-center justify-start border-r border-[#edf1f5]"
         >
           <div
             className="absolute top-0.5 bottom-0.5 rounded-sm"
@@ -345,7 +345,7 @@ export function TaskRow({ task, rowIndex, columns, onDoubleClick, onContextMenu,
         <div
           key={col.id}
           style={{ width: col.width, minWidth: col.width }}
-          className="flex items-center justify-center border-r"
+          className="flex items-center justify-center border-r border-[#edf1f5]"
         >
           <span className="text-xs text-muted-foreground">
             {task.calendar_type || 'STD'}
@@ -376,11 +376,11 @@ export function TaskRow({ task, rowIndex, columns, onDoubleClick, onContextMenu,
     })()
 
     return (
-      <div
-        key={col.id}
-        style={{ width: col.width, minWidth: col.width }}
-        className="flex items-center justify-center border-r"
-      >
+        <div
+          key={col.id}
+          style={{ width: col.width, minWidth: col.width }}
+          className="flex items-center justify-center border-r border-[#edf1f5]"
+        >
         {isReadOnly ? (
           <div className={cn("w-full px-2 truncate select-none text-center", task.is_group && task.wbs_level !== 1 && "bg-muted/60 text-muted-foreground", task.is_group && task.wbs_level === 1 && "bg-muted/40")}>
             {value != null ? String(value) : ''}
@@ -413,14 +413,15 @@ export function TaskRow({ task, rowIndex, columns, onDoubleClick, onContextMenu,
   return (
     <div
       className={cn(
-        'group/row flex border-b border-slate-300 dark:border-slate-700 cursor-pointer transition-all duration-100 relative',
+        'group/row relative flex cursor-pointer border-b border-[#e8edf3] transition-all duration-100',
         levelFontSize,
-        isSelected && 'z-10 bg-red-50/70 border-red-300 ring-2 ring-red-400/90 shadow-[0_10px_30px_rgba(239,68,68,0.18)]',
-        !isSelected && task.is_group && task.wbs_level === 1 && 'bg-slate-100 dark:bg-slate-800/60 font-bold border-b-border/50',
-        !isSelected && task.is_group && task.wbs_level === 2 && 'bg-blue-50/60 dark:bg-blue-900/20 font-semibold',
+        isSelected && 'z-10 border-[#93c5fd] bg-[#eaf3ff] ring-1 ring-[#60a5fa] shadow-[0_14px_32px_rgba(59,130,246,0.14)]',
+        !isSelected && task.is_group && task.wbs_level === 1 && 'bg-[#eff4fa] font-bold text-[#0f172a]',
+        !isSelected && task.is_group && task.wbs_level === 2 && 'bg-[#f7fafc] font-semibold text-[#1e293b]',
+        !isSelected && task.is_group && task.wbs_level >= 3 && 'bg-[#fbfdff] text-[#334155]',
         task.archived_at && 'opacity-50 bg-stripes',
-        !isSelected && !task.is_group && 'hover:bg-accent/40',
-        !isSelected && !task.is_group && rowIndex % 2 === 1 && 'bg-muted/20',
+        !isSelected && !task.is_group && 'hover:bg-[#f8fbff]',
+        !isSelected && !task.is_group && rowIndex % 2 === 1 && 'bg-[#fcfdff]',
         isDragging && 'opacity-40',
       )}
       style={{ height: rowHeight, minWidth: totalWidth, ...(level1GroupColor ? { color: level1GroupColor } : {}) }}
@@ -442,7 +443,7 @@ export function TaskRow({ task, rowIndex, columns, onDoubleClick, onContextMenu,
 
       {/* Drag handle */}
       <div
-        className="flex-shrink-0 w-5 flex items-center justify-center opacity-0 group-hover/row:opacity-60 hover:!opacity-100 cursor-grab active:cursor-grabbing"
+        className="flex h-full w-5 flex-shrink-0 items-center justify-center border-r border-[#edf1f5] bg-[#f8fafc] opacity-0 transition-opacity group-hover/row:opacity-70 hover:!opacity-100 cursor-grab active:cursor-grabbing"
         draggable
         onDragStart={(e) => {
           e.stopPropagation()
@@ -454,7 +455,7 @@ export function TaskRow({ task, rowIndex, columns, onDoubleClick, onContextMenu,
         }}
         title="드래그하여 이동"
       >
-        <GripVertical className="h-3.5 w-3.5 text-muted-foreground" />
+        <GripVertical className="h-3.5 w-3.5 text-[#94a3b8]" />
       </div>
 
       {columns.map((col) => renderCell(col))}
