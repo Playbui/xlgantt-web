@@ -139,6 +139,7 @@ interface WeeklyReportRecord {
 }
 
 const WEEK_OPTIONS = buildWeekOptions()
+const CURRENT_WEEK_VALUE = getWeekValue(new Date())
 const STRATEGY_STATUS_OPTIONS = ['대기', '진행중', '완료']
 const TEAM_MEMBERS = getWeeklyReportMembers().filter((member) => member.email !== 'admin@gmtc.kr')
 const TEAM_INPUT_MEMBERS = TEAM_MEMBERS.filter((member) => member.role !== 'manager')
@@ -289,7 +290,7 @@ export function WeeklyReportsPage() {
   const navigate = useNavigate()
   const currentUser = useAuthStore((s) => s.currentUser)
   const canManage = canManageWeeklyReports(currentUser)
-  const [selectedWeek, setSelectedWeek] = useState(WEEK_OPTIONS[0]?.value ?? '')
+  const [selectedWeek, setSelectedWeek] = useState(CURRENT_WEEK_VALUE)
   const [report, setReport] = useState<WeeklyReportRecord | null>(null)
   const [payload, setPayload] = useState<WeeklyReportPayload>(() => buildDefaultPayload())
   const [isLoading, setIsLoading] = useState(true)
@@ -1055,45 +1056,73 @@ export function WeeklyReportsPage() {
 }
 
 function buildWeekOptions() {
-  const now = new Date()
-  return Array.from({ length: 10 }, (_, index) => {
-    const target = new Date(now)
-    target.setDate(now.getDate() - index * 7)
-    const { year, month, week } = getWeekOfMonth(target)
+  const currentWednesday = getWeekWednesday(new Date())
+  const offsets = [0, 1, 2, 3, 4, 5, -1, -2, -3, -4, -5, -6, -7, -8, -9, -10, -11, -12]
+
+  return offsets.map((offset) => {
+    const target = new Date(currentWednesday)
+    target.setDate(currentWednesday.getDate() + offset * 7)
+    const descriptor = getWeekDescriptor(target)
+
     return {
-      value: `${year}-${String(month).padStart(2, '0')}-${week}`,
-      label: `${year}년 ${month}월 ${week}주차`,
+      value: getWeekValue(target),
+      label: `${descriptor.year}년 ${descriptor.month}월 ${descriptor.week}주차`,
     }
   })
 }
 
-function getWeekOfMonth(date: Date) {
-  const year = date.getFullYear()
-  const month = date.getMonth() + 1
-  const firstDay = new Date(year, date.getMonth(), 1)
-  const offset = firstDay.getDay()
-  const week = Math.ceil((date.getDate() + offset) / 7)
-  return { year, month, week }
+function getWeekWednesday(date: Date) {
+  const target = new Date(date)
+  const day = target.getDay()
+  const mondayBasedDay = day === 0 ? 7 : day
+  const diffToWednesday = 3 - mondayBasedDay
+  target.setDate(target.getDate() + diffToWednesday)
+  target.setHours(0, 0, 0, 0)
+  return target
+}
+
+function getWeekDescriptor(date: Date) {
+  const wednesday = getWeekWednesday(date)
+  return {
+    anchor: wednesday,
+    year: wednesday.getFullYear(),
+    month: wednesday.getMonth() + 1,
+    week: Math.floor((wednesday.getDate() - 1) / 7) + 1,
+  }
+}
+
+function getWeekValue(date: Date) {
+  const anchor = getWeekDescriptor(date).anchor
+  const year = anchor.getFullYear()
+  const month = String(anchor.getMonth() + 1).padStart(2, '0')
+  const day = String(anchor.getDate()).padStart(2, '0')
+  return `${year}-${month}-${day}`
 }
 
 function parseWeekValue(value: string) {
-  const [yearText, monthText, weekText] = value.split('-')
+  const [yearText, monthText, dayText] = value.split('-')
+  const baseDate = new Date(Number(yearText), Number(monthText) - 1, Number(dayText))
+  const descriptor = getWeekDescriptor(baseDate)
   return {
-    year: Number(yearText),
-    month: Number(monthText),
-    week: Number(weekText),
+    year: descriptor.year,
+    month: descriptor.month,
+    week: descriptor.week,
   }
 }
 
 function getWeekTitle(value: string) {
-  const target = WEEK_OPTIONS.find((option) => option.value === value)
-  return target?.label || value
+  const [yearText, monthText, dayText] = value.split('-')
+  if (!yearText || !monthText || !dayText) return value
+  const descriptor = getWeekDescriptor(new Date(Number(yearText), Number(monthText) - 1, Number(dayText)))
+  return `${descriptor.year}년 ${descriptor.month}월 ${descriptor.week}주차`
 }
 
 function getPreviousWeekValue(value: string) {
-  const index = WEEK_OPTIONS.findIndex((option) => option.value === value)
-  if (index < 0 || index >= WEEK_OPTIONS.length - 1) return null
-  return WEEK_OPTIONS[index + 1]?.value ?? null
+  const [yearText, monthText, dayText] = value.split('-')
+  if (!yearText || !monthText || !dayText) return null
+  const target = new Date(Number(yearText), Number(monthText) - 1, Number(dayText))
+  target.setDate(target.getDate() - 7)
+  return getWeekValue(target)
 }
 
 function deepCopy<T>(value: T): T {
