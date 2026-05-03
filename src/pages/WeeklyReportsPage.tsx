@@ -16,6 +16,7 @@ import {
   Users,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog'
 import { Badge } from '@/components/ui/badge'
 import { Input } from '@/components/ui/input'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
@@ -136,6 +137,15 @@ interface WeeklyReportRecord {
   payload: WeeklyReportPayload
   updated_at: string
   finalized_at?: string | null
+}
+
+type WorkSectionKey = 'carryOver' | 'inProgress' | 'planned' | 'tbd'
+
+interface PreviousWorkPreview {
+  weekLabel: string
+  content: string
+  note: string
+  updatedAt?: string
 }
 
 const WEEK_OPTIONS = buildWeekOptions()
@@ -995,6 +1005,8 @@ export function WeeklyReportsPage() {
                 <SectionLabel index="3." title="주간업무작성" />
                 <MemberWorkInputTable
                   title="이월 사업"
+                  section="carryOver"
+                  selectedWeek={selectedWeek}
                   rows={payload.carryOver}
                   onChange={(rowIndex, key, value) => updatePayload((prev) => touchCurrentMember({
                     ...prev,
@@ -1005,6 +1017,8 @@ export function WeeklyReportsPage() {
                 />
                 <MemberWorkInputTable
                   title="진행 사업"
+                  section="inProgress"
+                  selectedWeek={selectedWeek}
                   rows={payload.inProgress}
                   onChange={(rowIndex, key, value) => updatePayload((prev) => touchCurrentMember({
                     ...prev,
@@ -1015,6 +1029,8 @@ export function WeeklyReportsPage() {
                 />
                 <MemberPlannedInputTable
                   title="예정 사업"
+                  section="planned"
+                  selectedWeek={selectedWeek}
                   rows={payload.planned}
                   onChange={(rowIndex, key, value) => updatePayload((prev) => touchCurrentMember({
                     ...prev,
@@ -1025,6 +1041,8 @@ export function WeeklyReportsPage() {
                 />
                 <MemberPlannedInputTable
                   title="미정 사업"
+                  section="tbd"
+                  selectedWeek={selectedWeek}
                   rows={payload.tbd}
                   onChange={(rowIndex, key, value) => updatePayload((prev) => touchCurrentMember({
                     ...prev,
@@ -1155,26 +1173,38 @@ function clonePayloadForNewWeek(source: WeeklyReportPayload): WeeklyReportPayloa
     ...deepCopy(source),
     issues: source.issues.map((row) => ({
       ...row,
+      issue: '',
+      action: '',
       memberUpdates: buildMemberIssueUpdates(),
     })),
     carryOver: source.carryOver.map((row) => ({
       ...row,
+      detail: '',
+      note: '',
       memberUpdates: buildMemberWorkUpdates(),
     })),
     inProgress: source.inProgress.map((row) => ({
       ...row,
+      detail: '',
+      note: '',
       memberUpdates: buildMemberWorkUpdates(),
     })),
     planned: source.planned.map((row) => ({
       ...row,
+      detail: '',
+      note: '',
       memberUpdates: buildMemberWorkUpdates(),
     })),
     tbd: source.tbd.map((row) => ({
       ...row,
+      detail: '',
+      note: '',
       memberUpdates: buildMemberWorkUpdates(),
     })),
     majorWorkItems: source.majorWorkItems.map((row) => ({
       ...row,
+      thisWeek: '',
+      nextWeek: '',
       memberUpdates: buildMemberMajorUpdates(),
     })),
     memberEntries: TEAM_MEMBERS.map((member) => ({
@@ -1307,6 +1337,21 @@ function normalizeMajorWorkItems(rows: unknown, fallback: MajorWorkItem[]) {
     ...row,
     memberUpdates: normalizeMemberMajorUpdates(row.memberUpdates),
   }))
+}
+
+function getWorkSectionRows(payload: WeeklyReportPayload, section: WorkSectionKey) {
+  switch (section) {
+    case 'carryOver':
+      return payload.carryOver
+    case 'inProgress':
+      return payload.inProgress
+    case 'planned':
+      return payload.planned
+    case 'tbd':
+      return payload.tbd
+    default:
+      return []
+  }
 }
 
 function normalizeEmail(email?: string | null) {
@@ -2135,6 +2180,8 @@ function FinalMajorWorkItems(props: {
 
 function MemberWorkInputTable(props: {
   title: string
+  section: WorkSectionKey
+  selectedWeek: string
   rows: WorkReportRow[]
   onChange: (rowIndex: number, key: 'content' | 'note', value: string) => void
 }) {
@@ -2155,6 +2202,7 @@ function MemberWorkInputTable(props: {
                 { label: '목표율', value: row.targetRate || '-' },
                 { label: '달성율', value: row.actualRate || '-', alignEnd: true },
               ]}
+              historyQuery={{ selectedWeek: props.selectedWeek, section: props.section, projectName: row.projectName }}
               content={currentUpdate?.content || ''}
               note={currentUpdate?.note || ''}
               onContentChange={(value) => props.onChange(rowIndex, 'content', value)}
@@ -2169,6 +2217,8 @@ function MemberWorkInputTable(props: {
 
 function MemberPlannedInputTable(props: {
   title: string
+  section: WorkSectionKey
+  selectedWeek: string
   rows: PlannedWorkRow[]
   onChange: (rowIndex: number, key: 'content' | 'note', value: string) => void
 }) {
@@ -2188,6 +2238,7 @@ function MemberPlannedInputTable(props: {
                 { label: '사업PM', value: row.pm },
                 { label: '수주확률', value: row.probability || '-', alignEnd: true },
               ]}
+              historyQuery={{ selectedWeek: props.selectedWeek, section: props.section, projectName: row.projectName }}
               content={currentUpdate?.content || ''}
               note={currentUpdate?.note || ''}
               onContentChange={(value) => props.onChange(rowIndex, 'content', value)}
@@ -2298,6 +2349,7 @@ function ContributionMajorWorkItems(props: { rows: MajorWorkItem[] }) {
 
 function ProjectInputBlock(props: {
   summary: Array<{ label: string; value: string; grow?: boolean; alignEnd?: boolean }>
+  historyQuery: { selectedWeek: string; section: WorkSectionKey; projectName: string }
   content: string
   note: string
   onContentChange: (value: string) => void
@@ -2318,7 +2370,10 @@ function ProjectInputBlock(props: {
       </div>
       <div className="grid gap-4 p-4 lg:grid-cols-2">
         <div className="space-y-2">
-          <div className="text-xs font-semibold text-[#344054]">내용</div>
+          <div className="flex items-center justify-between gap-3">
+            <div className="text-xs font-semibold text-[#344054]">내용</div>
+            <PreviousWorkPreviewDialog {...props.historyQuery} />
+          </div>
           <Textarea
             value={props.content}
             onChange={(event) => props.onContentChange(event.target.value)}
@@ -2335,6 +2390,145 @@ function ProjectInputBlock(props: {
             className="min-h-[170px] rounded-2xl border-[#cfd8e3] bg-white text-sm leading-6"
           />
         </div>
+      </div>
+    </div>
+  )
+}
+
+function PreviousWorkPreviewDialog(props: {
+  selectedWeek: string
+  section: WorkSectionKey
+  projectName: string
+}) {
+  const currentUser = useAuthStore((s) => s.currentUser)
+  const [open, setOpen] = useState(false)
+  const [isLoading, setIsLoading] = useState(false)
+  const [previews, setPreviews] = useState<PreviousWorkPreview[]>([])
+  const [errorMessage, setErrorMessage] = useState<string | null>(null)
+
+  useEffect(() => {
+    if (!open) return
+
+    const email = normalizeEmail(currentUser?.email)
+    if (!email || !props.projectName) {
+      setPreviews([])
+      return
+    }
+
+    let isActive = true
+
+    const loadPreviews = async () => {
+      setIsLoading(true)
+      setErrorMessage(null)
+
+      const targets: string[] = []
+      let cursor = props.selectedWeek
+      for (let index = 0; index < 2; index += 1) {
+        const previous = getPreviousWeekValue(cursor)
+        if (!previous) break
+        targets.push(previous)
+        cursor = previous
+      }
+
+      if (targets.length === 0) {
+        if (isActive) {
+          setPreviews([])
+          setIsLoading(false)
+        }
+        return
+      }
+
+      const results = await Promise.all(targets.map(async (weekValue) => {
+        const { year, month, week } = parseWeekValue(weekValue)
+        const { data, error } = await supabase
+          .from('weekly_reports')
+          .select('payload')
+          .eq('team_key', WEEKLY_REPORT_TEAM_KEY)
+          .eq('report_year', year)
+          .eq('report_month', month)
+          .eq('report_week', week)
+          .maybeSingle()
+
+        if (error || !data?.payload) return null
+
+        const payload = normalizePayload(data.payload)
+        const row = getWorkSectionRows(payload, props.section).find((item) => item.projectName === props.projectName)
+        if (!row) return null
+
+        const memberUpdate = normalizeMemberWorkUpdates(row.memberUpdates).find((entry) => normalizeEmail(entry.email) === email)
+        if (!memberUpdate || (!memberUpdate.content && !memberUpdate.note)) return null
+
+        return {
+          weekLabel: getWeekTitle(weekValue),
+          content: memberUpdate.content,
+          note: memberUpdate.note,
+          updatedAt: memberUpdate.updatedAt,
+        } satisfies PreviousWorkPreview
+      }))
+
+      if (!isActive) return
+
+      setPreviews(results.filter(Boolean) as PreviousWorkPreview[])
+      setIsLoading(false)
+    }
+
+    void loadPreviews()
+
+    return () => {
+      isActive = false
+    }
+  }, [open, currentUser?.email, props.projectName, props.section, props.selectedWeek])
+
+  return (
+    <Dialog open={open} onOpenChange={setOpen}>
+      <DialogTrigger render={<Button type="button" variant="outline" size="sm" className="h-7 rounded-full px-3 text-[11px] text-[#526075]" />}>
+        지난 내용 보기
+      </DialogTrigger>
+      <DialogContent className="max-w-3xl rounded-3xl border border-[#d6deea] bg-white p-0">
+        <DialogHeader className="border-b border-[#e4e7ec] bg-[linear-gradient(180deg,#f8fbff_0%,#f2f6fb_100%)] px-6 py-5">
+          <DialogTitle className="text-base font-semibold text-[#101828]">{props.projectName || '프로젝트'}</DialogTitle>
+          <div className="text-sm text-[#667085]">지난 2주 기준으로 내가 썼던 내용과 비고만 보여줘요.</div>
+        </DialogHeader>
+        <div className="space-y-4 px-6 py-5">
+          {isLoading ? (
+            <div className="flex items-center gap-2 rounded-2xl border border-[#e4e7ec] bg-[#fcfcfd] px-4 py-3 text-sm text-[#667085]">
+              <Loader2 className="h-4 w-4 animate-spin" />
+              지난 내용을 불러오는 중입니다.
+            </div>
+          ) : errorMessage ? (
+            <div className="rounded-2xl border border-[#f3d0cf] bg-[#fff7f7] px-4 py-3 text-sm text-[#b42318]">{errorMessage}</div>
+          ) : previews.length === 0 ? (
+            <div className="rounded-2xl border border-dashed border-[#d0d5dd] bg-[#fcfcfd] px-4 py-6 text-sm text-[#98a2b3]">
+              지난 2주 안에 작성한 내용이 없습니다.
+            </div>
+          ) : (
+            previews.map((preview) => (
+              <div key={preview.weekLabel} className="overflow-hidden rounded-2xl border border-[#d7dde4] bg-[#fcfcfd]">
+                <div className="border-b border-[#dbe3ec] bg-[linear-gradient(180deg,#f8fbff_0%,#f2f6fb_100%)] px-4 py-3">
+                  <div className="flex items-center justify-between gap-3">
+                    <div className="text-sm font-semibold text-[#101828]">{preview.weekLabel}</div>
+                    <div className="text-xs text-[#667085]">{preview.updatedAt ? formatDateTime(preview.updatedAt) : '기록 시각 없음'}</div>
+                  </div>
+                </div>
+                <div className="grid gap-4 p-4 lg:grid-cols-2">
+                  <HistoryPreviewField label="내용" value={preview.content} />
+                  <HistoryPreviewField label="비고" value={preview.note} />
+                </div>
+              </div>
+            ))
+          )}
+        </div>
+      </DialogContent>
+    </Dialog>
+  )
+}
+
+function HistoryPreviewField({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="space-y-2">
+      <div className="text-xs font-semibold text-[#344054]">{label}</div>
+      <div className="min-h-[152px] whitespace-pre-wrap rounded-2xl border border-[#d6deea] bg-white px-4 py-3 text-sm leading-6 text-[#475467]">
+        {value || <span className="text-[#c5ced8]">기록 없음</span>}
       </div>
     </div>
   )
