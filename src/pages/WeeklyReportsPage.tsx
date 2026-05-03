@@ -2405,6 +2405,7 @@ function PreviousWorkPreviewDialog(props: {
   const [isLoading, setIsLoading] = useState(false)
   const [previews, setPreviews] = useState<PreviousWorkPreview[]>([])
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
+  const [copiedKey, setCopiedKey] = useState<string | null>(null)
 
   useEffect(() => {
     if (!open) return
@@ -2479,6 +2480,20 @@ function PreviousWorkPreviewDialog(props: {
     }
   }, [open, currentUser?.email, props.projectName, props.section, props.selectedWeek])
 
+  const handleCopy = async (copyKey: string, value: string) => {
+    if (!value) return
+
+    try {
+      await navigator.clipboard.writeText(value)
+      setCopiedKey(copyKey)
+      window.setTimeout(() => {
+        setCopiedKey((current) => (current === copyKey ? null : current))
+      }, 1600)
+    } catch {
+      setErrorMessage('클립보드 복사에 실패했습니다.')
+    }
+  }
+
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger render={<Button type="button" variant="outline" size="sm" className="h-7 rounded-full px-3 text-[11px] text-[#526075]" />}>
@@ -2511,8 +2526,18 @@ function PreviousWorkPreviewDialog(props: {
                   </div>
                 </div>
                 <div className="grid gap-4 p-4 lg:grid-cols-2">
-                  <HistoryPreviewField label="내용" value={preview.content} />
-                  <HistoryPreviewField label="비고" value={preview.note} />
+                  <HistoryPreviewField
+                    label="내용"
+                    value={preview.content}
+                    onCopy={() => handleCopy(`${preview.weekLabel}-content`, preview.content)}
+                    copied={copiedKey === `${preview.weekLabel}-content`}
+                  />
+                  <HistoryPreviewField
+                    label="비고"
+                    value={preview.note}
+                    onCopy={() => handleCopy(`${preview.weekLabel}-note`, preview.note)}
+                    copied={copiedKey === `${preview.weekLabel}-note`}
+                  />
                 </div>
               </div>
             ))
@@ -2523,10 +2548,32 @@ function PreviousWorkPreviewDialog(props: {
   )
 }
 
-function HistoryPreviewField({ label, value }: { label: string; value: string }) {
+function HistoryPreviewField({
+  label,
+  value,
+  onCopy,
+  copied,
+}: {
+  label: string
+  value: string
+  onCopy: () => void
+  copied: boolean
+}) {
   return (
     <div className="space-y-2">
-      <div className="text-xs font-semibold text-[#344054]">{label}</div>
+      <div className="flex items-center justify-between gap-3">
+        <div className="text-xs font-semibold text-[#344054]">{label}</div>
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          className="h-7 rounded-full px-3 text-[11px] text-[#526075]"
+          onClick={onCopy}
+          disabled={!value}
+        >
+          {copied ? '복사됨' : `${label}만 복사`}
+        </Button>
+      </div>
       <div className="min-h-[152px] whitespace-pre-wrap rounded-2xl border border-[#d6deea] bg-white px-4 py-3 text-sm leading-6 text-[#475467]">
         {value || <span className="text-[#c5ced8]">기록 없음</span>}
       </div>
