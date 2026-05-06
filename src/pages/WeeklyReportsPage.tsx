@@ -148,6 +148,11 @@ interface PreviousWorkPreview {
   updatedAt?: string
 }
 
+interface WeekOptionMeta {
+  status: '미생성' | '입력중' | '취합중' | '완료'
+  memberState?: '미작성' | '작성중' | '입력완료'
+}
+
 const WEEK_OPTIONS = buildWeekOptions()
 const CURRENT_WEEK_VALUE = getWeekValue(new Date())
 const STRATEGY_STATUS_OPTIONS = ['대기', '진행중', '완료']
@@ -310,6 +315,7 @@ export function WeeklyReportsPage() {
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
   const [notice, setNotice] = useState<string | null>(null)
   const [managerTab, setManagerTab] = useState<'setup' | 'collect' | 'summary'>('setup')
+  const [weekMetaByValue, setWeekMetaByValue] = useState<Record<string, WeekOptionMeta>>({})
 
   const currentMemberEntry = useMemo(() => {
     const email = normalizeEmail(currentUser?.email)
@@ -441,6 +447,71 @@ export function WeeklyReportsPage() {
   useEffect(() => {
     void loadReport()
   }, [loadReport])
+
+  useEffect(() => {
+    const email = normalizeEmail(currentUser?.email)
+    if (!email) {
+      setWeekMetaByValue({})
+      return
+    }
+
+    let isActive = true
+
+    const loadWeekMeta = async () => {
+      const { data, error } = await supabase
+        .from('weekly_reports')
+        .select('report_year, report_month, report_week, status, payload')
+        .eq('team_key', WEEKLY_REPORT_TEAM_KEY)
+        .order('report_year', { ascending: false })
+        .order('report_month', { ascending: false })
+        .order('report_week', { ascending: false })
+        .limit(80)
+
+      if (error || !data || !isActive) {
+        if (isActive) setWeekMetaByValue({})
+        return
+      }
+
+      const nextMeta: Record<string, WeekOptionMeta> = {}
+
+      for (const option of WEEK_OPTIONS) {
+        const descriptor = parseWeekValue(option.value)
+        const matched = data.find((row) =>
+          Number(row.report_year) === descriptor.year &&
+          Number(row.report_month) === descriptor.month &&
+          Number(row.report_week) === descriptor.week
+        )
+
+        if (!matched) {
+          nextMeta[option.value] = { status: '미생성', memberState: '미작성' }
+          continue
+        }
+
+        const normalizedPayload = normalizePayload(matched.payload)
+        const memberEntry = normalizedPayload.memberEntries.find((entry) => normalizeEmail(entry.email) === email)
+
+        let memberState: WeekOptionMeta['memberState'] = '미작성'
+        if (memberEntry?.done) {
+          memberState = '입력완료'
+        } else if (memberEntry?.updatedAt) {
+          memberState = '작성중'
+        }
+
+        nextMeta[option.value] = {
+          status: ((matched.status as WeeklyStatus) || '입력중'),
+          memberState,
+        }
+      }
+
+      setWeekMetaByValue(nextMeta)
+    }
+
+    void loadWeekMeta()
+
+    return () => {
+      isActive = false
+    }
+  }, [currentUser?.email, report?.updated_at])
 
   const updatePayload = useCallback((updater: (prev: WeeklyReportPayload) => WeeklyReportPayload) => {
     setPayload((prev) => updater(prev))
@@ -692,13 +763,23 @@ export function WeeklyReportsPage() {
                   <Select value={selectedWeek} onValueChange={setSelectedWeek}>
                     <SelectTrigger className="h-10 min-w-[260px] rounded-xl border-[#d0d5dd] bg-white text-sm shadow-none">
                       <SelectValue placeholder="주차 선택">
-                        {WEEK_OPTIONS.find((option) => option.value === selectedWeek)?.label}
+                        <div className="flex items-center gap-2">
+                          <span>{WEEK_OPTIONS.find((option) => option.value === selectedWeek)?.label}</span>
+                          {weekMetaByValue[selectedWeek]?.memberState ? (
+                            <span className="text-xs text-[#667085]">· {weekMetaByValue[selectedWeek].memberState}</span>
+                          ) : null}
+                        </div>
                       </SelectValue>
                     </SelectTrigger>
                     <SelectContent className="min-w-[280px] rounded-xl border border-[#d7dde4] bg-white">
                       {WEEK_OPTIONS.map((option) => (
                         <SelectItem key={option.value} value={option.value}>
-                          {option.label}
+                          <div className="flex min-w-[240px] items-center justify-between gap-3">
+                            <span>{option.label}</span>
+                            <span className={`text-xs ${getWeekMetaTone(weekMetaByValue[option.value]).text}`}>
+                              {getWeekMetaLabel(weekMetaByValue[option.value])}
+                            </span>
+                          </div>
                         </SelectItem>
                       ))}
                     </SelectContent>
@@ -1087,7 +1168,7 @@ export function WeeklyReportsPage() {
 
 function buildWeekOptions() {
   const currentWednesday = getWeekWednesday(new Date())
-  const offsets = [0, 1, 2, 3, 4, 5, -1, -2, -3, -4, -5, -6, -7, -8, -9, -10, -11, -12]
+  const offsets = Array.from({ length: 21 }, (_, index) => index - 12)
 
   return offsets.map((offset) => {
     const target = new Date(currentWednesday)
@@ -1153,6 +1234,24 @@ function getPreviousWeekValue(value: string) {
   const target = new Date(Number(yearText), Number(monthText) - 1, Number(dayText))
   target.setDate(target.getDate() - 7)
   return getWeekValue(target)
+}
+
+function getWeekMetaLabel(meta?: WeekOptionMeta) {
+  if (!meta) return '확인 전'
+  if (meta.status === '미생성') return '미생성'
+  if (meta.memberState === '입력완료') return '내 입력 완료'
+  if (meta.memberState === '작성중') return '내 작성중'
+  return meta.status
+}
+
+function getWeekMetaTone(meta?: WeekOptionMeta) {
+  const label = getWeekMetaLabel(meta)
+  if (label === '내 입력 완료') return { text: 'text-[#027a48]' }
+  if (label === '내 작성중') return { text: 'text-[#b54708]' }
+  if (label === '미생성') return { text: 'text-[#98a2b3]' }
+  if (label === '완료') return { text: 'text-[#027a48]' }
+  if (label === '취합중') return { text: 'text-[#1d4f91]' }
+  return { text: 'text-[#667085]' }
 }
 
 function deepCopy<T>(value: T): T {
