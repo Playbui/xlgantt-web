@@ -145,6 +145,8 @@ interface PreviousWorkPreview {
   weekLabel: string
   content: string
   note: string
+  contentLabel?: string
+  noteLabel?: string
   updatedAt?: string
 }
 
@@ -1009,10 +1011,11 @@ export function WeeklyReportsPage() {
               <TabsContent value="summary" className="space-y-6">
                 <div className="space-y-4">
                   <SectionLabel index="1." title="전략회의 최종본" />
-                  <FinalStrategySection
-                    rows={payload.strategyMeetings}
-                    onChange={(rowIndex, key, value) => updatePayload((prev) => ({
-                      ...prev,
+                <FinalStrategySection
+                  selectedWeek={selectedWeek}
+                  rows={payload.strategyMeetings}
+                  onChange={(rowIndex, key, value) => updatePayload((prev) => ({
+                    ...prev,
                       strategyMeetings: prev.strategyMeetings.map((row, index) => index === rowIndex ? { ...row, [key]: value } : row),
                     }))}
                   />
@@ -1020,10 +1023,11 @@ export function WeeklyReportsPage() {
 
                 <div className="space-y-4">
                   <SectionLabel index="2." title="이슈보고 최종 취합본" />
-                  <FinalIssueTable
-                    rows={payload.issues}
-                    onChange={(rowIndex, key, value) => updatePayload((prev) => ({
-                      ...prev,
+                <FinalIssueTable
+                  selectedWeek={selectedWeek}
+                  rows={payload.issues}
+                  onChange={(rowIndex, key, value) => updatePayload((prev) => ({
+                    ...prev,
                       issues: prev.issues.map((row, index) => index === rowIndex ? { ...row, [key]: value } : row),
                     }))}
                   />
@@ -1031,33 +1035,37 @@ export function WeeklyReportsPage() {
 
                 <div className="space-y-4">
                   <SectionLabel index="3." title="최종 취합본 작성" />
-                  <FinalWorkReportTable
-                    title="이월 사업"
-                    rows={payload.carryOver}
+                <FinalWorkReportTable
+                  selectedWeek={selectedWeek}
+                  title="이월 사업"
+                  rows={payload.carryOver}
                     onChange={(rowIndex, key, value) => updatePayload((prev) => ({
                       ...prev,
                       carryOver: prev.carryOver.map((row, index) => index === rowIndex ? { ...row, [key]: value } : row),
                     }))}
                   />
-                  <FinalWorkReportTable
-                    title="진행 사업"
-                    rows={payload.inProgress}
+                <FinalWorkReportTable
+                  selectedWeek={selectedWeek}
+                  title="진행 사업"
+                  rows={payload.inProgress}
                     onChange={(rowIndex, key, value) => updatePayload((prev) => ({
                       ...prev,
                       inProgress: prev.inProgress.map((row, index) => index === rowIndex ? { ...row, [key]: value } : row),
                     }))}
                   />
-                  <FinalPlannedWorkTable
-                    title="예정 사업"
-                    rows={payload.planned}
+                <FinalPlannedWorkTable
+                  selectedWeek={selectedWeek}
+                  title="예정 사업"
+                  rows={payload.planned}
                     onChange={(rowIndex, key, value) => updatePayload((prev) => ({
                       ...prev,
                       planned: prev.planned.map((row, index) => index === rowIndex ? { ...row, [key]: value } : row),
                     }))}
                   />
-                  <FinalPlannedWorkTable
-                    title="미정 사업"
-                    rows={payload.tbd}
+                <FinalPlannedWorkTable
+                  selectedWeek={selectedWeek}
+                  title="미정 사업"
+                  rows={payload.tbd}
                     onChange={(rowIndex, key, value) => updatePayload((prev) => ({
                       ...prev,
                       tbd: prev.tbd.map((row, index) => index === rowIndex ? { ...row, [key]: value } : row),
@@ -1067,9 +1075,10 @@ export function WeeklyReportsPage() {
 
                 <div className="space-y-4">
                   <SectionLabel index="4." title="기타 주요 업무 최종본" />
-                  <FinalMajorWorkItems
-                    rows={payload.majorWorkItems}
-                    onChange={(rowIndex, key, value) => updatePayload((prev) => ({
+                <FinalMajorWorkItems
+                  selectedWeek={selectedWeek}
+                  rows={payload.majorWorkItems}
+                  onChange={(rowIndex, key, value) => updatePayload((prev) => ({
                       ...prev,
                       majorWorkItems: prev.majorWorkItems.map((row, index) =>
                         index === rowIndex ? { ...row, [key]: value } : row
@@ -1649,6 +1658,7 @@ function EditableStrategySection(props: {
 }
 
 function FinalStrategySection(props: {
+  selectedWeek: string
   rows: StrategyMeetingRow[]
   onChange: (rowIndex: number, key: keyof StrategyMeetingRow, value: string) => void
 }) {
@@ -1660,6 +1670,14 @@ function FinalStrategySection(props: {
             key={`final-strategy-${rowIndex}`}
             row={row}
             editable
+            previewAction={(
+              <PreviousFinalPreviewDialog
+                selectedWeek={props.selectedWeek}
+                kind="strategy"
+                org={row.org}
+                category={row.category}
+              />
+            )}
             onChange={(key, value) => props.onChange(rowIndex, key, value)}
           />
         ))}
@@ -1722,6 +1740,7 @@ function EditableIssueSection(props: {
 function StrategyMeetingEditorCard(props: {
   row: StrategyMeetingRow
   editable: boolean
+  previewAction?: ReactNode
   onChange: (key: keyof StrategyMeetingRow, value: string) => void
   onRemove?: () => void
 }) {
@@ -1788,7 +1807,10 @@ function StrategyMeetingEditorCard(props: {
 
       <div className="grid gap-4 border-b border-[#d9e2ec] bg-[#f5f9ff] p-4 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.4fr)]">
         <div className="space-y-2">
-          <div className="text-xs font-semibold text-[#34506b]">내용</div>
+          <div className="flex items-center justify-between gap-3">
+            <div className="text-xs font-semibold text-[#34506b]">내용</div>
+            {props.previewAction}
+          </div>
           <TextareaCell
             editable={props.editable}
             value={row.content}
@@ -1901,6 +1923,7 @@ function ContributionIssueTable(props: { rows: IssueRow[] }) {
 }
 
 function FinalIssueTable(props: {
+  selectedWeek: string
   rows: IssueRow[]
   onChange: (rowIndex: number, key: keyof IssueRow, value: string) => void
 }) {
@@ -1925,7 +1948,14 @@ function FinalIssueTable(props: {
             </div>
             <div className="grid gap-4 bg-[#fffdfa] p-4 lg:grid-cols-2">
               <div className="space-y-2">
-                <div className="text-xs font-semibold text-[#7a4b16]">최종 이슈 내용</div>
+                <div className="flex items-center justify-between gap-3">
+                  <div className="text-xs font-semibold text-[#7a4b16]">최종 이슈 내용</div>
+                  <PreviousFinalPreviewDialog
+                    selectedWeek={props.selectedWeek}
+                    kind="issue"
+                    category={row.category}
+                  />
+                </div>
                 <TextareaCell
                   editable
                   value={row.issue}
@@ -2061,6 +2091,7 @@ function SetupPlannedWorkTable(props: {
 }
 
 function FinalWorkReportTable(props: {
+  selectedWeek: string
   title: string
   rows: WorkReportRow[]
   onChange: (rowIndex: number, key: keyof WorkReportRow, value: string) => void
@@ -2099,7 +2130,15 @@ function FinalWorkReportTable(props: {
             </div>
             <div className="grid gap-4 bg-[#fffdfa] p-4 lg:grid-cols-2">
               <div className="space-y-2">
-                <div className="text-xs font-semibold text-[#7a4b16]">최종 내용</div>
+                <div className="flex items-center justify-between gap-3">
+                  <div className="text-xs font-semibold text-[#7a4b16]">최종 내용</div>
+                  <PreviousFinalPreviewDialog
+                    selectedWeek={props.selectedWeek}
+                    kind="work"
+                    section={props.title === '이월 사업' ? 'carryOver' : 'inProgress'}
+                    projectName={row.projectName}
+                  />
+                </div>
                 <TextareaCell
                   editable
                   value={row.detail}
@@ -2127,6 +2166,7 @@ function FinalWorkReportTable(props: {
 }
 
 function FinalPlannedWorkTable(props: {
+  selectedWeek: string
   title: string
   rows: PlannedWorkRow[]
   onChange: (rowIndex: number, key: keyof PlannedWorkRow, value: string) => void
@@ -2164,7 +2204,15 @@ function FinalPlannedWorkTable(props: {
             </div>
             <div className="grid gap-4 bg-[#fffdfa] p-4 lg:grid-cols-2">
               <div className="space-y-2">
-                <div className="text-xs font-semibold text-[#7a4b16]">최종 내용</div>
+                <div className="flex items-center justify-between gap-3">
+                  <div className="text-xs font-semibold text-[#7a4b16]">최종 내용</div>
+                  <PreviousFinalPreviewDialog
+                    selectedWeek={props.selectedWeek}
+                    kind="work"
+                    section={props.title === '예정 사업' ? 'planned' : 'tbd'}
+                    projectName={row.projectName}
+                  />
+                </div>
                 <TextareaCell
                   editable
                   value={row.detail}
@@ -2241,6 +2289,7 @@ function EditableMajorWorkItems(props: {
 }
 
 function FinalMajorWorkItems(props: {
+  selectedWeek: string
   rows: MajorWorkItem[]
   onChange: (rowIndex: number, key: keyof MajorWorkItem, value: string) => void
 }) {
@@ -2264,7 +2313,14 @@ function FinalMajorWorkItems(props: {
             </div>
             <div className="grid gap-4 bg-[#fffdfa] p-4 lg:grid-cols-2">
               <div className="space-y-2">
-                <div className="text-xs font-semibold text-[#7a4b16]">최종 금주 진행 업무</div>
+                <div className="flex items-center justify-between gap-3">
+                  <div className="text-xs font-semibold text-[#7a4b16]">최종 금주 진행 업무</div>
+                  <PreviousFinalPreviewDialog
+                    selectedWeek={props.selectedWeek}
+                    kind="major"
+                    label={row.label}
+                  />
+                </div>
                 <TextareaCell
                   editable
                   value={row.thisWeek}
@@ -2647,6 +2703,203 @@ function PreviousWorkPreviewDialog(props: {
                   />
                   <HistoryPreviewField
                     label="비고"
+                    value={preview.note}
+                    onCopy={() => handleCopy(`${preview.weekLabel}-note`, preview.note)}
+                    copied={copiedKey === `${preview.weekLabel}-note`}
+                  />
+                </div>
+              </div>
+            ))
+          )}
+        </div>
+      </DialogContent>
+    </Dialog>
+  )
+}
+
+function PreviousFinalPreviewDialog(props: {
+  selectedWeek: string
+  kind: 'work' | 'issue' | 'major' | 'strategy'
+  section?: WorkSectionKey
+  projectName?: string
+  category?: string
+  label?: string
+  org?: string
+}) {
+  const [open, setOpen] = useState(false)
+  const [isLoading, setIsLoading] = useState(false)
+  const [previews, setPreviews] = useState<PreviousWorkPreview[]>([])
+  const [errorMessage, setErrorMessage] = useState<string | null>(null)
+  const [copiedKey, setCopiedKey] = useState<string | null>(null)
+
+  useEffect(() => {
+    if (!open) return
+
+    const hasTarget = (
+      (props.kind === 'work' && props.projectName && props.section) ||
+      (props.kind === 'issue' && props.category) ||
+      (props.kind === 'major' && props.label) ||
+      (props.kind === 'strategy' && props.org && props.category)
+    )
+
+    if (!hasTarget) {
+      setPreviews([])
+      return
+    }
+
+    let isActive = true
+
+    const loadPreviews = async () => {
+      setIsLoading(true)
+      setErrorMessage(null)
+
+      const targets: string[] = []
+      let cursor = props.selectedWeek
+      for (let index = 0; index < 2; index += 1) {
+        const previous = getPreviousWeekValue(cursor)
+        if (!previous) break
+        targets.push(previous)
+        cursor = previous
+      }
+
+      if (targets.length === 0) {
+        if (isActive) {
+          setPreviews([])
+          setIsLoading(false)
+        }
+        return
+      }
+
+      const results = await Promise.all(targets.map(async (weekValue) => {
+        const { year, month, week } = parseWeekValue(weekValue)
+        const { data, error } = await supabase
+          .from('weekly_reports')
+          .select('payload')
+          .eq('team_key', WEEKLY_REPORT_TEAM_KEY)
+          .eq('report_year', year)
+          .eq('report_month', month)
+          .eq('report_week', week)
+          .maybeSingle()
+
+        if (error || !data?.payload) return null
+
+        const payload = normalizePayload(data.payload)
+
+        if (props.kind === 'work' && props.section && props.projectName) {
+          const row = getWorkSectionRows(payload, props.section).find((item) => item.projectName === props.projectName)
+          if (!row || (!row.detail && !row.note)) return null
+          return {
+            weekLabel: getWeekTitle(weekValue),
+            content: row.detail,
+            note: row.note,
+            contentLabel: '내용',
+            noteLabel: '비고',
+          } satisfies PreviousWorkPreview
+        }
+
+        if (props.kind === 'issue' && props.category) {
+          const row = payload.issues.find((item) => item.category === props.category)
+          if (!row || (!row.issue && !row.action)) return null
+          return {
+            weekLabel: getWeekTitle(weekValue),
+            content: row.issue,
+            note: row.action,
+            contentLabel: '이슈 내용',
+            noteLabel: '조치계획 및 결과',
+          } satisfies PreviousWorkPreview
+        }
+
+        if (props.kind === 'major' && props.label) {
+          const row = payload.majorWorkItems.find((item) => item.label === props.label)
+          if (!row || (!row.thisWeek && !row.nextWeek)) return null
+          return {
+            weekLabel: getWeekTitle(weekValue),
+            content: row.thisWeek,
+            note: row.nextWeek,
+            contentLabel: '금주 진행 업무',
+            noteLabel: '차주 예정 업무',
+          } satisfies PreviousWorkPreview
+        }
+
+        if (props.kind === 'strategy' && props.org && props.category) {
+          const row = payload.strategyMeetings.find((item) => item.org === props.org && item.category === props.category)
+          if (!row || (!row.content && !row.action)) return null
+          return {
+            weekLabel: getWeekTitle(weekValue),
+            content: row.content,
+            note: row.action,
+            contentLabel: '내용',
+            noteLabel: '조치계획 및 결과',
+          } satisfies PreviousWorkPreview
+        }
+
+        return null
+      }))
+
+      if (!isActive) return
+
+      setPreviews(results.filter(Boolean) as PreviousWorkPreview[])
+      setIsLoading(false)
+    }
+
+    void loadPreviews()
+
+    return () => {
+      isActive = false
+    }
+  }, [open, props.category, props.kind, props.label, props.org, props.projectName, props.section, props.selectedWeek])
+
+  const handleCopy = async (copyKey: string, value: string) => {
+    if (!value) return
+
+    try {
+      await navigator.clipboard.writeText(value)
+      setCopiedKey(copyKey)
+      window.setTimeout(() => {
+        setCopiedKey((current) => (current === copyKey ? null : current))
+      }, 1600)
+    } catch {
+      setErrorMessage('클립보드 복사에 실패했습니다.')
+    }
+  }
+
+  return (
+    <Dialog open={open} onOpenChange={setOpen}>
+      <DialogTrigger render={<Button type="button" variant="outline" size="sm" className="h-7 rounded-full px-3 text-[11px] text-[#526075]" />}>
+        지난 내용 보기
+      </DialogTrigger>
+      <DialogContent className="max-w-3xl rounded-3xl border border-[#d6deea] bg-white p-0">
+        <DialogHeader className="border-b border-[#e4e7ec] bg-[linear-gradient(180deg,#f8fbff_0%,#f2f6fb_100%)] px-6 py-5">
+          <DialogTitle className="text-base font-semibold text-[#101828]">지난 주차 참고</DialogTitle>
+          <div className="text-sm text-[#667085]">지난 2주 기준으로 팀장이 최종 정리했던 내용만 보여줘요.</div>
+        </DialogHeader>
+        <div className="space-y-4 px-6 py-5">
+          {isLoading ? (
+            <div className="flex items-center gap-2 rounded-2xl border border-[#e4e7ec] bg-[#fcfcfd] px-4 py-3 text-sm text-[#667085]">
+              <Loader2 className="h-4 w-4 animate-spin" />
+              지난 내용을 불러오는 중입니다.
+            </div>
+          ) : errorMessage ? (
+            <div className="rounded-2xl border border-[#f3d0cf] bg-[#fff7f7] px-4 py-3 text-sm text-[#b42318]">{errorMessage}</div>
+          ) : previews.length === 0 ? (
+            <div className="rounded-2xl border border-dashed border-[#d0d5dd] bg-[#fcfcfd] px-4 py-6 text-sm text-[#98a2b3]">
+              지난 2주 안에 저장된 내용이 없습니다.
+            </div>
+          ) : (
+            previews.map((preview) => (
+              <div key={preview.weekLabel} className="overflow-hidden rounded-2xl border border-[#d7dde4] bg-[#fcfcfd]">
+                <div className="border-b border-[#dbe3ec] bg-[linear-gradient(180deg,#f8fbff_0%,#f2f6fb_100%)] px-4 py-3">
+                  <div className="text-sm font-semibold text-[#101828]">{preview.weekLabel}</div>
+                </div>
+                <div className="grid gap-4 p-4 lg:grid-cols-2">
+                  <HistoryPreviewField
+                    label={preview.contentLabel || '내용'}
+                    value={preview.content}
+                    onCopy={() => handleCopy(`${preview.weekLabel}-content`, preview.content)}
+                    copied={copiedKey === `${preview.weekLabel}-content`}
+                  />
+                  <HistoryPreviewField
+                    label={preview.noteLabel || '비고'}
                     value={preview.note}
                     onCopy={() => handleCopy(`${preview.weekLabel}-note`, preview.note)}
                     copied={copiedKey === `${preview.weekLabel}-note`}
