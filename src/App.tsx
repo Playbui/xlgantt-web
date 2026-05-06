@@ -52,10 +52,36 @@ function WeeklyReportGuard({ children }: { children: React.ReactNode }) {
 
 function App() {
   const initSession = useAuthStore((s) => s.initSession)
+  const syncSession = useAuthStore((s) => s.syncSession)
 
   useEffect(() => {
     initSession()
   }, [initSession])
+
+  useEffect(() => {
+    let timeoutId: number | null = null
+
+    const handleWakeup = () => {
+      if (document.visibilityState === 'hidden') return
+      if (timeoutId !== null) {
+        window.clearTimeout(timeoutId)
+      }
+      timeoutId = window.setTimeout(() => {
+        void syncSession()
+      }, 150)
+    }
+
+    window.addEventListener('focus', handleWakeup)
+    document.addEventListener('visibilitychange', handleWakeup)
+
+    return () => {
+      window.removeEventListener('focus', handleWakeup)
+      document.removeEventListener('visibilitychange', handleWakeup)
+      if (timeoutId !== null) {
+        window.clearTimeout(timeoutId)
+      }
+    }
+  }, [syncSession])
 
   return (
     <Routes>

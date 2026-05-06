@@ -299,6 +299,7 @@ const INITIAL_MAJOR_WORK_ITEMS: MajorWorkItem[] = [
 export function WeeklyReportsPage() {
   const navigate = useNavigate()
   const currentUser = useAuthStore((s) => s.currentUser)
+  const syncSession = useAuthStore((s) => s.syncSession)
   const canManage = canManageWeeklyReports(currentUser)
   const [selectedWeek, setSelectedWeek] = useState(CURRENT_WEEK_VALUE)
   const [report, setReport] = useState<WeeklyReportRecord | null>(null)
@@ -329,10 +330,21 @@ export function WeeklyReportsPage() {
     : 0
 
   const loadReport = useCallback(async () => {
-    const { year, month, week } = parseWeekValue(selectedWeek)
     setIsLoading(true)
     setErrorMessage(null)
     setNotice(null)
+
+    const hasValidSession = await syncSession()
+    if (!hasValidSession) {
+      setErrorMessage('세션이 만료되어 보고서를 다시 불러올 수 없습니다. 다시 로그인해 주세요.')
+      setPayload(buildDefaultPayload())
+      setReport(null)
+      setIsDirty(false)
+      setIsLoading(false)
+      return
+    }
+
+    const { year, month, week } = parseWeekValue(selectedWeek)
 
     const query = supabase
       .from('weekly_reports')
@@ -424,7 +436,7 @@ export function WeeklyReportsPage() {
     })
     setIsDirty(false)
     setIsLoading(false)
-  }, [canManage, currentUser, selectedWeek])
+  }, [canManage, currentUser, selectedWeek, syncSession])
 
   useEffect(() => {
     void loadReport()

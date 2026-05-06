@@ -40,6 +40,7 @@ interface AuthState {
   completeForcedPasswordChange: (newPassword: string) => Promise<{ success: boolean; error?: string }>
   addUserManual: (email: string, name: string, password: string, role: UserRole) => Promise<{ success: boolean; error?: string }>
   initSession: () => Promise<void>
+  syncSession: () => Promise<boolean>
   fetchAllUsers: () => Promise<void>
 }
 
@@ -115,6 +116,27 @@ async function fetchProfile(userId: string): Promise<{ role: UserRole; approved:
   }
 }
 
+async function buildSessionUser(sessionUser: {
+  id: string
+  email?: string
+  created_at: string
+  user_metadata?: Record<string, unknown>
+}): Promise<User | null> {
+  const profile = await fetchProfile(sessionUser.id)
+  if (!profile || !profile.approved) return null
+
+  return {
+    id: sessionUser.id,
+    email: sessionUser.email || '',
+    name: profile.name || String(sessionUser.user_metadata?.name || ''),
+    role: profile.role,
+    avatar_url: profile.avatar_url,
+    approved: profile.approved,
+    force_password_change: profile.force_password_change ?? false,
+    created_at: sessionUser.created_at,
+  }
+}
+
 export const useAuthStore = create<AuthState>()(
   persist(
     (set, get) => ({
@@ -134,42 +156,27 @@ export const useAuthStore = create<AuthState>()(
         try {
           const { data: { session } } = await supabase.auth.getSession()
           if (session?.user) {
-            const profile = await fetchProfile(session.user.id)
-            if (profile && profile.approved) {
-              const user: User = {
-                id: session.user.id,
-                email: session.user.email || '',
-                name: profile.name || session.user.user_metadata?.name || '',
-                role: profile.role,
-                avatar_url: profile.avatar_url,
-                approved: profile.approved,
-                force_password_change: profile.force_password_change ?? false,
-                created_at: session.user.created_at,
-              }
+            const user = await buildSessionUser(session.user)
+            if (user) {
               set({ currentUser: user, isAuthenticated: true })
             } else {
               // 미승인 사용자는 세션 제거
               await supabase.auth.signOut()
               set({ currentUser: null, isAuthenticated: false })
             }
+          } else {
+            set({ currentUser: null, isAuthenticated: false })
           }
 
           // 인증 상태 변경 리스너
           supabase.auth.onAuthStateChange(async (event, session) => {
-            if (event === 'SIGNED_IN' && session?.user) {
-              const profile = await fetchProfile(session.user.id)
-              if (profile && profile.approved) {
-                const user: User = {
-                  id: session.user.id,
-                  email: session.user.email || '',
-                  name: profile.name || session.user.user_metadata?.name || '',
-                  role: profile.role,
-                  avatar_url: profile.avatar_url,
-                  approved: profile.approved,
-                  force_password_change: profile.force_password_change ?? false,
-                  created_at: session.user.created_at,
-                }
+            if ((event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED' || event === 'USER_UPDATED') && session?.user) {
+              const user = await buildSessionUser(session.user)
+              if (user) {
                 set({ currentUser: user, isAuthenticated: true })
+              } else {
+                await supabase.auth.signOut()
+                set({ currentUser: null, isAuthenticated: false })
               }
             } else if (event === 'SIGNED_OUT') {
               set({ currentUser: null, isAuthenticated: false })
@@ -181,6 +188,46 @@ export const useAuthStore = create<AuthState>()(
           set({ authMode: 'local' })
         } finally {
           set({ isLoading: false })
+        }
+      },
+
+      syncSession: async () => {
+        const { authMode } = get()
+        if (authMode !== 'supabase') return get().isAuthenticated
+
+        try {
+          const { data: { session } } = await supabase.auth.getSession()
+
+          if (!session?.user) {
+            const { data: refreshed, error: refreshError } = await supabase.auth.refreshSession()
+            if (refreshError || !refreshed.session?.user) {
+              set({ currentUser: null, isAuthenticated: false })
+              return false
+            }
+
+            const refreshedUser = await buildSessionUser(refreshed.session.user)
+            if (!refreshedUser) {
+              await supabase.auth.signOut()
+              set({ currentUser: null, isAuthenticated: false })
+              return false
+            }
+
+            set({ currentUser: refreshedUser, isAuthenticated: true })
+            return true
+          }
+
+          const user = await buildSessionUser(session.user)
+          if (!user) {
+            await supabase.auth.signOut()
+            set({ currentUser: null, isAuthenticated: false })
+            return false
+          }
+
+          set({ currentUser: user, isAuthenticated: true })
+          return true
+        } catch {
+          set({ currentUser: null, isAuthenticated: false })
+          return false
         }
       },
 
