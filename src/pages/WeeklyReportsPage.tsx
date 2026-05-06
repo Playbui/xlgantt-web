@@ -306,6 +306,8 @@ export function WeeklyReportsPage() {
   const currentUser = useAuthStore((s) => s.currentUser)
   const syncSession = useAuthStore((s) => s.syncSession)
   const canManage = canManageWeeklyReports(currentUser)
+  const currentUserId = currentUser?.id ?? ''
+  const currentUserName = currentUser?.name || currentUser?.email || ''
   const [selectedWeek, setSelectedWeek] = useState(CURRENT_WEEK_VALUE)
   const [report, setReport] = useState<WeeklyReportRecord | null>(null)
   const [payload, setPayload] = useState<WeeklyReportPayload>(() => buildDefaultPayload())
@@ -373,7 +375,7 @@ export function WeeklyReportsPage() {
     }
 
     if (!data) {
-      if (canManage && currentUser) {
+      if (canManage && currentUserId) {
         let nextPayload = buildDefaultPayload()
         let createdNotice = '이번 주 보고서 틀을 생성했어요. 이제 바로 입력하면 됩니다.'
         const previousWeekValue = getPreviousWeekValue(selectedWeek)
@@ -401,8 +403,8 @@ export function WeeklyReportsPage() {
           week,
           payload: nextPayload,
           status: '입력중',
-          currentUserId: currentUser.id,
-          currentUserName: currentUser.name || currentUser.email,
+          currentUserId,
+          currentUserName,
           existingId: null,
           preserveFinalized: false,
         })
@@ -442,7 +444,7 @@ export function WeeklyReportsPage() {
     })
     setIsDirty(false)
     setIsLoading(false)
-  }, [canManage, currentUser, selectedWeek, syncSession])
+  }, [canManage, currentUserId, currentUserName, selectedWeek, syncSession])
 
   useEffect(() => {
     void loadReport()
