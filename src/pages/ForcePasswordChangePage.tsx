@@ -7,7 +7,7 @@ import { useAuthStore } from '@/stores/auth-store'
 
 export function ForcePasswordChangePage() {
   const navigate = useNavigate()
-  const { currentUser, completeForcedPasswordChange, logout } = useAuthStore()
+  const { currentUser, completeForcedPasswordChange, logout, syncSession } = useAuthStore()
   const [newPassword, setNewPassword] = useState('')
   const [confirmPassword, setConfirmPassword] = useState('')
   const [error, setError] = useState('')
@@ -20,8 +20,15 @@ export function ForcePasswordChangePage() {
     return () => window.clearTimeout(timer)
   }, [success, navigate])
 
-  if (!currentUser) return <Navigate to="/login" replace />
-  if (!currentUser.force_password_change && !success) return <Navigate to="/projects" replace />
+  useEffect(() => {
+    if (!currentUser || success || saving) return
+    if (currentUser.force_password_change) {
+      void syncSession()
+    }
+  }, [currentUser?.id, currentUser?.force_password_change, saving, success, syncSession])
+
+  if (!currentUser && !success) return <Navigate to="/login" replace />
+  if (!currentUser?.force_password_change && !success && !saving) return <Navigate to="/projects" replace />
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()

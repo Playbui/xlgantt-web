@@ -316,7 +316,7 @@ export const useAuthStore = create<AuthState>()(
 
         // Supabase 인증
         if (authMode === 'supabase') {
-          set({ isLoading: true })
+          set({ currentUser: null, isAuthenticated: false, isLoading: true })
           try {
             const { data, error } = await supabase.auth.signInWithPassword({ email, password })
             if (error) {
@@ -622,7 +622,7 @@ export const useAuthStore = create<AuthState>()(
           const { authMode, currentUser } = get()
           if (!currentUser) return { success: false, error: '로그인 정보가 없습니다' }
 
-          if (authMode === 'supabase') {
+        if (authMode === 'supabase') {
           try {
             const { data: currentSessionData } = await supabase.auth.getSession()
             if (!currentSessionData.session) {
@@ -631,17 +631,6 @@ export const useAuthStore = create<AuthState>()(
                 return { success: false, error: '세션이 만료되었습니다. 다시 로그인 후 비밀번호를 변경해 주세요.' }
               }
             }
-
-            const ensureProfile = await supabase.from('profiles').upsert({
-              id: currentUser.id,
-              email: currentUser.email,
-              name: currentUser.name || '',
-              role: currentUser.role || 'member',
-            }, { onConflict: 'id' })
-
-              if (ensureProfile.error) {
-                console.error('강제 비밀번호 변경 전 프로필 보정 실패:', ensureProfile.error)
-              }
 
               const { data: clearedProfile, error: clearForceError } = await supabase
                 .from('profiles')
@@ -798,10 +787,12 @@ export const useAuthStore = create<AuthState>()(
         if (isSupabase) {
           return {
             ...current,
-            ...p,
             authMode: 'supabase' as const,
             users: p.users || [],
             passwords: {},
+            currentUser: null,
+            isAuthenticated: false,
+            isLoading: true,
           }
         }
         // 로컬 모드: 초기 사용자가 항상 포함되도록 병합
