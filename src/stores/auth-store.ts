@@ -632,6 +632,12 @@ export const useAuthStore = create<AuthState>()(
               }
             }
 
+              const { error: updateError } = await supabase.auth.updateUser({ password: newPassword })
+              if (updateError) {
+                console.error('강제 비밀번호 변경 비밀번호 업데이트 실패:', updateError)
+                return { success: false, error: translateAuthError(updateError.message) }
+              }
+
               const { data: clearedProfile, error: clearForceError } = await supabase
                 .from('profiles')
                 .update({ force_password_change: false })
@@ -660,16 +666,6 @@ export const useAuthStore = create<AuthState>()(
                   clearedProfile,
                 })
                 return { success: false, error: '비밀번호 변경 준비 중 문제가 발생했습니다. 잠시 후 다시 시도해 주세요.' }
-              }
-
-              const { error: updateError } = await supabase.auth.updateUser({ password: newPassword })
-              if (updateError) {
-                console.error('강제 비밀번호 변경 비밀번호 업데이트 실패:', updateError)
-                await supabase
-                  .from('profiles')
-                  .update({ force_password_change: true })
-                  .eq('id', currentUser.id)
-                return { success: false, error: translateAuthError(updateError.message) }
               }
 
               set({
