@@ -122,8 +122,11 @@ function isMissingSpecificColumn(message: string | undefined, column: string) {
 }
 
 async function uploadWorkspaceFile(item: WorkspaceItem, file: File, currentUserId?: string | null) {
-  const safeName = file.name.replace(/[^\w.\-가-힣 ]/g, '_')
-  const storagePath = `${item.project_id}/${item.id}/${crypto.randomUUID()}-${safeName}`
+  const originalName = file.name || 'attachment'
+  const extensionMatch = originalName.match(/\.([A-Za-z0-9]+)$/)
+  const extension = extensionMatch ? `.${extensionMatch[1].toLowerCase()}` : ''
+  const storageFilename = `${crypto.randomUUID()}${extension}`
+  const storagePath = `${item.project_id}/${item.id}/${storageFilename}`
 
   const { error: uploadError } = await supabase.storage
     .from('workspace-attachments')
