@@ -281,6 +281,7 @@ function serializeRichTextNode(node: RichTextNode): string {
 }
 
 function sanitizeRichTextNode(node: RichTextNode): RichTextNode | null {
+  if (!node || typeof node !== 'object') return null
   if (PLACEHOLDER_TYPES.has(node.type || '')) return null
 
   if (typeof node.text === 'string') return { ...node }
@@ -302,9 +303,14 @@ function sanitizeRichTextNode(node: RichTextNode): RichTextNode | null {
     }
   }
 
+  const nextChildren =
+    children.length > 0 || node.type === 'hr'
+      ? children
+      : [{ text: '' }]
+
   return {
     ...node,
-    children,
+    children: nextChildren,
   }
 }
 
