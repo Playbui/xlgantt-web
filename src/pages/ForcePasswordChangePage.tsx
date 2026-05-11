@@ -36,6 +36,9 @@ export function ForcePasswordChangePage() {
         setError(result.error || '비밀번호 변경에 실패했습니다')
         return
       }
+      if (result.message && typeof window !== 'undefined') {
+        window.alert(result.message)
+      }
       navigate('/projects', { replace: true })
     } finally {
       setSaving(false)

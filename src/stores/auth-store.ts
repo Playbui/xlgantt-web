@@ -37,7 +37,7 @@ interface AuthState {
   updateUser: (userId: string, updates: Partial<User>) => Promise<void>
   deleteUser: (userId: string) => Promise<void>
   changePassword: (userId: string, currentPassword: string, newPassword: string) => Promise<{ success: boolean; error?: string }>
-  completeForcedPasswordChange: (newPassword: string) => Promise<{ success: boolean; error?: string }>
+  completeForcedPasswordChange: (newPassword: string) => Promise<{ success: boolean; error?: string; message?: string }>
   addUserManual: (email: string, name: string, password: string, role: UserRole) => Promise<{ success: boolean; error?: string }>
   initSession: () => Promise<void>
   syncSession: () => Promise<boolean>
@@ -596,18 +596,32 @@ export const useAuthStore = create<AuthState>()(
             if (updateError) {
               return { success: false, error: translateAuthError(updateError.message) }
             }
-            const { error: profileError } = await supabase
+
+            const { data: profileRow, error: profileError } = await supabase
               .from('profiles')
               .update({ force_password_change: false })
               .eq('id', currentUser.id)
+              .select('id, force_password_change')
+              .single()
             if (profileError) {
               return { success: false, error: profileError.message }
             }
+
+            if (!profileRow || profileRow.force_password_change !== false) {
+              return { success: false, error: '비밀번호 변경 플래그 해제에 실패했습니다' }
+            }
+
             set({
               currentUser: { ...currentUser, force_password_change: false },
               users: get().users.map((u) => (u.id === currentUser.id ? { ...u, force_password_change: false } : u)),
             })
-            return { success: true }
+
+            const synced = await get().syncSession()
+            if (!synced) {
+              return { success: false, error: '세션 갱신에 실패했습니다. 다시 로그인해 주세요.' }
+            }
+
+            return { success: true, message: '비밀번호가 변경되었습니다.' }
           } catch {
             return { success: false, error: '비밀번호 변경에 실패했습니다' }
           }
@@ -619,7 +633,7 @@ export const useAuthStore = create<AuthState>()(
           currentUser: { ...currentUser, force_password_change: false },
           users: get().users.map((u) => (u.id === currentUser.id ? { ...u, force_password_change: false } : u)),
         })
-        return { success: true }
+        return { success: true, message: '비밀번호가 변경되었습니다.' }
       },
 
       addUserManual: async (rawEmail, name, password, role) => {
