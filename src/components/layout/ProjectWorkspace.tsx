@@ -1,4 +1,4 @@
-import { useEffect, useCallback, useRef } from 'react'
+import { useEffect, useCallback, useRef, useState } from 'react'
 import { Navigate, useNavigate, useParams } from 'react-router-dom'
 import { ArrowRight, CalendarDays, ClipboardList, Home, Network, Timer } from 'lucide-react'
 import { AppShell } from '@/components/layout/AppShell'
@@ -217,11 +217,11 @@ export function ProjectWorkspace({ mode = 'home' }: { mode?: WorkspaceMode }) {
   const loadIssueMembers = useIssueStore((s) => s.loadIssueMembers)
   const issueMembersLoadedProjectId = useIssueStore((s) => s.issueMembersLoadedProjectId)
   const canAccessIssues = useIssueStore((s) => projectId ? s.canAccessIssues(projectId, currentUserId) : false)
+  const [accessResolvedKey, setAccessResolvedKey] = useState('')
   const clearUndo = useUndoStore((s) => s.clear)
   const lastRefreshAtRef = useRef(0)
-  const accessReady = !!projectId
-    && projectMembersLoadedProjectIds.includes(projectId)
-    && issueMembersLoadedProjectId === projectId
+  const expectedAccessKey = projectId && currentUserId ? `${projectId}:${currentUserId}` : ''
+  const accessReady = accessResolvedKey === expectedAccessKey
 
   useEffect(() => {
     if (projectId && projects.length === 0) {
@@ -251,6 +251,10 @@ export function ProjectWorkspace({ mode = 'home' }: { mode?: WorkspaceMode }) {
         fetchAllUsers(),
         loadActivityLogs(projectId, { userId: currentUserId, offset: 0, limit: 50 }),
       ])
+
+      if (projectId && currentUserId) {
+        setAccessResolvedKey(`${projectId}:${currentUserId}`)
+      }
 
       const { tasks } = useTaskStore.getState()
       if (tasks.length === 0 && projectId === SAMPLE_PROJECT.id) {
@@ -298,8 +302,9 @@ export function ProjectWorkspace({ mode = 'home' }: { mode?: WorkspaceMode }) {
 
     clearUndo()
     switchProject(projectId)
+    setAccessResolvedKey('')
     void loadWorkspaceData()
-  }, [clearUndo, loadWorkspaceData, projectId, switchProject])
+  }, [clearUndo, currentUserId, loadWorkspaceData, projectId, switchProject])
 
   useEffect(() => {
     if (!projectId) return
@@ -323,11 +328,11 @@ export function ProjectWorkspace({ mode = 'home' }: { mode?: WorkspaceMode }) {
 
   const isMobile = useIsMobile()
 
-  if (projectId && mode === 'wbs' && projectMembersLoadedProjectIds.includes(projectId) && !canAccessWbs) {
+  if (projectId && mode === 'wbs' && accessReady && !canAccessWbs) {
     return <Navigate to={`/projects/${projectId}`} replace />
   }
 
-  if (projectId && mode === 'issues' && issueMembersLoadedProjectId === projectId && !canAccessIssues) {
+  if (projectId && mode === 'issues' && accessReady && !canAccessIssues) {
     return <Navigate to={`/projects/${projectId}`} replace />
   }
 
