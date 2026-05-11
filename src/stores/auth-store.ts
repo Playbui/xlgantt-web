@@ -596,34 +596,36 @@ export const useAuthStore = create<AuthState>()(
             if (updateError) {
               return { success: false, error: translateAuthError(updateError.message) }
             }
-
-            const { data: profileRow, error: profileError } = await supabase
+            const { error: profileError } = await supabase
               .from('profiles')
               .update({ force_password_change: false })
               .eq('id', currentUser.id)
-              .select('id, force_password_change')
-              .single()
             if (profileError) {
-              return { success: false, error: profileError.message }
-            }
-
-            if (!profileRow || profileRow.force_password_change !== false) {
-              return { success: false, error: '비밀번호 변경 플래그 해제에 실패했습니다' }
+              return { success: false, error: translateAuthError(profileError.message) }
             }
 
             set({
-              currentUser: { ...currentUser, force_password_change: false },
-              users: get().users.map((u) => (u.id === currentUser.id ? { ...u, force_password_change: false } : u)),
+              currentUser: {
+                ...currentUser,
+                force_password_change: false,
+              },
+              users: get().users.map((u) =>
+                u.id === currentUser.id
+                  ? {
+                      ...u,
+                      force_password_change: false,
+                    }
+                  : u
+              ),
             })
 
-            const synced = await get().syncSession()
-            if (!synced) {
-              return { success: false, error: '세션 갱신에 실패했습니다. 다시 로그인해 주세요.' }
-            }
-
             return { success: true, message: '비밀번호가 변경되었습니다.' }
-          } catch {
-            return { success: false, error: '비밀번호 변경에 실패했습니다' }
+          } catch (error) {
+            console.error('강제 비밀번호 변경 실패:', error)
+            return {
+              success: false,
+              error: error instanceof Error ? error.message : '비밀번호 변경에 실패했습니다',
+            }
           }
         }
 
