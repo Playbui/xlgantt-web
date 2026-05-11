@@ -1,3 +1,4 @@
+import * as React from 'react'
 import { useState, useEffect, useMemo } from 'react'
 import { Plus, X, CheckSquare, Square, Paperclip, StickyNote, Link2, Users, FileText, ArrowRight, ArrowLeft, Upload, Trash2, Image, File as FileIcon, Loader2, NotebookText } from 'lucide-react'
 import {
@@ -29,6 +30,66 @@ interface TaskEditDialogProps {
   taskId: string | null
   open: boolean
   onClose: () => void
+}
+
+interface EditorGuardProps {
+  value: string
+  onChange: (value: string) => void
+  placeholder: string
+  minHeight: number
+  className?: string
+  resetKey: string
+}
+
+interface EditorGuardState {
+  hasError: boolean
+}
+
+class EditorGuard extends React.Component<EditorGuardProps, EditorGuardState> {
+  state: EditorGuardState = { hasError: false }
+
+  static getDerivedStateFromError() {
+    return { hasError: true }
+  }
+
+  componentDidCatch(error: Error) {
+    console.error('Task detail editor render failed:', error)
+  }
+
+  componentDidUpdate(prevProps: EditorGuardProps) {
+    if (prevProps.resetKey !== this.props.resetKey && this.state.hasError) {
+      this.setState({ hasError: false })
+    }
+  }
+
+  render() {
+    if (this.state.hasError) {
+      return (
+        <div className="rounded-xl border border-amber-200 bg-amber-50/70 p-3">
+          <p className="mb-2 text-xs font-medium text-amber-700">
+            편집기 표시 중 문제가 있어 기본 입력 모드로 전환했습니다.
+          </p>
+          <textarea
+            value={this.props.value}
+            onChange={(e) => this.props.onChange(e.target.value)}
+            placeholder={this.props.placeholder}
+            className="w-full resize-y rounded-lg border border-amber-200 bg-white px-3 py-2 text-sm text-slate-800 outline-none focus-visible:ring-2 focus-visible:ring-amber-200"
+            style={{ minHeight: this.props.minHeight }}
+          />
+        </div>
+      )
+    }
+
+    return (
+      <RichContentEditor
+        value={this.props.value}
+        onChange={this.props.onChange}
+        placeholder={this.props.placeholder}
+        minHeight={this.props.minHeight}
+        className={this.props.className}
+      />
+    )
+  }
 }
 
 /* ─── 섹션 래퍼 ─── */
@@ -718,11 +779,12 @@ export function TaskEditDialog({ taskId, open, onClose }: TaskEditDialogProps) {
               <p className="text-[11px] text-muted-foreground">
                 세부항목이 없어도 작업 배경, 수행방안, 산출물 기준, 이슈 메모를 자유롭게 기록할 수 있습니다.
               </p>
-              <RichContentEditor
+              <EditorGuard
                 value={taskBody}
                 onChange={setTaskBody}
                 placeholder={'예:\n1. 업무 종료 후 자동 적재 파이프라인 구축\n2. 업무단위 분류/시간정보 기준 정합 절차 수립\n3. 연간 누적 관리체계 마련'}
                 minHeight={220}
+                resetKey={`task-body:${taskId ?? 'new'}:${task?.updated_at ?? ''}`}
               />
             </div>
           </Section>
@@ -822,12 +884,13 @@ export function TaskEditDialog({ taskId, open, onClose }: TaskEditDialogProps) {
 
                     {/* Row 3: 메모 (항상 표시, 한 줄부터 시작, 포커스 시 확장) */}
                     <div className="pl-6">
-                      <RichContentEditor
+                      <EditorGuard
                         value={detail.description || ''}
                         onChange={(value) => updateTaskDetail(detail.id, { description: value })}
                         placeholder="메모..."
                         minHeight={120}
                         className="rounded-xl bg-white/80"
+                        resetKey={`detail:${detail.id}:${detail.description ?? ''}:${detail.status}`}
                       />
                     </div>
                   </div>

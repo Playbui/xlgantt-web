@@ -596,12 +596,22 @@ export const useAuthStore = create<AuthState>()(
             if (updateError) {
               return { success: false, error: translateAuthError(updateError.message) }
             }
-            const { error: profileError } = await supabase
-              .from('profiles')
-              .update({ force_password_change: false })
-              .eq('id', currentUser.id)
-            if (profileError) {
-              return { success: false, error: translateAuthError(profileError.message) }
+
+            const { error: rpcError } = await supabase.rpc('complete_forced_password_change')
+
+            if (rpcError) {
+              const { error: profileError } = await supabase
+                .from('profiles')
+                .update({ force_password_change: false })
+                .eq('id', currentUser.id)
+
+              if (profileError) {
+                console.error('강제 비밀번호 변경 완료 처리 실패:', {
+                  rpcError,
+                  profileError,
+                })
+                return { success: false, error: translateAuthError(profileError.message) }
+              }
             }
 
             set({
