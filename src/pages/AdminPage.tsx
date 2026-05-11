@@ -693,7 +693,7 @@ export function AdminPage() {
                             </TableCell>
                             <TableCell>
                               <Select
-                                value={wbsMember?.role || 'viewer'}
+                                value={wbsMember?.role === 'owner' ? 'pm' : (wbsMember?.role || 'viewer')}
                                 onValueChange={(value) => handleUpdateWbsRole(user.id, value as ProjectRole)}
                                 disabled={!wbsMember}
                               >
@@ -701,7 +701,6 @@ export function AdminPage() {
                                   <SelectValue />
                                 </SelectTrigger>
                                 <SelectContent>
-                                  <SelectItem value="owner" className="text-xs">소유</SelectItem>
                                   <SelectItem value="pm" className="text-xs">PM</SelectItem>
                                   <SelectItem value="editor" className="text-xs">편집</SelectItem>
                                   <SelectItem value="viewer" className="text-xs">조회</SelectItem>

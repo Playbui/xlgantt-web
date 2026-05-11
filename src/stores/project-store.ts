@@ -12,6 +12,11 @@ function notifyProjectMemberSaveFailure(message: string) {
 
 export type ProjectRole = 'owner' | 'pm' | 'editor' | 'viewer'
 
+function normalizeProjectRole(role?: ProjectRole | null): ProjectRole | null {
+  if (!role) return null
+  return role === 'owner' ? 'pm' : role
+}
+
 export interface ProjectMember {
   projectId: string
   userId: string    // auth-store User.id
@@ -213,7 +218,7 @@ export const useProjectStore = create<ProjectState>()(persist((set, get) => ({
       const loaded: ProjectMember[] = data.map((row: Record<string, unknown>) => ({
         projectId: row.project_id as string,
         userId: row.user_id as string,
-        role: (row.role as ProjectRole) || 'viewer',
+        role: normalizeProjectRole((row.role as ProjectRole) || 'viewer') || 'viewer',
       }))
       // 기존 다른 프로젝트 멤버 유지 + 현재 프로젝트 멤버 교체
       set((s) => ({
@@ -229,18 +234,20 @@ export const useProjectStore = create<ProjectState>()(persist((set, get) => ({
   },
 
   addProjectMember: async (member) => {
+    const normalizedRole = normalizeProjectRole(member.role) || 'viewer'
+    const normalizedMember = { ...member, role: normalizedRole }
     set((s) => ({
-      projectMembers: [...s.projectMembers.filter((m) => !(m.projectId === member.projectId && m.userId === member.userId)), member],
+      projectMembers: [...s.projectMembers.filter((m) => !(m.projectId === normalizedMember.projectId && m.userId === normalizedMember.userId)), normalizedMember],
     }))
     const { error } = await supabase.from('project_members').upsert({
-      project_id: member.projectId,
-      user_id: member.userId,
-      role: member.role,
+      project_id: normalizedMember.projectId,
+      user_id: normalizedMember.userId,
+      role: normalizedRole,
     })
     if (error) {
       console.error('프로젝트 멤버 추가 실패:', error.message)
       set((s) => ({
-        projectMembers: s.projectMembers.filter((m) => !(m.projectId === member.projectId && m.userId === member.userId)),
+        projectMembers: s.projectMembers.filter((m) => !(m.projectId === normalizedMember.projectId && m.userId === normalizedMember.userId)),
       }))
       notifyProjectMemberSaveFailure('프로젝트 역할/배정 추가가 DB에 저장되지 않았습니다.')
     }
@@ -262,13 +269,14 @@ export const useProjectStore = create<ProjectState>()(persist((set, get) => ({
   },
 
   updateProjectMemberRole: async (projectId, userId, role) => {
+    const normalizedRole = normalizeProjectRole(role) || 'viewer'
     const before = get().projectMembers.find((m) => m.projectId === projectId && m.userId === userId)
     set((s) => ({
       projectMembers: s.projectMembers.map((m) =>
-        m.projectId === projectId && m.userId === userId ? { ...m, role } : m
+        m.projectId === projectId && m.userId === userId ? { ...m, role: normalizedRole } : m
       ),
     }))
-    const { error } = await supabase.from('project_members').update({ role })
+    const { error } = await supabase.from('project_members').update({ role: normalizedRole })
       .eq('project_id', projectId).eq('user_id', userId)
     if (error) {
       console.error('프로젝트 멤버 역할 변경 실패:', error.message)
@@ -287,7 +295,7 @@ export const useProjectStore = create<ProjectState>()(persist((set, get) => ({
 
   getMyProjectRole: (projectId, userId) => {
     const member = get().projectMembers.find((m) => m.projectId === projectId && m.userId === userId)
-    return member?.role || null
+    return normalizeProjectRole(member?.role || null)
   },
 
   canAccessWbs: (projectId, userId, globalRole) => {

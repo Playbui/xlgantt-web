@@ -257,7 +257,7 @@ export function ResourceManager() {
       case 'viewer':
         return '뷰어'
       case 'owner':
-        return '소유자'
+        return 'PM'
       case 'editor':
       default:
         return '편집자'
