@@ -79,6 +79,10 @@ function translateAuthError(message: string): string {
   if (message.includes('Email not confirmed')) return '이메일 인증이 완료되지 않았습니다'
   if (message.includes('User already registered')) return '이미 사용 중인 이메일입니다'
   if (message.includes('Password should be at least')) return '비밀번호는 최소 6자 이상이어야 합니다'
+  if (message.includes('New password should be different from the old password')) return '기존 임시 비밀번호와 다른 새 비밀번호를 입력해 주세요'
+  if (message.includes('same as the old password')) return '기존 임시 비밀번호와 다른 새 비밀번호를 입력해 주세요'
+  if (message.includes('Password should contain')) return '비밀번호 정책을 만족하지 않습니다. 영문, 숫자, 특수문자 조합을 확인해 주세요'
+  if (message.includes('weak password')) return '비밀번호 정책을 만족하지 않습니다. 더 강한 비밀번호를 입력해 주세요'
   if (message.includes('Email rate limit exceeded')) return '요청이 너무 많습니다. 잠시 후 다시 시도하세요'
   if (message.includes('Signup is disabled')) return '회원가입이 비활성화되어 있습니다'
   if (message.includes('email') && message.includes('invalid')) return '올바른 이메일 형식이 아닙니다'
@@ -620,6 +624,14 @@ export const useAuthStore = create<AuthState>()(
 
         if (authMode === 'supabase') {
           try {
+            const { data: currentSessionData } = await supabase.auth.getSession()
+            if (!currentSessionData.session) {
+              const { data: refreshed, error: refreshError } = await supabase.auth.refreshSession()
+              if (refreshError || !refreshed.session) {
+                return { success: false, error: '세션이 만료되었습니다. 다시 로그인 후 비밀번호를 변경해 주세요.' }
+              }
+            }
+
             const ensureProfile = await supabase.from('profiles').upsert({
               id: currentUser.id,
               email: currentUser.email,
@@ -631,29 +643,28 @@ export const useAuthStore = create<AuthState>()(
               console.error('강제 비밀번호 변경 전 프로필 보정 실패:', ensureProfile.error)
             }
 
-            let clearedForceFlag = false
+            const { error: updateError } = await supabase.auth.updateUser({ password: newPassword })
+            if (updateError) {
+              console.error('강제 비밀번호 변경 비밀번호 업데이트 실패:', updateError)
+              return { success: false, error: translateAuthError(updateError.message) }
+            }
+
+            const { error: refreshAfterUpdateError } = await supabase.auth.refreshSession()
+            if (refreshAfterUpdateError) {
+              console.warn('비밀번호 변경 후 세션 재동기화 실패:', refreshAfterUpdateError.message)
+            }
+
             const { error: rpcError } = await supabase.rpc('complete_forced_password_change')
-            if (!rpcError) {
-              clearedForceFlag = true
-            } else {
+            if (rpcError) {
               const { error: profileError } = await supabase
                 .from('profiles')
                 .update({ force_password_change: false })
                 .eq('id', currentUser.id)
 
-              if (!profileError) {
-                clearedForceFlag = true
-              } else {
+              if (profileError) {
                 console.error('강제 비밀번호 변경 완료 처리 실패:', { rpcError, profileError })
+                return { success: false, error: '비밀번호는 변경되었지만 완료 처리에 실패했습니다. 다시 로그인 후 확인해 주세요.' }
               }
-            }
-
-            const { error: updateError } = await supabase.auth.updateUser({ password: newPassword })
-            if (updateError) {
-              if (clearedForceFlag) {
-                await supabase.from('profiles').update({ force_password_change: true }).eq('id', currentUser.id)
-              }
-              return { success: false, error: translateAuthError(updateError.message) }
             }
 
             set({
