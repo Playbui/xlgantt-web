@@ -65,6 +65,10 @@ function dbToMember(row: Record<string, unknown>): TeamMember {
   }
 }
 
+function normalizeText(value?: string | null) {
+  return value?.trim().toLowerCase() || ''
+}
+
 /** DB row → 로컬 TaskAssignment 변환 */
 function dbToAssignment(row: Record<string, unknown>): TaskAssignment {
   return {
@@ -231,7 +235,7 @@ export const useResourceStore = create<ResourceState>()((set, get) => ({
     if (compErr) {
       console.error('회사 로드 실패:', compErr.message)
     }
-    const companies = compData ? compData.map(dbToCompany) : undefined
+    let syncedCompanies = compData ? compData.map(dbToCompany) : []
 
     // 2. team_members (companies를 통해 프로젝트에 연결)
     let members: TeamMember[] | undefined
@@ -245,6 +249,189 @@ export const useResourceStore = create<ResourceState>()((set, get) => ({
         console.error('팀원 로드 실패:', memErr.message)
       } else if (memData) {
         members = memData.map(dbToMember)
+      }
+    }
+
+    // 2-1. owner / project_members 를 담당자 풀(team_members)에 자동 동기화
+    if (projectId) {
+      try {
+        const { data: projectMeta, error: projectMetaErr } = await supabase
+          .from('projects')
+          .select('owner_id')
+          .eq('id', projectId)
+          .maybeSingle()
+
+        if (projectMetaErr) {
+          console.warn('프로젝트 소유자 로드 실패:', projectMetaErr.message)
+        }
+
+        const { data: projectMemberRows, error: projectMemberErr } = await supabase
+          .from('project_members')
+          .select('user_id, role')
+          .eq('project_id', projectId)
+
+        if (projectMemberErr) {
+          console.warn('프로젝트 멤버 로드 실패:', projectMemberErr.message)
+        }
+
+        const userRoleMap = new Map<string, string>()
+        for (const row of projectMemberRows || []) {
+          const userId = row.user_id as string | undefined
+          if (!userId) continue
+          userRoleMap.set(userId, (row.role as string | undefined) || 'viewer')
+        }
+        const ownerId = projectMeta?.owner_id as string | undefined
+        if (ownerId && !userRoleMap.has(ownerId)) {
+          userRoleMap.set(ownerId, 'owner')
+        }
+
+        const candidateUserIds = Array.from(userRoleMap.keys())
+
+        if (candidateUserIds.length > 0) {
+          const { data: profiles, error: profilesErr } = await supabase
+            .from('profiles')
+            .select('id, name, email, approved')
+            .in('id', candidateUserIds)
+
+          if (profilesErr) {
+            console.warn('프로젝트 담당 사용자 프로필 로드 실패:', profilesErr.message)
+          } else if (profiles) {
+            const approvedProfiles = profiles.filter((profile) => profile.approved)
+            const { data: assignmentRows, error: assignmentErr } = await supabase
+              .from('user_org_assignments')
+              .select('user_id, company_id')
+              .in('user_id', approvedProfiles.map((profile) => profile.id))
+
+            if (assignmentErr) {
+              console.warn('프로젝트 담당 사용자 조직 로드 실패:', assignmentErr.message)
+            }
+
+            const assignmentMap = new Map<string, string>()
+            for (const row of assignmentRows || []) {
+              const userId = row.user_id as string | undefined
+              const companyId = row.company_id as string | undefined
+              if (!userId || !companyId || assignmentMap.has(userId)) continue
+              assignmentMap.set(userId, companyId)
+            }
+
+            const orgCompanyIds = Array.from(new Set(Array.from(assignmentMap.values())))
+            let orgCompaniesById = new Map<string, Record<string, unknown>>()
+            if (orgCompanyIds.length > 0) {
+              const { data: orgCompanies, error: orgCompaniesErr } = await supabase
+                .from('org_companies')
+                .select('id, name, short_name, color')
+                .in('id', orgCompanyIds)
+
+              if (orgCompaniesErr) {
+                console.warn('프로젝트 담당 조직 회사 로드 실패:', orgCompaniesErr.message)
+              } else {
+                orgCompaniesById = new Map(
+                  (orgCompanies || []).map((company) => [company.id as string, company as Record<string, unknown>])
+                )
+              }
+            }
+
+            let nextCompanies = [...syncedCompanies]
+            let nextMembers = members ? [...members] : []
+
+            const companyById = new Map(nextCompanies.map((company) => [company.id, company]))
+            const existingMemberByLinkedUserId = new Map(
+              nextMembers
+                .filter((member) => member.linked_user_id)
+                .map((member) => [member.linked_user_id as string, member])
+            )
+            const existingMemberByEmail = new Map(
+              nextMembers
+                .filter((member) => normalizeText(member.email))
+                .map((member) => [normalizeText(member.email), member])
+            )
+
+            const ensureProjectCompany = async (orgCompanyId?: string) => {
+              if (!orgCompanyId) {
+                return nextCompanies[0]?.id
+              }
+
+              const orgCompany = orgCompaniesById.get(orgCompanyId)
+              if (!orgCompany) {
+                return nextCompanies[0]?.id
+              }
+
+              const orgName = normalizeText(orgCompany.name as string | undefined)
+              const orgShort = normalizeText(orgCompany.short_name as string | undefined)
+              const matched = nextCompanies.find((company) =>
+                normalizeText(company.name) === orgName ||
+                (!!orgShort && normalizeText(company.shortName) === orgShort)
+              )
+              if (matched) {
+                return matched.id
+              }
+
+              const companyRow = {
+                id: crypto.randomUUID(),
+                project_id: projectId,
+                name: (orgCompany.name as string) || '기본 회사',
+                short_name: (orgCompany.short_name as string) || ((orgCompany.name as string) || '기본').slice(0, 3),
+                color: (orgCompany.color as string) || '#3b82f6',
+                created_at: new Date().toISOString(),
+              }
+
+              const { error: insertCompanyErr } = await supabase.from('companies').insert(companyRow)
+              if (insertCompanyErr) {
+                console.warn('프로젝트 회사 자동 추가 실패:', insertCompanyErr.message)
+                return nextCompanies[0]?.id
+              }
+
+              const createdCompany = dbToCompany(companyRow as unknown as Record<string, unknown>)
+              nextCompanies.push(createdCompany)
+              companyById.set(createdCompany.id, createdCompany)
+              return createdCompany.id
+            }
+
+            for (const profile of approvedProfiles) {
+              const linkedUserId = profile.id as string
+              const email = normalizeText(profile.email as string | undefined)
+              const existingMember = existingMemberByLinkedUserId.get(linkedUserId) || (email ? existingMemberByEmail.get(email) : undefined)
+              if (existingMember) {
+                continue
+              }
+
+              const companyId = await ensureProjectCompany(assignmentMap.get(linkedUserId))
+              if (!companyId || !companyById.has(companyId)) {
+                continue
+              }
+
+              const role = userRoleMap.get(linkedUserId) || 'viewer'
+              const memberRow = {
+                id: crypto.randomUUID(),
+                company_id: companyId,
+                linked_user_id: linkedUserId,
+                name: (profile.name as string) || (profile.email as string) || '사용자',
+                email: (profile.email as string) || null,
+                role: role === 'owner' ? 'Owner' : role === 'pm' ? 'PM' : role === 'editor' ? '편집자' : '뷰어',
+                phone: null,
+                created_at: new Date().toISOString(),
+              }
+
+              const { error: insertMemberErr } = await supabase.from('team_members').insert(memberRow)
+              if (insertMemberErr) {
+                console.warn('프로젝트 담당자 자동 추가 실패:', insertMemberErr.message)
+                continue
+              }
+
+              const createdMember = dbToMember(memberRow as unknown as Record<string, unknown>)
+              nextMembers.push(createdMember)
+              existingMemberByLinkedUserId.set(linkedUserId, createdMember)
+              if (email) {
+                existingMemberByEmail.set(email, createdMember)
+              }
+            }
+
+            syncedCompanies = nextCompanies
+            members = nextMembers
+          }
+        }
+      } catch (error) {
+        console.warn('프로젝트 참여자 담당자 자동 동기화 실패:', error)
       }
     }
 
@@ -281,7 +468,7 @@ export const useResourceStore = create<ResourceState>()((set, get) => ({
 
     // 서버 데이터로 교체 (비어있으면 빈 배열)
     set({
-      companies: companies || [],
+      companies: syncedCompanies,
       members: members || [],
       assignments: assignments || [],
       taskDetails: get().taskDetails, // taskDetails는 위에서 이미 set됨, 안 됐으면 유지

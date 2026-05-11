@@ -121,6 +121,13 @@ export function AdminPage() {
     }
   }, [loadIssueMembers, loadProjectMembers, selectedAccessProjectId])
 
+  // eslint-disable-next-line react-hooks/rules-of-hooks
+  useEffect(() => {
+    if (adminTab === 'access' && authMode === 'supabase') {
+      void fetchAllUsers()
+    }
+  }, [adminTab, authMode, fetchAllUsers])
+
   const pendingUsers = useMemo(() => users.filter((user) => !user.approved), [users])
   const approvedUsers = useMemo(() => users.filter((user) => user.approved), [users])
   const selectedAccessProject = useMemo(
