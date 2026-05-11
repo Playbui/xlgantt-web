@@ -218,8 +218,8 @@ export function AdminPage() {
     [approvedUsers, buildUserGroups, pendingUsers]
   )
   const projectAccessUsers = useMemo(
-    () => approvedUsers.filter((user) => projectMembersByUserId.has(user.id) || issueMembersByUserId.has(user.id)),
-    [approvedUsers, issueMembersByUserId, projectMembersByUserId]
+    () => approvedUsers,
+    [approvedUsers]
   )
   const groupedProjectAccessUsers = useMemo(
     () => buildUserGroups(projectAccessUsers),
@@ -652,7 +652,7 @@ export function AdminPage() {
                   {projectAccessUsers.length === 0 ? (
                     <TableRow>
                       <TableCell colSpan={7} className="h-28 text-center text-sm text-muted-foreground">
-                        선택한 프로젝트에 등록된 WBS/이슈 접근자가 없습니다.
+                        승인된 사용자가 없습니다.
                       </TableCell>
                     </TableRow>
                   ) : (
