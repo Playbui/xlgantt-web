@@ -71,17 +71,19 @@ const FORMATTING_EDITOR_PLUGINS = [
   ...FormattingToolbarKit,
 ] as any
 
+const EMPTY_EDITOR_VALUE: Value = [{ type: 'p', children: [{ text: '' }] }] as unknown as Value
+
 function createEditorValue(html: string, plugins = BASE_EDITOR_PLUGINS) {
   const editor = createPlateEditor({ plugins })
   const sourceHtml = html || '<p></p>'
   const savedState = deserializeRichTextState(sourceHtml)
-  if (savedState) return savedState as Value
+  if (Array.isArray(savedState) && savedState.length > 0) return savedState as Value
 
-  const visibleHtml = stripRichTextState(sourceHtml)
-  return hydrateRichTextTableCellStyles(
-    deserializeHtml(editor, { element: visibleHtml }) as Value,
-    visibleHtml,
-  ) as Value
+  const visibleHtml = stripRichTextState(sourceHtml) || '<p></p>'
+  const parsed = deserializeHtml(editor, { element: visibleHtml }) as Value
+  const hydrated = hydrateRichTextTableCellStyles(parsed, visibleHtml) as Value
+  if (Array.isArray(hydrated) && hydrated.length > 0) return hydrated
+  return EMPTY_EDITOR_VALUE
 }
 
 function fileToDataUrl(file: File) {

@@ -488,7 +488,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => ({
 
   uploadAttachment: async (itemId, file) => {
     const item = get().items.find((candidate) => candidate.id === itemId)
-    if (!item) return
+    if (!item) throw new Error('업무노트를 찾을 수 없습니다')
     const currentUserId = useAuthStore.getState().currentUser?.id
     try {
       const { attachment } = await uploadWorkspaceFile(item, file, currentUserId)
@@ -498,7 +498,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => ({
       }))
     } catch (error) {
       console.error('첨부 업로드 실패:', error)
-      return
+      throw error
     }
   },
 

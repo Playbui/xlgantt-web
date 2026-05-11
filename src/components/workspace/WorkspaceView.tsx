@@ -11,6 +11,7 @@ import {
   History,
   KeyRound,
   Link2,
+  Loader2,
   Paperclip,
   Lock,
   Save,
@@ -19,6 +20,7 @@ import {
   ShieldCheck,
   ShieldOff,
   Trash2,
+  Upload,
   Users,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
@@ -189,6 +191,9 @@ export function WorkspaceView() {
   const [shareUsersError, setShareUsersError] = useState('')
   const [draggedItemId, setDraggedItemId] = useState<string | null>(null)
   const [dragOverTarget, setDragOverTarget] = useState<{ id: string; position: 'before' | 'inside' | 'after' } | null>(null)
+  const [attachmentDragOver, setAttachmentDragOver] = useState(false)
+  const [attachmentUploading, setAttachmentUploading] = useState(false)
+  const [attachmentError, setAttachmentError] = useState('')
 
   const selectedItem =
     items.find((item) => item.id === selectedItemId) ??
@@ -219,6 +224,8 @@ export function WorkspaceView() {
       editor_font_size: selectedItem.editor_font_size || 15,
     })
     setDirty(false)
+    setAttachmentError('')
+    setAttachmentDragOver(false)
   }, [selectedItem?.id])
 
   useEffect(() => {
@@ -471,6 +478,22 @@ export function WorkspaceView() {
     setUnlockDialogOpen(false)
     setPasswordInput('')
     setPasswordError('')
+  }
+
+  const handleUploadFiles = async (files: File[]) => {
+    if (!selectedItem || selectedItem.item_type === 'folder' || files.length === 0) return
+    setAttachmentError('')
+    setAttachmentUploading(true)
+    try {
+      for (const file of files) {
+        await uploadAttachment(selectedItem.id, file)
+      }
+    } catch (error) {
+      const message = error instanceof Error ? error.message : '첨부 업로드에 실패했습니다.'
+      setAttachmentError(message)
+    } finally {
+      setAttachmentUploading(false)
+    }
   }
 
   const handleDeleteSelected = async () => {
@@ -796,8 +819,8 @@ export function WorkspaceView() {
                   <Input
                     value={draft.title}
                     onChange={(e) => updateDraft({ title: e.target.value })}
-                    placeholder="문서 제목"
-                    className="mt-4 h-14 border-none bg-transparent px-0 text-3xl font-black tracking-tight text-slate-950 shadow-none focus-visible:ring-0"
+                    placeholder="문서 제목을 입력하세요"
+                    className="mt-4 h-14 rounded-xl border border-slate-300 bg-white/85 px-4 text-3xl font-black tracking-tight text-slate-950 shadow-[0_1px_2px_rgba(15,23,42,0.04)] placeholder:text-slate-400 placeholder:font-bold focus-visible:border-primary/50 focus-visible:bg-white focus-visible:ring-2 focus-visible:ring-primary/20"
                   />
 
                   <div className="mt-3 flex flex-wrap gap-2">
@@ -855,6 +878,106 @@ export function WorkspaceView() {
                 enableImages={Boolean(selectedItem && selectedItem.item_type !== 'folder')}
                 onUploadImages={selectedItem ? (files) => uploadEmbeddedImages(selectedItem.id, files) : undefined}
               />
+
+              <section className="rounded-2xl border border-slate-300 bg-card shadow-sm">
+                <div className="flex items-center justify-between border-b border-slate-200 px-4 py-3">
+                  <div className="flex items-center gap-2 text-sm font-semibold text-slate-700">
+                    <Paperclip className="h-4 w-4 text-primary" />
+                    첨부문서
+                    {itemAttachments.length > 0 && (
+                      <span className="rounded-full bg-primary/10 px-2 py-0.5 text-[11px] font-bold text-primary">{itemAttachments.length}</span>
+                    )}
+                  </div>
+                  <span className="text-[11px] text-muted-foreground">파일을 드래그하거나 클릭하여 추가</span>
+                </div>
+
+                <div
+                  className={cn(
+                    'm-3 rounded-xl border-2 border-dashed px-5 py-6 text-center transition-colors',
+                    selectedItem.item_type === 'folder'
+                      ? 'border-slate-200 bg-slate-50 text-muted-foreground'
+                      : attachmentDragOver
+                        ? 'border-primary bg-primary/5'
+                        : 'border-slate-300 bg-slate-50/70 hover:border-primary/40 hover:bg-primary/5 cursor-pointer'
+                  )}
+                  onDragOver={(e) => {
+                    if (selectedItem.item_type === 'folder') return
+                    e.preventDefault()
+                    e.stopPropagation()
+                    e.dataTransfer.dropEffect = 'copy'
+                    setAttachmentDragOver(true)
+                  }}
+                  onDragLeave={(e) => {
+                    e.preventDefault()
+                    e.stopPropagation()
+                    setAttachmentDragOver(false)
+                  }}
+                  onDrop={async (e) => {
+                    e.preventDefault()
+                    e.stopPropagation()
+                    setAttachmentDragOver(false)
+                    if (selectedItem.item_type === 'folder') return
+                    const files = Array.from(e.dataTransfer?.files || [])
+                    if (files.length === 0) return
+                    await handleUploadFiles(files)
+                  }}
+                  onClick={() => {
+                    if (selectedItem.item_type === 'folder') return
+                    const input = document.createElement('input')
+                    input.type = 'file'
+                    input.multiple = true
+                    input.onchange = async () => {
+                      const files = Array.from(input.files || [])
+                      if (files.length === 0) return
+                      await handleUploadFiles(files)
+                    }
+                    input.click()
+                  }}
+                >
+                  {attachmentUploading ? (
+                    <>
+                      <Loader2 className="mx-auto h-6 w-6 animate-spin text-primary" />
+                      <p className="mt-2 text-sm font-semibold text-primary">업로드 중...</p>
+                    </>
+                  ) : (
+                    <>
+                      <Upload className="mx-auto h-6 w-6 text-slate-400" />
+                      <p className="mt-2 text-sm font-semibold text-slate-700">
+                        {selectedItem.item_type === 'folder' ? '폴더에는 첨부할 수 없습니다.' : '여기에 파일을 끌어다 놓거나 클릭하여 선택'}
+                      </p>
+                      <p className="mt-1 text-[11px] text-muted-foreground">PDF, 이미지, 문서, 엑셀 등 (여러 파일 선택 가능)</p>
+                    </>
+                  )}
+                </div>
+
+                {attachmentError && (
+                  <div className="mx-3 mb-3 rounded-md border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-700">
+                    {attachmentError}
+                  </div>
+                )}
+
+                {itemAttachments.length > 0 && (
+                  <div className="space-y-2 px-3 pb-3">
+                    {itemAttachments.map((file) => (
+                      <a
+                        key={file.id}
+                        href={file.public_url || '#'}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="flex items-center gap-3 rounded-lg border border-slate-200 bg-background px-3 py-2.5 transition-colors hover:border-primary/40 hover:bg-primary/5"
+                      >
+                        <FileText className="h-4 w-4 flex-shrink-0 text-slate-500" />
+                        <div className="min-w-0 flex-1">
+                          <div className="truncate text-sm font-medium text-slate-900">{file.filename}</div>
+                          <div className="mt-0.5 text-[11px] text-muted-foreground">
+                            {formatBytes(file.size)} · {file.uploaded_by_name || '사용자'}
+                          </div>
+                        </div>
+                      </a>
+                    ))}
+                  </div>
+                )}
+              </section>
             </div>
           </div>
         ) : (
@@ -873,46 +996,6 @@ export function WorkspaceView() {
 
       <aside className="min-h-0 overflow-y-auto border-l border-slate-300 bg-slate-50/70 px-4 py-5">
         <div className="space-y-5">
-          <section className="rounded-xl border border-slate-300 bg-card">
-            <div className="flex items-center justify-between border-b border-slate-300 px-4 py-3">
-              <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.08em] text-muted-foreground">
-                <Paperclip className="h-4 w-4" />
-                첨부
-              </div>
-              <label className="cursor-pointer text-xs font-medium text-primary hover:underline">
-                추가
-                <input
-                  type="file"
-                  className="hidden"
-                  multiple
-                  disabled={!selectedItem || selectedItem.item_type === 'folder'}
-                  onChange={async (e) => {
-                    if (!selectedItem) return
-                    const files = Array.from(e.target.files || [])
-                    for (const file of files) await uploadAttachment(selectedItem.id, file)
-                    e.currentTarget.value = ''
-                  }}
-                />
-              </label>
-            </div>
-            <div className="space-y-2 px-4 py-4">
-              {itemAttachments.length > 0 ? itemAttachments.map((file) => (
-                <a
-                  key={file.id}
-                  href={file.public_url || '#'}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="block rounded-lg border border-slate-300 bg-background px-3 py-2 hover:bg-accent/40"
-                >
-                  <div className="truncate text-xs font-medium">{file.filename}</div>
-                  <div className="mt-1 text-[10px] text-muted-foreground">{formatBytes(file.size)} · {file.uploaded_by_name || '사용자'}</div>
-                </a>
-              )) : (
-                <div className="text-xs text-muted-foreground">{selectedItem?.item_type === 'folder' ? '폴더에는 첨부를 추가하지 않습니다.' : '첨부된 문서가 없습니다.'}</div>
-              )}
-            </div>
-          </section>
-
           <section className="rounded-xl border border-slate-300 bg-card">
             <div className="flex items-center justify-between border-b border-slate-300 px-4 py-3">
               <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.08em] text-muted-foreground">

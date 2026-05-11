@@ -1,8 +1,8 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Navigate, useNavigate } from 'react-router-dom'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { Loader2, ShieldAlert } from 'lucide-react'
+import { CheckCircle2, Loader2, ShieldAlert } from 'lucide-react'
 import { useAuthStore } from '@/stores/auth-store'
 
 export function ForcePasswordChangePage() {
@@ -12,9 +12,16 @@ export function ForcePasswordChangePage() {
   const [confirmPassword, setConfirmPassword] = useState('')
   const [error, setError] = useState('')
   const [saving, setSaving] = useState(false)
+  const [success, setSuccess] = useState(false)
+
+  useEffect(() => {
+    if (!success) return
+    const timer = window.setTimeout(() => navigate('/projects', { replace: true }), 1500)
+    return () => window.clearTimeout(timer)
+  }, [success, navigate])
 
   if (!currentUser) return <Navigate to="/login" replace />
-  if (!currentUser.force_password_change) return <Navigate to="/projects" replace />
+  if (!currentUser.force_password_change && !success) return <Navigate to="/projects" replace />
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -30,19 +37,39 @@ export function ForcePasswordChangePage() {
     }
 
     setSaving(true)
-    try {
-      const result = await completeForcedPasswordChange(newPassword)
-      if (!result.success) {
-        setError(result.error || '비밀번호 변경에 실패했습니다')
-        return
-      }
-      if (result.message && typeof window !== 'undefined') {
-        window.alert(result.message)
-      }
-      navigate('/projects', { replace: true })
-    } finally {
+    const result = await completeForcedPasswordChange(newPassword)
+    if (!result.success) {
+      setError(result.error || '비밀번호 변경에 실패했습니다')
       setSaving(false)
+      return
     }
+    setSuccess(true)
+    setSaving(false)
+  }
+
+  if (success) {
+    return (
+      <div className="auth-shell">
+        <div className="auth-container">
+          <section className="auth-form-wrap">
+            <div className="auth-panel text-center">
+              <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-full bg-emerald-50 border border-emerald-200">
+                <CheckCircle2 className="h-8 w-8 text-emerald-600" />
+              </div>
+              <h1 className="text-2xl font-bold text-foreground">비밀번호 변경 완료</h1>
+              <p className="mt-2 text-sm text-muted-foreground">
+                새 비밀번호가 저장되었습니다. 잠시 후 프로젝트 페이지로 이동합니다.
+              </p>
+              <div className="mt-6">
+                <Button className="w-full h-10" onClick={() => navigate('/projects', { replace: true })}>
+                  바로 이동
+                </Button>
+              </div>
+            </div>
+          </section>
+        </div>
+      </div>
+    )
   }
 
   return (
