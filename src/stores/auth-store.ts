@@ -618,11 +618,11 @@ export const useAuthStore = create<AuthState>()(
         return { success: true }
       },
 
-      completeForcedPasswordChange: async (newPassword) => {
-        const { authMode, currentUser } = get()
-        if (!currentUser) return { success: false, error: '로그인 정보가 없습니다' }
+        completeForcedPasswordChange: async (newPassword) => {
+          const { authMode, currentUser } = get()
+          if (!currentUser) return { success: false, error: '로그인 정보가 없습니다' }
 
-        if (authMode === 'supabase') {
+          if (authMode === 'supabase') {
           try {
             const { data: currentSessionData } = await supabase.auth.getSession()
             if (!currentSessionData.session) {
@@ -639,32 +639,53 @@ export const useAuthStore = create<AuthState>()(
               role: currentUser.role || 'member',
             }, { onConflict: 'id' })
 
-            if (ensureProfile.error) {
-              console.error('강제 비밀번호 변경 전 프로필 보정 실패:', ensureProfile.error)
-            }
+              if (ensureProfile.error) {
+                console.error('강제 비밀번호 변경 전 프로필 보정 실패:', ensureProfile.error)
+              }
 
-            const { error: updateError } = await supabase.auth.updateUser({ password: newPassword })
-            if (updateError) {
-              console.error('강제 비밀번호 변경 비밀번호 업데이트 실패:', updateError)
-              return { success: false, error: translateAuthError(updateError.message) }
-            }
-
-            const { error: rpcError } = await supabase.rpc('complete_forced_password_change')
-            if (rpcError) {
-              const { error: profileError } = await supabase
+              const { data: clearedProfile, error: clearForceError } = await supabase
                 .from('profiles')
                 .update({ force_password_change: false })
                 .eq('id', currentUser.id)
+                .select('id, force_password_change')
+                .maybeSingle()
 
-              if (profileError) {
-                console.error('강제 비밀번호 변경 완료 처리 실패:', { rpcError, profileError })
-                return { success: false, error: '비밀번호는 변경되었지만 완료 처리에 실패했습니다. 다시 로그인 후 확인해 주세요.' }
+              let forceCleared = !clearForceError && clearedProfile?.force_password_change === false
+
+              if (!forceCleared) {
+                const { data: rpcCleared, error: rpcError } = await supabase.rpc('complete_forced_password_change')
+                if (rpcError) {
+                  console.error('강제 비밀번호 변경 전 완료 플래그 해제 실패:', {
+                    clearForceError,
+                    clearedProfile,
+                    rpcError,
+                  })
+                  return { success: false, error: '비밀번호 변경 준비 중 문제가 발생했습니다. 잠시 후 다시 시도해 주세요.' }
+                }
+                forceCleared = rpcCleared === true
               }
-            }
 
-            set({
-              currentUser: {
-                ...currentUser,
+              if (!forceCleared) {
+                console.error('강제 비밀번호 변경 전 완료 플래그 해제 검증 실패:', {
+                  clearForceError,
+                  clearedProfile,
+                })
+                return { success: false, error: '비밀번호 변경 준비 중 문제가 발생했습니다. 잠시 후 다시 시도해 주세요.' }
+              }
+
+              const { error: updateError } = await supabase.auth.updateUser({ password: newPassword })
+              if (updateError) {
+                console.error('강제 비밀번호 변경 비밀번호 업데이트 실패:', updateError)
+                await supabase
+                  .from('profiles')
+                  .update({ force_password_change: true })
+                  .eq('id', currentUser.id)
+                return { success: false, error: translateAuthError(updateError.message) }
+              }
+
+              set({
+                currentUser: {
+                  ...currentUser,
                 force_password_change: false,
               },
               users: get().users.map((u) =>
