@@ -16,7 +16,7 @@ export function ForcePasswordChangePage() {
 
   useEffect(() => {
     if (!success) return
-    const timer = window.setTimeout(() => navigate('/projects', { replace: true }), 1500)
+    const timer = window.setTimeout(() => navigate('/login', { replace: true }), 1500)
     return () => window.clearTimeout(timer)
   }, [success, navigate])
 
@@ -58,11 +58,11 @@ export function ForcePasswordChangePage() {
               </div>
               <h1 className="text-2xl font-bold text-foreground">비밀번호 변경 완료</h1>
               <p className="mt-2 text-sm text-muted-foreground">
-                새 비밀번호가 저장되었습니다. 잠시 후 프로젝트 페이지로 이동합니다.
+                새 비밀번호가 저장되었습니다. 잠시 후 로그인 화면으로 이동합니다.
               </p>
               <div className="mt-6">
-                <Button className="w-full h-10" onClick={() => navigate('/projects', { replace: true })}>
-                  바로 이동
+                <Button className="w-full h-10" onClick={() => navigate('/login', { replace: true })}>
+                  로그인 하러 가기
                 </Button>
               </div>
             </div>

@@ -466,7 +466,7 @@ export const useAuthStore = create<AuthState>()(
                   users: get().users.map((u) => (u.id === userId ? { ...u, force_password_change: false } : u)),
                 })
               }
-              return { success: true, message: '비밀번호가 변경되었습니다.' }
+              return { success: true, message: '비밀번호가 변경되었습니다. 다시 로그인해 주세요.' }
             }
             const { error } = await supabase.rpc('admin_reset_user_password', {
               target_user_id: userId,
@@ -485,7 +485,7 @@ export const useAuthStore = create<AuthState>()(
         const user = users.find((u) => u.id === userId)
         if (user) {
           set({ passwords: { ...passwords, [user.email]: newPassword } })
-          return { success: true, message: '비밀번호가 변경되었습니다.' }
+          return { success: true, message: '비밀번호가 변경되었습니다. 다시 로그인해 주세요.' }
         }
         return { success: false, error: '사용자를 찾을 수 없습니다' }
       },
@@ -649,11 +649,6 @@ export const useAuthStore = create<AuthState>()(
               return { success: false, error: translateAuthError(updateError.message) }
             }
 
-            const { error: refreshAfterUpdateError } = await supabase.auth.refreshSession()
-            if (refreshAfterUpdateError) {
-              console.warn('비밀번호 변경 후 세션 재동기화 실패:', refreshAfterUpdateError.message)
-            }
-
             const { error: rpcError } = await supabase.rpc('complete_forced_password_change')
             if (rpcError) {
               const { error: profileError } = await supabase
@@ -682,7 +677,7 @@ export const useAuthStore = create<AuthState>()(
               ),
             })
 
-            return { success: true, message: '비밀번호가 변경되었습니다.' }
+            return { success: true, message: '비밀번호가 변경되었습니다. 다시 로그인해 주세요.' }
           } catch (error) {
             console.error('강제 비밀번호 변경 실패:', error)
             return {
@@ -698,7 +693,7 @@ export const useAuthStore = create<AuthState>()(
           currentUser: { ...currentUser, force_password_change: false },
           users: get().users.map((u) => (u.id === currentUser.id ? { ...u, force_password_change: false } : u)),
         })
-        return { success: true, message: '비밀번호가 변경되었습니다.' }
+        return { success: true, message: '비밀번호가 변경되었습니다. 다시 로그인해 주세요.' }
       },
 
       addUserManual: async (rawEmail, name, password, role) => {
