@@ -201,15 +201,19 @@ export const useAuthStore = create<AuthState>()(
           }
 
           // 인증 상태 변경 리스너
-          supabase.auth.onAuthStateChange(async (event, session) => {
+          supabase.auth.onAuthStateChange((event, session) => {
             if ((event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED' || event === 'USER_UPDATED') && session?.user) {
-              const user = await buildSessionUser(session.user)
-              if (user) {
-                set({ currentUser: user, isAuthenticated: true })
-              } else {
-                await supabase.auth.signOut()
-                set({ currentUser: null, isAuthenticated: false })
-              }
+              window.setTimeout(() => {
+                void (async () => {
+                  const user = await buildSessionUser(session.user)
+                  if (user) {
+                    set({ currentUser: user, isAuthenticated: true })
+                  } else {
+                    await supabase.auth.signOut()
+                    set({ currentUser: null, isAuthenticated: false })
+                  }
+                })()
+              }, 0)
             } else if (event === 'SIGNED_OUT') {
               set({ currentUser: null, isAuthenticated: false })
             }
