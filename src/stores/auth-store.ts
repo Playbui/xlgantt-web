@@ -87,17 +87,29 @@ function translateAuthError(message: string): string {
 
 // profiles 테이블에서 사용자 정보 조회
 async function fetchProfile(userId: string): Promise<{ role: UserRole; approved: boolean; name: string; avatar_url?: string; force_password_change?: boolean } | null> {
-  const { data, error } = await supabase
-    .from('profiles')
-    .select('role, approved, name, avatar_url, force_password_change')
-    .eq('id', userId)
-    .single()
-  if (error || !data) {
+  const readProfile = async () => {
+    const primary = await supabase
+      .from('profiles')
+      .select('role, approved, name, avatar_url, force_password_change')
+      .eq('id', userId)
+      .maybeSingle()
+
+    if (!primary.error && primary.data) {
+      return {
+        role: (primary.data.role as UserRole) || 'member',
+        approved: primary.data.approved ?? false,
+        name: primary.data.name || '',
+        avatar_url: primary.data.avatar_url || undefined,
+        force_password_change: primary.data.force_password_change ?? false,
+      }
+    }
+
     const fallback = await supabase
       .from('profiles')
       .select('role, approved, name, avatar_url')
       .eq('id', userId)
-      .single()
+      .maybeSingle()
+
     if (fallback.error || !fallback.data) return null
     return {
       role: (fallback.data.role as UserRole) || 'member',
@@ -107,13 +119,29 @@ async function fetchProfile(userId: string): Promise<{ role: UserRole; approved:
       force_password_change: false,
     }
   }
-  return {
-    role: (data.role as UserRole) || 'member',
-    approved: data.approved ?? false,
-    name: data.name || '',
-    avatar_url: data.avatar_url || undefined,
-    force_password_change: data.force_password_change ?? false,
+
+  let profile = await readProfile()
+  if (profile) return profile
+
+  const { data: authUserData } = await supabase.auth.getUser()
+  const authUser = authUserData.user
+  if (!authUser || authUser.id !== userId) return null
+
+  const repair = await supabase.from('profiles').upsert({
+    id: authUser.id,
+    email: authUser.email || '',
+    name: String(authUser.user_metadata?.name || ''),
+    role: 'member',
+    approved: false,
+  }, { onConflict: 'id' })
+
+  if (repair.error) {
+    console.error('프로필 자동 복구 실패:', repair.error)
+    return null
   }
+
+  profile = await readProfile()
+  return profile
 }
 
 async function buildSessionUser(sessionUser: {
@@ -592,26 +620,40 @@ export const useAuthStore = create<AuthState>()(
 
         if (authMode === 'supabase') {
           try {
-            const { error: updateError } = await supabase.auth.updateUser({ password: newPassword })
-            if (updateError) {
-              return { success: false, error: translateAuthError(updateError.message) }
+            const ensureProfile = await supabase.from('profiles').upsert({
+              id: currentUser.id,
+              email: currentUser.email,
+              name: currentUser.name || '',
+              role: currentUser.role || 'member',
+            }, { onConflict: 'id' })
+
+            if (ensureProfile.error) {
+              console.error('강제 비밀번호 변경 전 프로필 보정 실패:', ensureProfile.error)
             }
 
+            let clearedForceFlag = false
             const { error: rpcError } = await supabase.rpc('complete_forced_password_change')
-
-            if (rpcError) {
+            if (!rpcError) {
+              clearedForceFlag = true
+            } else {
               const { error: profileError } = await supabase
                 .from('profiles')
                 .update({ force_password_change: false })
                 .eq('id', currentUser.id)
 
-              if (profileError) {
-                console.error('강제 비밀번호 변경 완료 처리 실패:', {
-                  rpcError,
-                  profileError,
-                })
-                return { success: false, error: translateAuthError(profileError.message) }
+              if (!profileError) {
+                clearedForceFlag = true
+              } else {
+                console.error('강제 비밀번호 변경 완료 처리 실패:', { rpcError, profileError })
               }
+            }
+
+            const { error: updateError } = await supabase.auth.updateUser({ password: newPassword })
+            if (updateError) {
+              if (clearedForceFlag) {
+                await supabase.from('profiles').update({ force_password_change: true }).eq('id', currentUser.id)
+              }
+              return { success: false, error: translateAuthError(updateError.message) }
             }
 
             set({
