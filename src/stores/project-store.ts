@@ -10,6 +10,12 @@ function notifyProjectMemberSaveFailure(message: string) {
   }
 }
 
+function notifyProjectDeleteFailure(message: string) {
+  if (typeof window !== 'undefined') {
+    window.alert(message)
+  }
+}
+
 export type ProjectRole = 'owner' | 'pm' | 'editor' | 'viewer'
 
 function normalizeProjectRole(role?: ProjectRole | null): ProjectRole | null {
@@ -139,15 +145,30 @@ export const useProjectStore = create<ProjectState>()(persist((set, get) => ({
   },
 
   deleteProject: async (id) => {
+    const removedProject = get().projects.find((p) => p.id === id)
+    const previousCurrentProject = get().currentProject
+
     // 낙관적 업데이트
     set((state) => ({
       projects: state.projects.filter((p) => p.id !== id),
       currentProject: state.currentProject?.id === id ? null : state.currentProject,
     }))
+
     // 서버 삭제
-    const { error } = await supabase.from('projects').delete().eq('id', id)
-    if (error) {
-      console.error('프로젝트 삭제 실패:', error.message)
+    const { data: deletedProject, error } = await supabase
+      .from('projects')
+      .delete()
+      .eq('id', id)
+      .select('id')
+      .maybeSingle()
+
+    if (error || !deletedProject) {
+      console.error('프로젝트 삭제 실패:', error?.message || '삭제된 행이 없습니다.')
+      set((state) => ({
+        projects: removedProject ? [...state.projects, removedProject].sort((a, b) => a.created_at.localeCompare(b.created_at)) : state.projects,
+        currentProject: previousCurrentProject,
+      }))
+      notifyProjectDeleteFailure(error?.message || '프로젝트 삭제가 DB에 반영되지 않았습니다. 관리자 삭제 권한 정책을 확인해 주세요.')
     }
   },
 

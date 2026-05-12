@@ -170,7 +170,7 @@ serve(async (req) => {
       const access = await checkProjectAccess(supabase, userId, projectId, 'owner')
       if (!access.allowed) {
         return new Response(
-          JSON.stringify({ error: { code: 'FORBIDDEN', message: 'Owner role required', status: 403 } }),
+          JSON.stringify({ error: { code: 'FORBIDDEN', message: 'Owner or admin role required', status: 403 } }),
           { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
         )
       }

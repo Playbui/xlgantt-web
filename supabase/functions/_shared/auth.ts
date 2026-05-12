@@ -94,6 +94,16 @@ export async function checkProjectAccess(
   projectId: string,
   requiredRole?: 'owner' | 'editor' | 'viewer'
 ): Promise<{ allowed: boolean; role?: string }> {
+  const { data: profile } = await supabase
+    .from('profiles')
+    .select('role')
+    .eq('id', userId)
+    .maybeSingle()
+
+  if (profile?.role === 'admin') {
+    return { allowed: true, role: 'admin' }
+  }
+
   const { data, error } = await supabase
     .from('project_members')
     .select('role')
@@ -109,7 +119,7 @@ export async function checkProjectAccess(
     return { allowed: true, role: data.role }
   }
 
-  const roleHierarchy: Record<string, number> = { owner: 3, editor: 2, viewer: 1 }
+  const roleHierarchy: Record<string, number> = { owner: 4, pm: 3, editor: 2, viewer: 1 }
   const userLevel = roleHierarchy[data.role] ?? 0
   const requiredLevel = roleHierarchy[requiredRole] ?? 0
 
