@@ -16,6 +16,7 @@ import { useIssueStore } from '@/stores/issue-store'
 import { OrganizationTree } from '@/components/organization/OrganizationTree'
 import { OrganizationPath } from '@/components/organization/OrganizationPath'
 import { OrganizationAssignmentForm } from '@/components/organization/OrganizationAssignmentForm'
+import { sortProjectsForSelection } from '@/lib/project-utils'
 import type { OrganizationDraftValue } from '@/lib/organization-types'
 import type { IssueMemberRole } from '@/lib/issue-types'
 
@@ -106,12 +107,17 @@ export function AdminPage() {
     loadProjects()
   }, [loadProjects])
 
+  const sortedProjects = useMemo(
+    () => sortProjectsForSelection(projects),
+    [projects]
+  )
+
   // eslint-disable-next-line react-hooks/rules-of-hooks
   useEffect(() => {
-    if (!selectedAccessProjectId && projects.length > 0) {
-      setSelectedAccessProjectId(projects[0].id)
+    if (!selectedAccessProjectId && sortedProjects.length > 0) {
+      setSelectedAccessProjectId(sortedProjects[0].id)
     }
-  }, [projects, selectedAccessProjectId])
+  }, [selectedAccessProjectId, sortedProjects])
 
   // eslint-disable-next-line react-hooks/rules-of-hooks
   useEffect(() => {
@@ -633,7 +639,7 @@ export function AdminPage() {
                       </SelectValue>
                     </SelectTrigger>
                     <SelectContent className="min-w-[420px]">
-                      {projects.map((project) => (
+                      {sortedProjects.map((project) => (
                         <SelectItem key={project.id} value={project.id}>{project.name}</SelectItem>
                       ))}
                     </SelectContent>

@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button'
 import { useAuthStore } from '@/stores/auth-store'
 import { useProjectStore } from '@/stores/project-store'
 import { ISSUE_PRIORITY_LABELS, ISSUE_STATUSES, type IssueItem, type IssuePriority, type IssueStatus } from '@/lib/issue-types'
+import { sortProjectsForSelection } from '@/lib/project-utils'
 import type { Project } from '@/lib/types'
 import { supabase } from '@/lib/supabase'
 import { cn } from '@/lib/utils'
@@ -197,6 +198,7 @@ export function IssueStatsView() {
 
   const selectedProjectId = searchParams.get('project') || 'all'
   const range = getRange(rangeMode, customFrom, customTo)
+  const sortedProjects = useMemo(() => sortProjectsForSelection(projects), [projects])
 
   useEffect(() => {
     void loadProjects()
@@ -402,7 +404,7 @@ export function IssueStatsView() {
             className="h-9 min-w-[280px] rounded-md border border-[#dddddd] bg-white px-3 text-sm font-semibold text-[#181d26] outline-none focus:border-[#9297a0] focus:ring-2 focus:ring-[#f5e9d4]"
           >
             <option value="all">전체 프로젝트</option>
-            {projects.map((project) => <option key={project.id} value={project.id}>{project.name}</option>)}
+            {sortedProjects.map((project) => <option key={project.id} value={project.id}>{project.name}</option>)}
           </select>
           <select
             value={rangeMode}

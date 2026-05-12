@@ -8,10 +8,12 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
 import { useProjectStore } from '@/stores/project-store'
+import { sortProjectsForSelection } from '@/lib/project-utils'
 
 export function ProjectSwitcher() {
   const navigate = useNavigate()
   const { projects, currentProject } = useProjectStore()
+  const sortedProjects = sortProjectsForSelection(projects)
 
   return (
     <DropdownMenu>
@@ -22,7 +24,7 @@ export function ProjectSwitcher() {
         </div>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="start" className="w-56">
-        {projects.map((p) => (
+        {sortedProjects.map((p) => (
           <DropdownMenuItem
             key={p.id}
             onClick={() => navigate(`/projects/${p.id}`)}

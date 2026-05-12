@@ -7,6 +7,7 @@ import { useProjectStore } from '@/stores/project-store'
 import { useIssueStore } from '@/stores/issue-store'
 import { useAuthStore } from '@/stores/auth-store'
 import { ISSUE_PRIORITY_LABELS, ISSUE_STATUSES, type IssueItem } from '@/lib/issue-types'
+import { sortProjectsForSelection } from '@/lib/project-utils'
 import { richTextToPlainText, richTextToPreview, stripRichTextState } from '@/lib/rich-text'
 import { supabase } from '@/lib/supabase'
 import { cn } from '@/lib/utils'
@@ -184,11 +185,11 @@ export function IssueTrackerView() {
   }, [loadIssueMembers, projects])
 
   const accessibleProjects = useMemo(() => {
-    if (isAdmin) return projects
+    if (isAdmin) return sortProjectsForSelection(projects)
     if (!currentUser?.id) return []
-    return projects.filter((project) =>
+    return sortProjectsForSelection(projects.filter((project) =>
       issueMembers.some((member) => member.project_id === project.id && member.user_id === currentUser.id)
-    )
+    ))
   }, [currentUser?.id, isAdmin, issueMembers, projects])
 
   const project = useMemo(() => {
