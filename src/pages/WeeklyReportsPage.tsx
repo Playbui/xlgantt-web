@@ -438,7 +438,7 @@ export function WeeklyReportsPage() {
     setPayload(normalizedPayload)
     setReport({
       id: data.id as string,
-      title: (data.title as string) || getWeekTitle(selectedWeek),
+      title: `${WEEKLY_REPORT_TEAM_NAME} ${formatWeekLabel(year, month, week)} 주간보고`,
       status: ((data.status as WeeklyStatus) || deriveWeeklyStatus(normalizedPayload.memberEntries)),
       payload: normalizedPayload,
       updated_at: (data.updated_at as string) || new Date().toISOString(),
@@ -1239,6 +1239,10 @@ function getWeekTitle(value: string) {
   return `${descriptor.year}년 ${descriptor.month}월 ${descriptor.week}주차`
 }
 
+function formatWeekLabel(year: number, month: number, week: number) {
+  return `${year}년 ${month}월 ${week}주차`
+}
+
 function getPreviousWeekValue(value: string) {
   const [yearText, monthText, dayText] = value.split('-')
   if (!yearText || !monthText || !dayText) return null
@@ -1500,7 +1504,7 @@ async function upsertWeeklyReport(options: {
 }) {
   const nextStatus = options.finalizeNow ? '완료' : options.status
   const now = new Date().toISOString()
-  const teamLabel = getWeekTitle(`${options.year}-${String(options.month).padStart(2, '0')}-${options.week}`)
+  const teamLabel = formatWeekLabel(options.year, options.month, options.week)
   const memberCompletion = options.payload.memberEntries.map((entry) => ({
     email: entry.email,
     name: entry.name,
